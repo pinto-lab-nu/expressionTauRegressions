@@ -173,14 +173,14 @@ for structIDX,structureOfInterest in enumerate(structList):
             cell_region[cell] = structIDX
 
 
-####################################
-### Display Specific Gene Expression
-geneNameOI = 'Grik1'
-geneOI = np.where(gene_names==geneNameOI)[0][0]
-geneOI_IDXs = np.where(gene_data_dense[:,geneOI] > 0)[0]
-for view in [[0,1],[1,2],[0,2]]:
-    plt.figure()
-    plt.scatter(fn_CCF[geneOI_IDXs,view[0]],fn_CCF[geneOI_IDXs,view[1]],color='black',s=1,alpha=(gene_data_dense[geneOI_IDXs,geneOI]/np.max(gene_data_dense[geneOI_IDXs,geneOI])))
+# ####################################
+# ### Display Specific Gene Expression
+# geneNameOI = 'Grik1'
+# geneOI = np.where(gene_names==geneNameOI)[0][0]
+# geneOI_IDXs = np.where(gene_data_dense[:,geneOI] > 0)[0]
+# for view in [[0,1],[1,2],[0,2]]:
+#     plt.figure()
+#     plt.scatter(fn_CCF[geneOI_IDXs,view[0]],fn_CCF[geneOI_IDXs,view[1]],color='black',s=1,alpha=(gene_data_dense[geneOI_IDXs,geneOI]/np.max(gene_data_dense[geneOI_IDXs,geneOI])))
 
 
 #cell_region = cell_region.astype(int)
@@ -261,7 +261,14 @@ for layerIDX,(layer,layerName) in enumerate(zip(layerIDs,layerNames)):
 
 #############################################################################################
 ### visualization of and calculation of high expression genes are combined here, separate ###
-for meanExpressionThresh,meanH3Thresh in zip([0.4,0.2,0.1,0],[0.1,0.05,0.025,0]):
+if my_os == 'Linux':
+    meanExpressionThreshArray = [[0.4,0.2,0.1,0][int(sys.argv[1])]]
+    meanH3ThreshArray = [[0.1,0.05,0.025,0][int(sys.argv[1])]]
+if my_os == 'Windows':
+    meanExpressionThreshArray = [0.4,0.2,0.1,0]
+    meanH3ThreshArray = [0.1,0.05,0.025,0]
+
+for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3ThreshArray):
     
     poolIndex = 0
     for tauPoolSize in [1,2,4,8,16]:
