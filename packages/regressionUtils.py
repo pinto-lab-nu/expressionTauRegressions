@@ -12,12 +12,16 @@ def layerRegressions(pred_dim,n_splits,highExpressionGeneIDXs,x_data,y_data,laye
     numLayers = len(layerNames)
     kfold = KFold(n_splits=n_splits, shuffle=True, random_state=42)
     GLMpredictDFFsorted = [[] for _ in range(numLayers)]
+    if regressionConditions[3]:
+        predictorShape = highExpressionGeneIDXs
+    else:
+        predictorShape = x_data
     alphas = np.power(10, np.linspace(alphaParams[0],alphaParams[1],num=alphaParams[2])) #np.linspace(0.0, 1.0, num=10) #np.power(10, np.linspace(-3, 7, num=30)) #This might be too high, taking too long in processing
-    lasso_betas = [np.zeros((alphas.shape[0],pred_dim,x_data[layerIDX].shape[1])) for layerIDX in range(numLayers)]
+    lasso_betas = [np.zeros((alphas.shape[0],pred_dim,predictorShape[layerIDX].shape[1])) for layerIDX in range(numLayers)]
     alpha_R2 = np.zeros((numLayers,alphas.shape[0]))
     bestAlpha = np.zeros((numLayers,n_splits))
     bestR2 = np.zeros((numLayers,n_splits))
-    best_betas = [np.zeros((n_splits,pred_dim,x_data[layerIDX].shape[1])) for layerIDX in range(numLayers)]
+    best_betas = [np.zeros((n_splits,pred_dim,predictorShape[layerIDX].shape[1])) for layerIDX in range(numLayers)]
     #tauPredictions = [[[] for _ in range(n_splits)] for _ in range(numLayers)]
     tauPredictions = [[np.empty((0,2*pred_dim+1)) for _ in range(n_splits)] for _ in range(numLayers)]
     for layerIDX, layer in enumerate(layerNames):
