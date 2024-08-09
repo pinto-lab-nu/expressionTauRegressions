@@ -1,0 +1,13 @@
+name: allenSDKenv
+channels:
+  - conda-forge
+dependencies:
+  - python==3.11.5
+  - pip
+  - numpy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - scipy
+  - seaborn
+  - datajoint
