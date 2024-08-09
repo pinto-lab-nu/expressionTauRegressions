@@ -258,7 +258,6 @@ for layerIDX,(layer,layerName) in enumerate(zip(layerIDs,layerNames)):
 
 
 
-
 #############################################################################################
 ### visualization of and calculation of high expression genes are combined here, separate ###
 if my_os == 'Linux':
@@ -364,13 +363,13 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
             plt.close()
         
         rename = os.path.join(tauSortedPath,f'{lineSelection}_tauExpressionPooling{tauPoolSize}.pdf')
-        PDFmerger(tauSortedPath,f'{lineSelection}_tauExpressionPooling{tauPoolSize}_',layerNames,'.pdf',rename)
+        #PDFmerger(tauSortedPath,f'{lineSelection}_tauExpressionPooling{tauPoolSize}_',layerNames,'.pdf',rename)
 
         rename = os.path.join(tauSortedPath,f'{lineSelection}_tauPooling{tauPoolSize}.pdf')
-        PDFmerger(tauSortedPath,f'{lineSelection}_tauPooling{tauPoolSize}_',layerNames,'.pdf',rename)
+        #PDFmerger(tauSortedPath,f'{lineSelection}_tauPooling{tauPoolSize}_',layerNames,'.pdf',rename)
 
         rename = os.path.join(tauSortedPath,f'{lineSelection}_pooling{tauPoolSize}_CellPixelCounts.pdf')
-        PDFmerger(tauSortedPath,f'{lineSelection}_pooling{tauPoolSize}_CellPixelCounts_',layerNames,'.pdf',rename)
+        #PDFmerger(tauSortedPath,f'{lineSelection}_pooling{tauPoolSize}_CellPixelCounts_',layerNames,'.pdf',rename)
 
 
         linearmodel = LinearRegression()
@@ -393,7 +392,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
             plt.savefig(os.path.join(tauSortedPath,f'{lineSelection}_pooling{tauPoolSize}_TauCCFcorr_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
             plt.close()
         rename = os.path.join(tauSortedPath,f'{lineSelection}_pooling{tauPoolSize}_TauCCFcorr.pdf')
-        PDFmerger(tauSortedPath,f'{lineSelection}_pooling{tauPoolSize}_TauCCFcorr_',layerNames,'.pdf',rename)
+        #PDFmerger(tauSortedPath,f'{lineSelection}_pooling{tauPoolSize}_TauCCFcorr_',layerNames,'.pdf',rename)
 
         # plt.plot(np.mean(standard_scaler.fit_transform(np.asarray(gene_data_dense_H2layerFiltered[layerIDX][:,:]).T).T,axis=0))
 
@@ -492,7 +491,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 plt.close()
 
             rename = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'excluded{predictorPathSuffix}Thresh{meanPredictionThresh}.pdf')
-            PDFmerger(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}'),f'excluded{predictorPathSuffix}Thresh{meanPredictionThresh}_',layerNames,'.pdf',rename)
+            #PDFmerger(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}'),f'excluded{predictorPathSuffix}Thresh{meanPredictionThresh}_',layerNames,'.pdf',rename)
 
 
             for regressionType in regressionsToStart:
@@ -715,22 +714,22 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
 
                 if plotting:
                     rename = os.path.join(plottingDir,f'{predictorPathSuffix}LassoWeightsAll_{titleAppend}.pdf')
-                    PDFmerger(plottingDir,f'{predictorPathSuffix}LassoWeightsAll_',layerNames,f'_{titleAppend}.pdf',rename)
+                    #PDFmerger(plottingDir,f'{predictorPathSuffix}LassoWeightsAll_',layerNames,f'_{titleAppend}.pdf',rename)
 
                     if spatialReconstruction:
                         rename = os.path.join(plottingDir,f'APvsML_{predictorPathSuffix}BetaWeights_{titleAppend}.pdf')
-                        PDFmerger(plottingDir,f'APvsML_{predictorPathSuffix}BetaWeights_',layerNames,f'_{titleAppend}.pdf',rename)
+                        #PDFmerger(plottingDir,f'APvsML_{predictorPathSuffix}BetaWeights_',layerNames,f'_{titleAppend}.pdf',rename)
                     
                     rename = os.path.join(plottingDir,f'{predictorPathSuffix}LassoWeights_{titleAppend}.pdf')
-                    PDFmerger(plottingDir,f'{predictorPathSuffix}LassoWeights_',layerNames,f'_{titleAppend}.pdf',rename)
+                    #PDFmerger(plottingDir,f'{predictorPathSuffix}LassoWeights_',layerNames,f'_{titleAppend}.pdf',rename)
 
                     rename = os.path.join(plottingDir,f'regional{predictorPathSuffix}_{titleAppend}.pdf')
-                    PDFmerger(plottingDir,f'regional{predictorPathSuffix}_',layerNames,f'_{titleAppend}.pdf',rename)
+                    #PDFmerger(plottingDir,f'regional{predictorPathSuffix}_',layerNames,f'_{titleAppend}.pdf',rename)
 
                     for dim in range(pred_dim):
                         currentPlottingTitle = plottingTitles[dim]
                         rename = os.path.join(plottingDir,f'predicted{currentPlottingTitle}_{titleAppend}.pdf')
-                        PDFmerger(plottingDir,f'predicted{currentPlottingTitle}_',layerNames,f'_{titleAppend}.pdf',rename)
+                        #PDFmerger(plottingDir,f'predicted{currentPlottingTitle}_',layerNames,f'_{titleAppend}.pdf',rename)
 
 
 
@@ -751,7 +750,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 plt.savefig(os.path.join(tauSortedPath,f'{predictorPathSuffix}',f'{resampTitle}_{lineSelection}Tau_vs_AP&ML_Betas_{layerName}.pdf'),dpi=600,bbox_inches='tight')
                 plt.close()
             rename = os.path.join(tauSortedPath,f'{predictorPathSuffix}',f'{resampTitle}_{lineSelection}Tau_vs_AP&ML_Betas.pdf')
-            PDFmerger(os.path.join(tauSortedPath,f'{predictorPathSuffix}'),f'{resampTitle}_{lineSelection}Tau_vs_AP&ML_Betas_',layerNames,'.pdf',rename)
+            #PDFmerger(os.path.join(tauSortedPath,f'{predictorPathSuffix}'),f'{resampTitle}_{lineSelection}Tau_vs_AP&ML_Betas_',layerNames,'.pdf',rename)
 
 
             if poolIndex == 1:
@@ -776,7 +775,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                     plt.savefig(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{predictorPathSuffix}Thresh{meanPredictionThresh}_spatialReconstruction_{layerName}.pdf'),dpi=600,bbox_inches='tight')
                     plt.close()
                 rename = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{predictorPathSuffix}Thresh{meanPredictionThresh}_spatialReconstruction.pdf')
-                PDFmerger(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}'),f'{predictorPathSuffix}Thresh{meanPredictionThresh}_spatialReconstruction_',layerNames,'.pdf',rename)
+                #PDFmerger(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}'),f'{predictorPathSuffix}Thresh{meanPredictionThresh}_spatialReconstruction_',layerNames,'.pdf',rename)
 
 
 
