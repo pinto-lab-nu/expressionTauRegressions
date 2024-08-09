@@ -1,29 +1,9 @@
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from pathlib import Path
-from statistics import fmean as mean
-import utils.connect_to_dj as connect_to_dj
-from allensdk.core.reference_space_cache import ReferenceSpaceCache
-from scipy.sparse import csc_matrix
-import scipy.io
-from scipy import stats
-from scipy.stats import gamma
-from scipy.ndimage import gaussian_filter
-from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split, KFold
-from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 from sklearn.linear_model import Lasso
-import pickle
-import platform
-import sys
 import os
-import h5py
 import numpy as np
-import random
 from random import choices
-import pandas as pd
-import datajoint
 from statsmodels.regression.linear_model import WLS
 from pypdf import PdfMerger
 

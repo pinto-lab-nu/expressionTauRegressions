@@ -3,7 +3,7 @@ import matplotlib.patches as mpatches
 import matplotlib
 from pathlib import Path
 from statistics import fmean as mean
-import utils.connect_to_dj as connect_to_dj
+import packages.connect_to_dj as connect_to_dj
 from allensdk.core.reference_space_cache import ReferenceSpaceCache
 from sklearn.linear_model import LinearRegression
 from scipy.sparse import csc_matrix
@@ -31,16 +31,6 @@ from sklearn.preprocessing import OneHotEncoder
 from packages.regressionUtils import *
 
 
-# areaColors = ['#4dd2ff','#0066ff','#003cb3','#00ffff','#99ccff',          #VIS, blues
-#                         '#ff0000','#ff704d',                                          #MO, reds
-#                         '#33cc33','#339933','#8cd98c','#336600','#8cff1a','#00cc7a',  #SSp, greens
-#                         '#a366ff','#8a00e6']                                          #RSP, purples
-areaColors = ['#ff0000','#ff704d',                      #MO, reds
-            '#4dd2ff','#0066ff','#003cb3','#00ffff',    #VIS, blues
-            '#33cc33',                                  #SSp, greens
-            '#a366ff']                                  #RSP, purples
-
-
 
 # Connects to database and creates virtual modules
 VM = connect_to_dj.get_virtual_modules()
@@ -49,34 +39,14 @@ standard_scaler = StandardScaler()
 hotencoder = OneHotEncoder(sparse_output=False)
 
 
-#%cd C:\Users\lai7370\Projects\CorticalRNN\Organized
-
 ##################################
 ### Script Parameters and Settings
-#projectPath = './'
 lineSelection = 'Cux2-Ai96'
 #lineSelection = 'Rpb4-Ai96'
-#tauPath = '/Users/lai7370/Projects/TauProcessing/SwiftSync/'
 loadPilot = True
-#doPlots = True
-#savePlots = False
 
-#structList = np.array(['VISpm','VISp','VISa','VISam','VISrl','MOp','MOs','SSp-n','SSp-bfd','SSp-un','SSp-ul','SSp-ll','SSp-tr','RSPd','RSPagl'])
 structListMerge = np.array(['MOp','MOs','VISa','VISp','VISam','VISpm','SS','RSP'])
 structList = structListMerge
-# structureDefinitions = [[5],[6],[2],[1],[3],[0],[7,8,9,10,11,12],[13]]
-
-# structureDefinitions = []
-# for mergeArea in structListMerge:
-#     if (mergeArea == 'SS') or (mergeArea == 'RSP'):
-#         area_list = []
-#         for subArea in structList:
-#             if subArea[:len(mergeArea)] == mergeArea:
-#                 currentAreaIDX = list(set(np.where(structList == subArea)[0]))
-#                 area_list.append(currentAreaIDX)
-#         structureDefinitions.append(area_list)
-#     else:
-#         structureDefinitions.append(list(np.where(structList == mergeArea)[0]))
 
 
 structNum = structList.shape[0]
@@ -87,14 +57,15 @@ layerAppend = '2/3'
                     #14 -> IT_9  -> L5 IT
                     #11 -> IT_6  -> L6 IT
 
-# #maxCluster = 8 #what is the max cluster within the current grouping THIS SHOULD NOT BE HARD CODED
-# calculatingPools = False #first time running for a particular grouping set to True, else the script assumes that pooling has been calculated previously and loads from projectPath
-# APpool = 1 #Antior-Posterior axis pooling size
-# MLpool = 1 #Medial-Lateral axis pooling size
-# bootstrapIterations = 1000
 
 if applyLayerSpecificityFilter:
     structList = [x+layerAppend for x in structList]
+
+
+areaColors = ['#ff0000','#ff704d',                      #MO, reds
+            '#4dd2ff','#0066ff','#003cb3','#00ffff',    #VIS, blues
+            '#33cc33',                                  #SSp, greens
+            '#a366ff']                                  #RSP, purples
 
 
 
