@@ -3,7 +3,6 @@ channels:
   - conda-forge
 dependencies:
   - python==3.11.5
-  - pip
   - numpy
   - pandas
   - scikit-learn
@@ -11,3 +10,8 @@ dependencies:
   - scipy
   - seaborn
   - datajoint
+  - pip
+  
+  - pip:
+    - git+https://github.com/alleninstitute/allensdk
+
