@@ -32,9 +32,9 @@ def layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layer
             #test_w = tau_SD_per_cell_H2layerFiltered[layerIDX][test_index,:]**-1
             train_x = np.asarray(x_data[layerIDX][train_index,:])
             test_x = np.asarray(x_data[layerIDX][test_index,:])
-            if regressionConditions[3]: #genePredictors condition, exclude low-expression genes
-                train_x = train_x[:,highMeanPredictorIDXs[layerIDX]]
-                test_x = test_x[:,highMeanPredictorIDXs[layerIDX]]
+            #if regressionConditions[3]: #genePredictors condition, exclude low-expression genes
+            train_x = train_x[:,highMeanPredictorIDXs[layerIDX]]
+            test_x = test_x[:,highMeanPredictorIDXs[layerIDX]]
             
 
             #GLM (Basic, Identity Linker) with L1 Regularization
