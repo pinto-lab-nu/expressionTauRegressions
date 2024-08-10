@@ -9,6 +9,8 @@
 #SBATCH --output=/mnt/fsmresfiles/Tau_Processing/H3/SlurmLogs/regression_%j.txt
 #SBATCH --array=0-3%4
 
+export PYTHONUNBUFFERED=1
+
 #['Rpb4-Ai96','Cux2-Ai96','C57BL6/J']
 
 source ~/miniconda3/etc/profile.d/conda.sh
