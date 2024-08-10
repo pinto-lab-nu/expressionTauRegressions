@@ -254,7 +254,6 @@ for layerIDX,(layer,layerName) in enumerate(zip(layerIDs,layerNames)):
         cell_region_H2layerFiltered[layerIDX] = np.vstack((cell_region_H2layerFiltered[layerIDX],cell_region[H2layerFilter].reshape(-1,1)))
         #tau_SD_per_cell_H2layerFiltered[layerIDX] = np.vstack((tau_SD_per_cell_H2layerFiltered[layerIDX],tau_SD_per_cell[H2layerFilter].reshape(-1,1)))
         gene_data_dense_H2layerFiltered[layerIDX] = np.vstack((gene_data_dense_H2layerFiltered[layerIDX],gene_data_dense[H2layerFilter,:]))
-    H3_per_cell_H2layerFiltered[layerIDX] = hotencoder.fit_transform(H3_per_cell_H2layerFiltered[layerIDX])
 
 
 
@@ -286,6 +285,8 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
         pooled_cell_region_H2layerFiltered = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
         resampledGenes_aligned = [np.empty((total_genes,0)) for _ in range(numLayers)]
         resampledH3_aligned_H2layerFiltered = [np.empty((1,0)) for _ in range(numLayers)]
+        resampledH3_aligned_H2layerFiltered_OneHot = []
+        H3_per_cell_H2layerFiltered_OneHot = []
         genePoolSaturation = []
         for layerIDX in range(numLayers):
             geneProfilePresentCount = 0
@@ -327,7 +328,8 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                         else:
                             pooledTauCCF_coords_noGene[layerIDX] = np.hstack((np.array((current_tau_ML_pool,current_tau_AP_pool,np.mean(pooledTaus),np.std(pooledTaus))).reshape(-1,1),pooledTauCCF_coords_noGene[layerIDX]))
             genePoolSaturation.append(geneProfilePresentCount/possiblePoolsCount)
-            resampledH3_aligned_H2layerFiltered[layerIDX] = hotencoder.fit_transform(resampledH3_aligned_H2layerFiltered[layerIDX].T)
+            resampledH3_aligned_H2layerFiltered_OneHot.append(hotencoder.fit_transform(resampledH3_aligned_H2layerFiltered[layerIDX].T))
+            H3_per_cell_H2layerFiltered_OneHot.append(hotencoder.fit_transform(H3_per_cell_H2layerFiltered[layerIDX]))
 
         for layerIDX in range(numLayers):
             plt.figure(), plt.title(f'CCF Pooling:{tauPoolSize}, Fraction of Tau Pooled Points with at least one Gene Profile:{round(genePoolSaturation[layerIDX],3)}\n{lineSelection}, {layerNames[layerIDX]}')
@@ -499,25 +501,25 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                     spatialReconstruction = False
                     tauRegression = True
                     genePredictors = genePredictorsCondition #are genes the predictor variables? If so this is handled later by selecting only high-expression genes (determined separately for each cortical layer) for the regression
-                    cell_region = pooled_cell_region_H2layerFiltered
+                    cell_region_filtered = pooled_cell_region_H2layerFiltered
                     y_data = pooledTau_cellAligned_standard
                     pred_dim = 1
                     if genePredictors:
                         x_data = resampledGenes_aligned_H2layerFiltered_standard
                     else:
-                        x_data = resampledH3_aligned_H2layerFiltered
+                        x_data = resampledH3_aligned_H2layerFiltered_OneHot
 
                 if regressionType == 1: # geneX, H3 -> CCF
                     spatialReconstruction = True
                     tauRegression = False
                     genePredictors = genePredictorsCondition
-                    cell_region = cell_region_H2layerFiltered
+                    cell_region_filtered = cell_region_H2layerFiltered
                     y_data = [np.hstack((apCCF_per_cell_H2layerFiltered_standard[layerIDX],mlCCF_per_cell_H2layerFiltered_standard[layerIDX])) for layerIDX in range(numLayers)]
                     pred_dim = 2
                     if genePredictors:
                         x_data = gene_data_dense_H2layerFiltered_standard
                     else:
-                        x_data = H3_per_cell_H2layerFiltered
+                        x_data = H3_per_cell_H2layerFiltered_OneHot
 
                 # if regressionType == 2: # H3 -> Tau
                 #     spatialReconstruction = False
@@ -551,11 +553,11 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 print(f'Starting Regressions, Type {regressionType}:')
                 if regressionType == 0:
                     print(f'{predictorTitle} -> {lineSelection} Tau (CCF Pooling={tauPoolSize}, predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
-                    best_coef_0,lasso_weight_0,bestAlpha_0,alphas_0,tauPredictions_0,bestR2_0 = layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,cell_region,alphaParams)
+                    best_coef_0,lasso_weight_0,bestAlpha_0,alphas_0,tauPredictions_0,bestR2_0 = layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,cell_region_filtered,alphaParams)
                 
                 if regressionType == 1:
                     print(f'{predictorTitle} -> CCF (predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
-                    best_coef_1,lasso_weight_1,bestAlpha_1,alphas_1,tauPredictions_1,bestR2_1 = layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,cell_region,alphaParams)
+                    best_coef_1,lasso_weight_1,bestAlpha_1,alphas_1,tauPredictions_1,bestR2_1 = layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,cell_region_filtered,alphaParams)
 
 
 
