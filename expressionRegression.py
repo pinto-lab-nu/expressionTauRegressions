@@ -454,7 +454,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 meanPredictionThresh = meanExpressionThresh
                 predictorNamesArray = np.array(geneNames)
             else:
-                predictorDataRaw = H3_per_cell_H2layerFiltered
+                predictorDataRaw = H3_per_cell_H2layerFiltered_OneHot
                 meanPredictionThresh = meanH3Thresh
                 predictorNamesArray = np.arange(0, predictorDataRaw[layerIDX].shape[1], 1)
 
