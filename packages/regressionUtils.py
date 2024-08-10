@@ -8,20 +8,16 @@ from statsmodels.regression.linear_model import WLS
 from pypdf import PdfMerger
 
 
-def layerRegressions(pred_dim,n_splits,highExpressionGeneIDXs,x_data,y_data,layerNames,regressionConditions,cell_region,alphaParams):
+def layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,cell_region,alphaParams):
     numLayers = len(layerNames)
     kfold = KFold(n_splits=n_splits, shuffle=True, random_state=42)
     GLMpredictDFFsorted = [[] for _ in range(numLayers)]
-    if regressionConditions[3]:
-        predictorShape = highExpressionGeneIDXs
-    else:
-        predictorShape = x_data
     alphas = np.power(10, np.linspace(alphaParams[0],alphaParams[1],num=alphaParams[2])) #np.linspace(0.0, 1.0, num=10) #np.power(10, np.linspace(-3, 7, num=30)) #This might be too high, taking too long in processing
-    lasso_betas = [np.zeros((alphas.shape[0],pred_dim,predictorShape[layerIDX].shape[1])) for layerIDX in range(numLayers)]
+    lasso_betas = [np.zeros((alphas.shape[0],pred_dim,highMeanPredictorIDXs[layerIDX].shape[0])) for layerIDX in range(numLayers)]
     alpha_R2 = np.zeros((numLayers,alphas.shape[0]))
     bestAlpha = np.zeros((numLayers,n_splits))
     bestR2 = np.zeros((numLayers,n_splits))
-    best_betas = [np.zeros((n_splits,pred_dim,predictorShape[layerIDX].shape[1])) for layerIDX in range(numLayers)]
+    best_betas = [np.zeros((n_splits,pred_dim,highMeanPredictorIDXs[layerIDX].shape[0])) for layerIDX in range(numLayers)]
     #tauPredictions = [[[] for _ in range(n_splits)] for _ in range(numLayers)]
     tauPredictions = [[np.empty((0,2*pred_dim+1)) for _ in range(n_splits)] for _ in range(numLayers)]
     for layerIDX, layer in enumerate(layerNames):
@@ -37,8 +33,8 @@ def layerRegressions(pred_dim,n_splits,highExpressionGeneIDXs,x_data,y_data,laye
             train_x = np.asarray(x_data[layerIDX][train_index,:])
             test_x = np.asarray(x_data[layerIDX][test_index,:])
             if regressionConditions[3]: #genePredictors condition, exclude low-expression genes
-                train_x = train_x[:,highExpressionGeneIDXs[layerIDX]]
-                test_x = test_x[:,highExpressionGeneIDXs[layerIDX]]
+                train_x = train_x[:,highMeanPredictorIDXs[layerIDX]]
+                test_x = test_x[:,highMeanPredictorIDXs[layerIDX]]
             
 
             #GLM (Basic, Identity Linker) with L1 Regularization
