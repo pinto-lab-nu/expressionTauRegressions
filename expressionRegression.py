@@ -259,12 +259,14 @@ for layerIDX,(layer,layerName) in enumerate(zip(layerIDs,layerNames)):
 
 #############################################################################################
 ### visualization of and calculation of high expression genes are combined here, separate ###
+meanExpressionThreshArrayFull = [0.4,0.2,0.1,0]
+meanH3ThreshArrayFull = [0.1,0.05,0.025,0]
 if my_os == 'Linux':
-    meanExpressionThreshArray = [[0.4,0.2,0.1,0][int(sys.argv[1])]]
-    meanH3ThreshArray = [[0.1,0.05,0.025,0][int(sys.argv[1])]]
+    meanExpressionThreshArray = [meanExpressionThreshArrayFull[int(sys.argv[1])]]
+    meanH3ThreshArray = [meanH3ThreshArrayFull[int(sys.argv[1])]]
 if my_os == 'Windows':
-    meanExpressionThreshArray = [0.4,0.2,0.1,0]
-    meanH3ThreshArray = [0.1,0.05,0.025,0]
+    meanExpressionThreshArray = meanExpressionThreshArrayFull
+    meanH3ThreshArray = meanH3ThreshArrayFull
 
 for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3ThreshArray):
     
@@ -291,7 +293,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
         for layerIDX in range(numLayers):
             geneProfilePresentCount = 0
             possiblePoolsCount = 0
-            print(f'Tau-Gene Alignment Pooling: {layerNames[layerIDX]}')
+            print(f'Tau-Gene Alignment Pooling (size {tauPoolSize}): {layerNames[layerIDX]}')
             for current_tau_ML_pool in np.arange(minML_CCF,CCF_ML_Center,tauPoolSize):
                 current_ML_tau_pooling_IDXs = np.where(np.abs(np.abs(allTauCCF_Coords[0,:]-CCF_ML_Center)-np.abs(current_tau_ML_pool-CCF_ML_Center))<(tauPoolSize/2))[0] #our pixel space extents bilaterally, but CCF is unilateral, so 'CCF' coordinates from pixel space need to reflected over the ML center axis (CCF_ML_center)
                 current_ML_cell_pooling_IDXs = np.where(np.abs(mlCCF_per_cell_H2layerFiltered[layerIDX].reshape(-1)-current_tau_ML_pool)<(tauPoolSize/2))[0]
@@ -441,8 +443,8 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
             regressionsToStart = [0,1]
             plottingConditions = [False,True]
         else:
-            regressionsToStart = [0] #no need to run spatial regression multiple times across pooling sizes, just when the meanPredictionThresh changes
-            plottingConditions = [False] #no need to plot spatial regression plots across "..."
+            regressionsToStart = [0,1]#[0] #no need to run spatial regression multiple times across pooling sizes, just when the meanPredictionThresh changes
+            plottingConditions = [False]#[False] #no need to plot spatial regression plots across "..."
 
         for namePredictors,predictorTitle,predictorEncodeType,predictorPathSuffix,genePredictorsCondition in zip(['Gene Predictors','H3 Predictors'],['Gene Expression','H3 Level'],['Standardized','OneHot'],['genePredictors','H3Predictors'],[True,False]):
 
