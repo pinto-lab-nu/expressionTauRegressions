@@ -437,7 +437,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 
         #print(np.mean(resampledGenes_aligned_H2layerFiltered_standard[0][:,:],axis=0)) #just to see that the means are zero after standardizing
 
-
+        
 
         if poolIndex == 1:
             regressionsToStart = [0,1]

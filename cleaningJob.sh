@@ -6,8 +6,8 @@
 #SBATCH --mem=15GB
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --output=/mnt/fsmresfiles/Tau_Processing/H3/SlurmLogs/regression_%j.txt
-#SBATCH --array=0-3%4
+#SBATCH --output=/mnt/fsmresfiles/Tau_Processing/H3/SlurmLogs/cleaning_%j.txt
+#SBATCH --array=0-0%1
 
 export PYTHONUNBUFFERED=1 #for log files
 
@@ -16,4 +16,4 @@ export PYTHONUNBUFFERED=1 #for log files
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate allenSDKenv
 
-python expressionRegression.py $SLURM_ARRAY_TASK_ID 1
+python merger.py 1
