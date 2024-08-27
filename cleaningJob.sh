@@ -2,7 +2,7 @@
 
 #SBATCH --nodes=1
 #SBATCH --time=48:00:00
-#SBATCH --job-name=tauRegression
+#SBATCH --job-name=cleaningJob
 #SBATCH --mem=15GB
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
