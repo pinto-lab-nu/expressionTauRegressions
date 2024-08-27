@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --nodes=1
-#SBATCH --time=48:00:00
+#SBATCH --time=00:30:00
 #SBATCH --job-name=cleaningJob
 #SBATCH --mem=15GB
 #SBATCH --ntasks=1

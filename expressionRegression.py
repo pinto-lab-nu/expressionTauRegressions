@@ -34,6 +34,7 @@ from packages.regressionUtils import *
 
 # Connects to database and creates virtual modules
 VM = connect_to_dj.get_virtual_modules()
+my_os = platform.system()
 
 standard_scaler = StandardScaler()
 hotencoder = OneHotEncoder(sparse_output=False)
@@ -69,7 +70,6 @@ areaColors = ['#ff0000','#ff704d',                      #MO, reds
 
 
 
-my_os = platform.system()
 if my_os == 'Linux':
     uIn = True
 if my_os == 'Windows':
@@ -85,7 +85,6 @@ if lineSelection == 'C57BL6/J':
 
 projectFolder = "lineFilter" + lineSelection
 
-my_os = platform.system()
 if my_os == 'Linux':
     tauPath = os.path.join(r'/mnt/fsmresfiles/Tau_Processing/',projectFolder+'/')
     savePath = os.path.join(r'/mnt/fsmresfiles/Tau_Processing/H3/')
@@ -437,7 +436,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 
         #print(np.mean(resampledGenes_aligned_H2layerFiltered_standard[0][:,:],axis=0)) #just to see that the means are zero after standardizing
 
-        
+
 
         if poolIndex == 1:
             regressionsToStart = [0,1]
