@@ -19,7 +19,11 @@ def layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layer
     bestR2 = np.zeros((numLayers,n_splits))
     best_betas = [np.zeros((n_splits,pred_dim,highMeanPredictorIDXs[layerIDX].shape[0])) for layerIDX in range(numLayers)]
     #tauPredictions = [[[] for _ in range(n_splits)] for _ in range(numLayers)]
-    tauPredictions = [[np.empty((0,2*pred_dim+1)) for _ in range(n_splits)] for _ in range(numLayers)]
+    if len(cell_region) == 0:
+        predAnnotationColumn = 0
+    else:
+        predAnnotationColumn = 1
+    tauPredictions = [[np.empty((0,2*pred_dim+predAnnotationColumn)) for _ in range(n_splits)] for _ in range(numLayers)]
     for layerIDX, layer in enumerate(layerNames):
         print(f'Fitting: {layerNames[layerIDX]}')
         GLMpredictTau = []
@@ -64,7 +68,10 @@ def layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layer
             #print(test_y.shape)
             #print(pred_y.shape)
             #print(cell_region_IDX.shape)
-            predCat = np.hstack((test_y.reshape(-1,pred_dim),pred_y.reshape(-1,pred_dim),cell_region_IDX.reshape(-1,1)))
+            if predAnnotationColumn == 1:
+                predCat = np.hstack((test_y.reshape(-1,pred_dim),pred_y.reshape(-1,pred_dim),cell_region_IDX.reshape(-1,1)))
+            else:
+                predCat = np.hstack((test_y.reshape(-1,pred_dim),pred_y.reshape(-1,pred_dim)))
             #print(predCat.shape)
             tauPredictions[layerIDX][foldIDX] = np.vstack((tauPredictions[layerIDX][foldIDX][:,:],predCat))
             GLMpredictTau.append(pred_y)

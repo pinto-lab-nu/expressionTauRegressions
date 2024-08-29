@@ -1,0 +1,110 @@
+import pandas as pd
+from pathlib import Path
+import numpy as np
+import anndata
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+from scipy.sparse import csc_matrix
+import scipy
+from sklearn.preprocessing import StandardScaler
+import os
+from abc_atlas_access.abc_atlas_cache.abc_project_cache import AbcProjectCache
+
+##############################################################################################################
+### Code modified from: alleninstitute.github.io/abc_atlas_access/notebooks/merfish_imputed_genes_example.html
+
+def merfishLoader(savePath,geneLimit=-1):
+
+    print(f'Loading Merfish-Imputed Dataset...')
+
+    download_base = Path(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\Seq')
+    abc_cache = AbcProjectCache.from_s3_cache(download_base)
+    abc_cache.current_manifest
+    abc_cache.cache.manifest_file_names
+    abc_cache.load_manifest('releases/20240831/manifest.json')
+
+
+    cell = abc_cache.get_metadata_dataframe(directory='MERFISH-C57BL6J-638850', file_name='cell_metadata_with_cluster_annotation', dtype={"cell_label": str,"neurotransmitter": str})
+    cell.set_index('cell_label', inplace=True)
+
+    merfishCCF = cell.loc[:,['x','y','z','class']]
+
+
+    imputed_h5ad_path = abc_cache.get_data_path('MERFISH-C57BL6J-638850-imputed', 'C57BL6J-638850-imputed/log2')
+    adata = anndata.read_h5ad(imputed_h5ad_path, backed='r')
+
+
+    fullGeneList = list(adata.var.gene_symbol)
+    geneFamilyList = ['Grin', 'Grm', 'Grik', 'Gria', 'Gabr', 'Kcnj', 'Kcna', 'Kcnn', 'Scn', 'Cacn', 'Clca', 'Clcn']
+
+    with open(os.path.join(savePath,f'familyGenes_merfishImputed.txt'), "w") as file:
+        file.write('Gene Family Representation (Merfish-Imputed Dataset):\n\n')
+
+        enriched_gene_names = []
+        for currentGeneFamily in geneFamilyList:
+            fullGeneFamily = []
+            for geneIDX,currentGene in enumerate(fullGeneList):
+                if currentGene[:len(currentGeneFamily)] == currentGeneFamily:
+                    fullGeneFamily.append(fullGeneList[geneIDX])
+                    enriched_gene_names.append(fullGeneList[geneIDX])
+
+            geneText = f'Gene Family {currentGeneFamily}: {fullGeneFamily}\n\n'
+            #print(geneText)
+            file.write(geneText)
+        file.write(f'Full Gene List: {enriched_gene_names}')
+
+
+    used_genes_list = enriched_gene_names[:geneLimit]
+    pred = [x in used_genes_list for x in adata.var.gene_symbol]
+    gene_filtered = adata.var[pred]
+
+
+    gene_subset = adata[:, gene_filtered.index].to_df()
+    adata.file.close()
+    del adata
+
+    gene_subset.rename(columns=gene_filtered.to_dict()['gene_symbol'], inplace=True)
+
+    joined = merfishCCF.join(gene_subset, on='cell_label')
+
+    filter_IT_ET = joined['class'][(joined["class"] == '01 IT-ET Glut')] #for isolating dataset to just cortical IT & ET neurons
+    filter_IT_ET = filter_IT_ET.rename("unique_name")
+
+    joined_filtered = joined.join(filter_IT_ET, how='inner')
+    joined_filtered = joined_filtered.drop(columns=['class','unique_name'])
+
+    scaler = StandardScaler()
+    standardMerfish_CCF_Genes = scaler.fit_transform(joined_filtered)
+    standardMerfish_CCF_Genes = pd.DataFrame(standardMerfish_CCF_Genes,columns=joined_filtered.columns)
+
+    return standardMerfish_CCF_Genes
+
+
+def pilotLoader(savePath):
+
+    print(f'Loading Pilot Dataset...')
+
+    #projectPath = r'c:\Users\lai7370\OneDrive - Northwestern University\PilotData'
+    #PilotData = h5py.File(os.path.join(projectPath,'filt_neurons_fixedbent_CCF.mat'))
+
+    PilotData = scipy.io.loadmat(os.path.join(savePath,'Data','filt_neurons_fixedbent_CCF.mat'))
+
+    gene_data = PilotData['filt_neurons']['expmat'][0][0]
+    gene_data_dense = csc_matrix.todense(gene_data)
+    gene_names = PilotData['filt_neurons']['genes'][0][0]
+    geneNames = [item[0] for item in gene_names[:,0]]
+    np.save(os.path.join(savePath,'geneNames_Pilot'),np.asarray(geneNames))
+
+    clustid = PilotData['filt_neurons']['clustid'][0][0]
+    fn_clustid = [[id[0] for id in cell] for cell in clustid]
+    fn_clustid = np.array(fn_clustid).reshape(-1)
+
+    #fn_slice = PilotData['filt_neurons']['slice'][0][0]
+    #fn_slice = np.array(fn_slice).reshape(-1)
+
+    #fn_pos = PilotData['filt_neurons']['pos'][0][0]
+
+    fn_CCF = PilotData['filt_neurons']['CCF'][0][0]
+
+    return gene_data_dense, geneNames, fn_clustid, fn_CCF
+

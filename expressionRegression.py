@@ -29,6 +29,7 @@ import datajoint
 from statsmodels.regression.linear_model import WLS
 from sklearn.preprocessing import OneHotEncoder
 from packages.regressionUtils import *
+from packages.dataloading import *
 
 
 
@@ -44,7 +45,7 @@ hotencoder = OneHotEncoder(sparse_output=False)
 ### Script Parameters and Settings
 lineSelection = 'Cux2-Ai96'
 #lineSelection = 'Rpb4-Ai96'
-loadPilot = True
+loadData = True
 
 structListMerge = np.array(['MOp','MOs','VISa','VISp','VISam','VISpm','SS','RSP'])
 structList = structListMerge
@@ -97,42 +98,27 @@ if my_os == 'Windows':
 ################################
 ### CCF Reference Space Creation
 #see link for CCF example scripts from the allen: allensdk.readthedocs.io/en/latest/_static/examples/nb/reference_space.html
-output_dir = os.path.join(savePath,'Data','nrrd25')
-reference_space_key = os.path.join('annotation', 'ccf_2017')
-resolution = 25
-rspc = ReferenceSpaceCache(resolution, reference_space_key, manifest=Path(output_dir) / 'manifest.json')
-# ID 1 is the adult mouse structure graph
-tree = rspc.get_structure_tree(structure_graph_id=1)
+tree = {}
+rsp = {}
+for resolution in [10,25,100]:
+    output_dir = os.path.join(savePath,'Data',f'nrrd{resolution}')
+    reference_space_key = os.path.join('annotation','ccf_2017')
+    rspc = ReferenceSpaceCache(resolution, 'annotation/ccf_2017', manifest=Path(output_dir) / 'manifest.json') #reference_space_key replaced by 'annotation/ccf_2017'
+    # ID 1 is the adult mouse structure graph
+    tree[f'{resolution}'] = rspc.get_structure_tree(structure_graph_id=1)
 
-annotation, meta = rspc.get_annotation_volume() #in browser navigate to the .nrrd file and download manually, not working automatically for some reason
-# The file should be moved to the reference space key directory, only needs to be done once
-os.listdir(Path(output_dir) / reference_space_key)
-rsp = rspc.get_reference_space()
-        
+    annotation, meta = rspc.get_annotation_volume() #in browser navigate to the .nrrd file and download manually, not working automatically for some reason
+    # The file should be moved to the reference space key directory, only needs to be done once
+    os.listdir(Path(output_dir) / reference_space_key)
+    rsp[f'{resolution}'] = rspc.get_reference_space()
+            
 
+geneLimit = 7 #for testing purposes only, remove later
+if loadData:
+    gene_data_dense, geneNames, fn_clustid, fn_CCF = pilotLoader(savePath)
+    standardMerfish_CCF_Genes = merfishLoader(savePath,geneLimit)
 
-if loadPilot:
-    #projectPath = r'c:\Users\lai7370\OneDrive - Northwestern University\PilotData'
-    #PilotData = h5py.File(os.path.join(projectPath,'filt_neurons_fixedbent_CCF.mat'))
-
-    PilotData = scipy.io.loadmat(os.path.join(savePath,'Data','filt_neurons_fixedbent_CCF.mat'))
-
-    gene_data = PilotData['filt_neurons']['expmat'][0][0]
-    gene_data_dense = csc_matrix.todense(gene_data)
-    gene_names = PilotData['filt_neurons']['genes'][0][0]
-    geneNames = [item[0] for item in gene_names[:,0]]
-
-    clustid = PilotData['filt_neurons']['clustid'][0][0]
-    fn_clustid = [[id[0] for id in cell] for cell in clustid]
-    fn_clustid = np.array(fn_clustid).reshape(-1)
-
-    fn_slice = PilotData['filt_neurons']['slice'][0][0]
-    fn_slice = np.array(fn_slice).reshape(-1)
-
-    fn_pos = PilotData['filt_neurons']['pos'][0][0]
-
-    fn_CCF = PilotData['filt_neurons']['CCF'][0][0]
-
+enrichedGeneNames = list(standardMerfish_CCF_Genes.drop(columns=['x','y','z']).columns)
 total_genes = gene_data_dense.shape[1]
 
 #fn_clustid = np.load(os.path.join(projectPath,'fn_clustid.npy'))
@@ -151,20 +137,31 @@ layerIDs    = [12,          4,          14,         11,         17]
 numLayers = len(layerIDs)
 
 
+# ### Testing ###
+# for structIDX,structureOfInterest in enumerate(structList):
+#     if structIDX > -1:
+#         structureOfInterestAppend = structureOfInterest + 'agl6a'
+#         print(tree.get_structures_by_acronym([structureOfInterestAppend]))
+
 
 cell_region = (np.ones(fn_CCF.shape[0])*-1).astype(int)
+fig, ax = plt.subplots(1,1,figsize=(8,8))
 for structIDX,structureOfInterest in enumerate(structList):
     print(f'Making {structureOfInterest} mask...')
-    structureTree = tree.get_structures_by_acronym([structureOfInterest])
+    structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest])
     structureName = structureTree[0]['name']
     structureID = structureTree[0]['id']
-    structure_mask = rsp.make_structure_mask([structureID])
+    structure_mask = rsp[f'{resolution}'].make_structure_mask([structureID])
 
     plt.figure()
     plt.title(f'{structureOfInterest}')
-    plt.imshow(np.mean(structure_mask,axis=1))
+    plt.imshow(np.mean(structure_mask[:,:,:],axis=1)) #restrict to ~40 voxels along axis 1 to get dorsal cortex, this is just for viz
     plt.savefig(os.path.join(savePath,f'{structureOfInterest}.pdf'),dpi=600,bbox_inches='tight')
     plt.close()
+
+    maskCoord = np.argwhere(structure_mask[:,:,:] == 1)
+    ax.scatter(maskCoord[:,0],maskCoord[:,1],color=areaColors[structIDX],s=1)
+    ax.axis('equal')
 
     for cell in range(fn_CCF.shape[0]):
         currentMask = structure_mask[round(fn_CCF[cell,0]),round(fn_CCF[cell,1]),round(fn_CCF[cell,2])]
@@ -261,8 +258,8 @@ for layerIDX,(layer,layerName) in enumerate(zip(layerIDs,layerNames)):
 meanExpressionThreshArrayFull = [0.4,0.2,0.1,0]
 meanH3ThreshArrayFull = [0.1,0.05,0.025,0]
 if my_os == 'Linux':
-    meanExpressionThreshArray = [meanExpressionThreshArrayFull[int(sys.argv[1])]]
-    meanH3ThreshArray = [meanH3ThreshArrayFull[int(sys.argv[1])]]
+    meanExpressionThreshArray = [meanExpressionThreshArrayFull[int(sys.argv[1])]] #batch job will distribute parameter instances among jobs run in parallel
+    meanH3ThreshArray = [meanH3ThreshArrayFull[int(sys.argv[1])]]                 #same for these regressions, just with a different parameter range
 if my_os == 'Windows':
     meanExpressionThreshArray = meanExpressionThreshArrayFull
     meanH3ThreshArray = meanH3ThreshArrayFull
@@ -306,7 +303,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                         if current_cell_pooling_IDXs.shape[0] > 0:
                             geneProfilePresentCount += 1
 
-                            pooledTauCCF_coords[layerIDX] = np.hstack((np.array((current_tau_ML_pool,current_tau_AP_pool,np.mean(pooledTaus),np.std(pooledTaus))).reshape(-1,1),pooledTauCCF_coords[layerIDX]))
+                            pooledTauCCF_coords[layerIDX] = np.hstack((pooledTauCCF_coords[layerIDX], np.array((current_tau_ML_pool,current_tau_AP_pool,np.mean(pooledTaus),np.std(pooledTaus))).reshape(-1,1))) #switched order
                             
                             pooledTau_cellAligned[layerIDX] = np.hstack((pooledTau_cellAligned[layerIDX],pooledTaus.reshape(1,-1)))
                             
@@ -445,8 +442,8 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
             regressionsToStart = [0,1]#[0] #no need to run spatial regression multiple times across pooling sizes, just when the meanPredictionThresh changes
             plottingConditions = [False]#[False] #no need to plot spatial regression plots across "..."
 
-        for namePredictors,predictorTitle,predictorEncodeType,predictorPathSuffix,genePredictorsCondition in zip(['Gene Predictors','H3 Predictors'],['Gene Expression','H3 Level'],['Standardized','OneHot'],['genePredictors','H3Predictors'],[True,False]):
-
+        for namePredictors,predictorTitle,predictorEncodeType,predictorPathSuffix,genePredictorsCondition in zip(['Merfish-Imputed Gene Predictors','Pilot Gene Predictors','H3 Predictors'],['Gene Expression','Gene Expression','H3 Level'],['Standardized','Standardized','OneHot'],['merfishImputedGenePredictors','pilotGenePredictors','H3Predictors'],[True,True,False]):
+            
             if not os.path.exists(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}')):
                 os.makedirs(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}'))
 
@@ -540,8 +537,25 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 #     pred_dim = 2
                 #     x_data = H3_per_cell_H2layerFiltered
 
+                if regressionType == 2: # Merfish-Imputed -> CCF
+                    spatialReconstruction = True
+                    tauRegression = False
+                    genePredictors = genePredictorsCondition
+                    #cell_region_filtered = cell_region_H2layerFiltered
+                    enrichedGeneNames = list(standardMerfish_CCF_Genes.drop(columns=['x','y','z']).columns)
+                    x_data = []
+                    y_data = []
+                    x_data.append(np.array(standardMerfish_CCF_Genes.loc[:,enrichedGeneNames]))
+                    y_data.append(np.array(standardMerfish_CCF_Genes.loc[:,['x','y']]))
+                    pred_dim = 2
+                    meanPredictionThresh = -1e10
+                    highMeanPredictorIDXs = [[] for _ in range(numLayers)]
+                    for layerIDX in range(numLayers):
+                        layerMeanPredictors = np.mean(np.asarray(x_data[layerIDX][:,:]),axis=0)
+                        highMeanPredictorIDXs[layerIDX] = (np.where(layerMeanPredictors > meanPredictionThresh)[0]).astype(int)
+
                 if regressionType == 4: # CCF <-> Tau
-                    print('To Do: make regression type 2')
+                    print('To Do: make regression type 4')
                     break
                 
                 # if ???:
@@ -559,6 +573,11 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 if regressionType == 1:
                     print(f'{predictorTitle} -> CCF (predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
                     best_coef_1,lasso_weight_1,bestAlpha_1,alphas_1,tauPredictions_1,bestR2_1 = layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,cell_region_filtered,alphaParams)
+
+                if regressionType == 2:
+                    print(f'{predictorTitle} -> CCF (predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
+                    layerNames = ['IT & ET Neurons']
+                    best_coef_1,lasso_weight_1,bestAlpha_1,alphas_1,tauPredictions_1,bestR2_1 = layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,[],alphaParams)
 
 
 
