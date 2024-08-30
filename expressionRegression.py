@@ -3,7 +3,6 @@ import matplotlib.patches as mpatches
 import matplotlib
 from pathlib import Path
 from statistics import fmean as mean
-import packages.connect_to_dj as connect_to_dj
 from allensdk.core.reference_space_cache import ReferenceSpaceCache
 from sklearn.linear_model import LinearRegression
 from scipy.sparse import csc_matrix
@@ -17,7 +16,6 @@ from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 from sklearn.linear_model import Lasso
 import pickle
-import platform
 import sys
 import os
 import h5py
@@ -25,7 +23,6 @@ import numpy as np
 import random
 from random import choices
 import pandas as pd
-import datajoint
 from statsmodels.regression.linear_model import WLS
 from sklearn.preprocessing import OneHotEncoder
 from packages.regressionUtils import *
@@ -34,9 +31,6 @@ from collections import Counter
 
 
 
-# Connects to database and creates virtual modules
-VM = connect_to_dj.get_virtual_modules()
-my_os = platform.system()
 
 standard_scaler = StandardScaler()
 hotencoder = OneHotEncoder(sparse_output=False)
@@ -47,6 +41,8 @@ hotencoder = OneHotEncoder(sparse_output=False)
 lineSelection = 'Cux2-Ai96'
 #lineSelection = 'Rpb4-Ai96'
 loadData = True
+my_os, tauPath, savePath = pathSetter(lineSelection)
+
 
 structListMerge = np.array(['MOp','MOs','VISa','VISp','VISam','VISpm','SS','RSP'])
 structList = structListMerge
@@ -72,30 +68,6 @@ areaColors = ['#ff0000','#ff704d',                      #MO, reds
 
 
 
-if my_os == 'Linux':
-    uIn = True
-if my_os == 'Windows':
-    uIn = False
-
-if uIn:
-    lineSelection  = ['Rpb4-Ai96','Cux2-Ai96','C57BL6/J','PV-Ai96'][int(sys.argv[2])]
-
-lineFilter = pd.DataFrame((VM['subject'].Subject * VM['session'].Session * VM['behavior'].BehavioralSession & 'experiment_type="widefield"' & 'task="IntoTheVoid"' & 'line="'+lineSelection+'"').fetch())
-if lineSelection == 'C57BL6/J':
-    lineFilter = pd.DataFrame((VM['subject'].Subject * VM['session'].Session * VM['behavior'].BehavioralSession & 'experiment_type="widefield"' & 'line="'+lineSelection+'"').fetch())
-    lineSelection = 'C57BL6J'
-
-projectFolder = "lineFilter" + lineSelection
-
-if my_os == 'Linux':
-    tauPath = os.path.join(r'/mnt/fsmresfiles/Tau_Processing/',projectFolder+'/')
-    savePath = os.path.join(r'/mnt/fsmresfiles/Tau_Processing/H3/')
-if my_os == 'Windows':
-    tauPath = os.path.join(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing',projectFolder)
-    savePath = os.path.join(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3')
-
-
-
 ################################
 ### CCF Reference Space Creation
 #see link for CCF example scripts from the allen: allensdk.readthedocs.io/en/latest/_static/examples/nb/reference_space.html
@@ -114,7 +86,7 @@ for resolution in [10,25,100]:
     rsp[f'{resolution}'] = rspc.get_reference_space()
 
 
-geneLimit = 7 #for testing purposes only, remove later
+geneLimit = 14 #for testing purposes only, remove later
 if loadData:
     gene_data_dense, geneNames, fn_clustid, fn_CCF = pilotLoader(savePath)
     merfish_CCF_Genes = merfishLoader(savePath,geneLimit)
@@ -122,7 +94,7 @@ if loadData:
 standardMerfish_CCF_Genes = standard_scaler.fit_transform(merfish_CCF_Genes)
 standardMerfish_CCF_Genes = pd.DataFrame(standardMerfish_CCF_Genes, columns=merfish_CCF_Genes.columns)
 
-enrichedGeneNames = list(standardMerfish_CCF_Genes.drop(columns=['x','y','z']).columns)
+enrichedGeneNames = list(standardMerfish_CCF_Genes.drop(columns=['x_ccf','y_ccf','z_ccf']).columns)
 total_genes = gene_data_dense.shape[1]
 
 #fn_clustid = np.load(os.path.join(projectPath,'fn_clustid.npy'))
@@ -136,9 +108,10 @@ for curstate in H3_names:
         H2_names.append(curstate)
 grouping = sorted(list(set(H2_names)))
 
-pilotLayerNames  = ['L2_3 IT',   'L4_5 IT',  'L5 IT',    'L6 IT',    'L5 ET']
-layerIDs    = [12,          4,          14,         11,         17]
-numLayers = len(layerIDs)
+merfishLayerNames = ['CTX IT, ET']
+pilotLayerNames  =  ['L2_3 IT',   'L4_5 IT',  'L5 IT',    'L6 IT',    'L5 ET']
+layerIDs    =       [12,          4,          14,         11,         17]
+#numLayers = len(layerIDs)
 
 
 # ### Testing ###
@@ -243,40 +216,41 @@ H2_all = [s[:-1] for s in fn_clustid]
 
 regionalResample = False #resample each cortical region such that it's represented equally, in practice this tends to over-represent smaller regions
 regional_resampling = 3000
-#tau_per_cell_H2layerFiltered = [np.empty((0,1)) for _ in range(numLayers)]
-cell_region_H2layerFiltered = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
-#tau_SD_per_cell_H2layerFiltered = [np.empty((0,1)) for _ in range(numLayers)]
-gene_data_dense_H2layerFiltered = [np.empty((0,gene_data_dense.shape[1])) for _ in range(numLayers)]
-mlCCF_per_cell_H2layerFiltered = [np.empty((0,1)) for _ in range(numLayers)]
-apCCF_per_cell_H2layerFiltered = [np.empty((0,1)) for _ in range(numLayers)]
-H3_per_cell_H2layerFiltered = [np.empty((0,1)) for _ in range(numLayers)]
-mean_expression = np.zeros((numLayers,len(structList),gene_data_dense.shape[1]))
-#sigma_expression = np.zeros((numLayers,len(structList),gene_data_dense.shape[1]))
-for layerIDX,(layer,layerName) in enumerate(zip(layerIDs,layerNames)):
-    for structIDX,structureOfInterest in enumerate(structList):
-        layerIDXs = set([i for i, s in enumerate(H2_all) if s == grouping[layer]])
-        regionIDXs = set(np.where(cell_region == structIDX)[0])
-        H2layerFilter = list(layerIDXs&regionIDXs)
+for layerNames,numLayers in zip([pilotLayerNames,merfishLayerNames],[len(pilotLayerNames),len(merfishLayerNames)]):
+    #tau_per_cell_H2layerFiltered = [np.empty((0,1)) for _ in range(numLayers)]
+    cell_region_H2layerFiltered = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
+    #tau_SD_per_cell_H2layerFiltered = [np.empty((0,1)) for _ in range(numLayers)]
+    gene_data_dense_H2layerFiltered = [np.empty((0,gene_data_dense.shape[1])) for _ in range(numLayers)]
+    mlCCF_per_cell_H2layerFiltered = [np.empty((0,1)) for _ in range(numLayers)]
+    apCCF_per_cell_H2layerFiltered = [np.empty((0,1)) for _ in range(numLayers)]
+    H3_per_cell_H2layerFiltered = [np.empty((0,1)) for _ in range(numLayers)]
+    mean_expression = np.zeros((numLayers,len(structList),gene_data_dense.shape[1]))
+    #sigma_expression = np.zeros((numLayers,len(structList),gene_data_dense.shape[1]))
+    for layerIDX,(layer,layerName) in enumerate(zip(layerIDs,layerNames)):
+        for structIDX,structureOfInterest in enumerate(structList):
+            layerIDXs = set([i for i, s in enumerate(H2_all) if s == grouping[layer]])
+            regionIDXs = set(np.where(cell_region[1] == structIDX)[0])
+            H2layerFilter = list(layerIDXs&regionIDXs)
         
-        print(f'layer:{layerName}, {structureOfInterest}, count: {len(H2layerFilter)}')
-        print(np.unique(fn_clustid[H2layerFilter]))
+            print(f'layer:{layerName}, {structureOfInterest}, count: {len(H2layerFilter)}')
+            print(np.unique(fn_clustid[H2layerFilter]))
 
-        H3_values = np.array([int(item[-1]) for item in fn_clustid[H2layerFilter]])
+            H3_values = np.array([int(item[-1]) for item in fn_clustid[H2layerFilter]])
 
-        mean_expression[layerIDX,structIDX,:] = np.mean(gene_data_dense[H2layerFilter,:],0)
-        #sigma_expression[layerIDX,structIDX,:] = np.std(gene_data_dense[H2layerFilter,:],0)
+            mean_expression[layerIDX,structIDX,:] = np.mean(gene_data_dense[H2layerFilter,:],0)
+            #sigma_expression[layerIDX,structIDX,:] = np.std(gene_data_dense[H2layerFilter,:],0)
 
-        if regionalResample: #equal representation to each cortical region
-            if len(H2layerFilter) > 0: #resample with replacement
-                H2layerFilter = random.choices(H2layerFilter, k=regional_resampling)
-        
-        mlCCF_per_cell_H2layerFiltered[layerIDX] = np.vstack((mlCCF_per_cell_H2layerFiltered[layerIDX],fn_CCF[H2layerFilter,2].reshape(-1,1)))
-        apCCF_per_cell_H2layerFiltered[layerIDX] = np.vstack((apCCF_per_cell_H2layerFiltered[layerIDX],fn_CCF[H2layerFilter,0].reshape(-1,1)))
-        H3_per_cell_H2layerFiltered[layerIDX] = np.vstack((H3_per_cell_H2layerFiltered[layerIDX],H3_values.reshape(-1,1)))
-        #tau_per_cell_H2layerFiltered[layerIDX] = np.vstack((tau_per_cell_H2layerFiltered[layerIDX],tau_per_cell[H2layerFilter].reshape(-1,1)))
-        cell_region_H2layerFiltered[layerIDX] = np.vstack((cell_region_H2layerFiltered[layerIDX],cell_region[H2layerFilter].reshape(-1,1)))
-        #tau_SD_per_cell_H2layerFiltered[layerIDX] = np.vstack((tau_SD_per_cell_H2layerFiltered[layerIDX],tau_SD_per_cell[H2layerFilter].reshape(-1,1)))
-        gene_data_dense_H2layerFiltered[layerIDX] = np.vstack((gene_data_dense_H2layerFiltered[layerIDX],gene_data_dense[H2layerFilter,:]))
+            if regionalResample: #equal representation to each cortical region
+                if len(H2layerFilter) > 0: #resample with replacement
+                    H2layerFilter = random.choices(H2layerFilter, k=regional_resampling)
+            
+            mlCCF_per_cell_H2layerFiltered[layerIDX] = np.vstack((mlCCF_per_cell_H2layerFiltered[layerIDX],fn_CCF[H2layerFilter,2].reshape(-1,1)))
+            apCCF_per_cell_H2layerFiltered[layerIDX] = np.vstack((apCCF_per_cell_H2layerFiltered[layerIDX],fn_CCF[H2layerFilter,0].reshape(-1,1)))
+            H3_per_cell_H2layerFiltered[layerIDX] = np.vstack((H3_per_cell_H2layerFiltered[layerIDX],H3_values.reshape(-1,1)))
+            #tau_per_cell_H2layerFiltered[layerIDX] = np.vstack((tau_per_cell_H2layerFiltered[layerIDX],tau_per_cell[H2layerFilter].reshape(-1,1)))
+            cell_region_H2layerFiltered[layerIDX] = np.vstack((cell_region_H2layerFiltered[layerIDX],cell_region[1][H2layerFilter].reshape(-1,1)))
+            #tau_SD_per_cell_H2layerFiltered[layerIDX] = np.vstack((tau_SD_per_cell_H2layerFiltered[layerIDX],tau_SD_per_cell[H2layerFilter].reshape(-1,1)))
+            gene_data_dense_H2layerFiltered[layerIDX] = np.vstack((gene_data_dense_H2layerFiltered[layerIDX],gene_data_dense[H2layerFilter,:]))
 
 
 
@@ -328,6 +302,8 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                         #print(mlCCF_per_cell_H2layerFiltered[layerIDX][current_ML_cell_pooling_IDXs])
                         possiblePoolsCount += 1
                         if current_cell_pooling_IDXs.shape[0] > 0:
+                            print(current_tau_ML_pool,current_tau_AP_pool)
+
                             geneProfilePresentCount += 1
 
                             pooledTauCCF_coords[layerIDX] = np.hstack((pooledTauCCF_coords[layerIDX], np.array((current_tau_ML_pool,current_tau_AP_pool,np.mean(pooledTaus),np.std(pooledTaus))).reshape(-1,1))) #switched order
@@ -339,6 +315,12 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                             resampledGenes_aligned[layerIDX] = np.hstack((resampledGenes_aligned[layerIDX],gene_pool_data[geneResamplingIDX,:].reshape(total_genes,-1)))
 
                             H3_pool_data = H3_per_cell_H2layerFiltered[layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs],:]
+
+                            data_flattened = H3_pool_data.flatten()
+                            categories = np.arange(1, 10)
+                            counts = np.array([np.sum(data_flattened == category) for category in categories])
+                            normalized_counts = counts / counts.sum()
+
                             resampledH3_aligned_H2layerFiltered[layerIDX] = np.hstack((resampledH3_aligned_H2layerFiltered[layerIDX],H3_pool_data[geneResamplingIDX,:].reshape(1,-1)))
 
                             pooledPixelCount_v_CellCount[layerIDX] = np.hstack((pooledPixelCount_v_CellCount[layerIDX],np.array((pooledTaus.shape[0],gene_pool_data.shape[0])).reshape(2,-1)))
@@ -489,11 +471,11 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 numLayers = len(layerIDs)
                 layerNames = pilotLayerNames
             if predictorPathSuffix == 'merfishImputedGenePredictors':
-                predictorDataRaw = [np.array(merfish_CCF_Genes.drop(columns=['x','y','z']))]
-                meanPredictionThresh = -1e10
+                predictorDataRaw = [np.array(merfish_CCF_Genes.drop(columns=['x_ccf','y_ccf','z_ccf']))]
+                meanPredictionThresh = 0.1
                 predictorNamesArray = np.array(enrichedGeneNames)
                 numLayers = 1
-                layerNames = ['CTX IT, ET']
+                layerNames = merfishLayerNames
 
             highMeanPredictorIDXs = [[] for _ in range(numLayers)]
             for layerIDX in range(numLayers):
@@ -578,13 +560,12 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                     spatialReconstruction = True
                     tauRegression = False
                     #cell_region_filtered = cell_region_H2layerFiltered
-                    enrichedGeneNames = list(standardMerfish_CCF_Genes.drop(columns=['x','y','z']).columns)
                     x_data = [np.array(standardMerfish_CCF_Genes.loc[:,enrichedGeneNames])]
-                    y_data = [np.array(standardMerfish_CCF_Genes.loc[:,['x','y']])]
+                    y_data = [np.array(standardMerfish_CCF_Genes.loc[:,['x_ccf','y_ccf']])]
                     pred_dim = 2
                     highMeanPredictorIDXs = [[] for _ in range(numLayers)]
                     for layerIDX in range(numLayers):
-                        layerMeanPredictors = np.mean(np.asarray(x_data[layerIDX][:,:]),axis=0)
+                        layerMeanPredictors = np.mean(np.asarray(predictorDataRaw[layerIDX][:,:]),axis=0)
                         highMeanPredictorIDXs[layerIDX] = (np.where(layerMeanPredictors > meanPredictionThresh)[0]).astype(int)
 
                 if regressionType == 4: # CCF <-> Tau

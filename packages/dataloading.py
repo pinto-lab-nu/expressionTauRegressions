@@ -8,6 +8,8 @@ from scipy.sparse import csc_matrix
 import scipy
 from sklearn.preprocessing import StandardScaler
 import os
+import sys
+import platform
 from abc_atlas_access.abc_atlas_cache.abc_project_cache import AbcProjectCache
 
 
@@ -115,3 +117,20 @@ def pilotLoader(savePath):
 
     return gene_data_dense, geneNames, fn_clustid, fn_CCF
 
+
+def pathSetter(lineSelection):
+    my_os = platform.system()
+
+    if my_os == 'Linux':
+        lineSelection  = ['Rpb4-Ai96','Cux2-Ai96','C57BL6/J','PV-Ai96'][int(sys.argv[2])]
+
+    projectFolder = "lineFilter" + lineSelection
+
+    if my_os == 'Linux':
+        tauPath = os.path.join(r'/mnt/fsmresfiles/Tau_Processing/',projectFolder+'/')
+        savePath = os.path.join(r'/mnt/fsmresfiles/Tau_Processing/H3/')
+    if my_os == 'Windows':
+        tauPath = os.path.join(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing',projectFolder)
+        savePath = os.path.join(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3')
+
+    return my_os, tauPath, savePath
