@@ -10,13 +10,13 @@ from sklearn.preprocessing import StandardScaler
 import os
 from abc_atlas_access.abc_atlas_cache.abc_project_cache import AbcProjectCache
 
-##############################################################################################################
-### Code modified from: alleninstitute.github.io/abc_atlas_access/notebooks/merfish_imputed_genes_example.html
 
 def merfishLoader(savePath,geneLimit=-1):
 
     print(f'Loading Merfish-Imputed Dataset...')
 
+    ##############################################################################################################
+    ### Code modified from: alleninstitute.github.io/abc_atlas_access/notebooks/merfish_imputed_genes_example.html
     download_base = Path(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\Seq')
     abc_cache = AbcProjectCache.from_s3_cache(download_base)
     abc_cache.current_manifest
@@ -27,7 +27,18 @@ def merfishLoader(savePath,geneLimit=-1):
     cell = abc_cache.get_metadata_dataframe(directory='MERFISH-C57BL6J-638850', file_name='cell_metadata_with_cluster_annotation', dtype={"cell_label": str,"neurotransmitter": str})
     cell.set_index('cell_label', inplace=True)
 
-    merfishCCF = cell.loc[:,['x','y','z','class']]
+    merfishXYZ = cell.loc[:,['x','y','z','class']]
+
+    merfishCCF = abc_cache.get_metadata_dataframe(directory='MERFISH-C57BL6J-638850-CCF',
+                                                  file_name='ccf_coordinates',
+                                                  dtype={"cell_label": str})
+    merfishCCF.rename(columns={'x': 'x_ccf',
+                               'y': 'y_ccf',
+                               'z': 'z_ccf'},
+                               inplace=True)
+    merfishCCF.drop(['parcellation_index'], axis=1, inplace=True)
+    merfishCCF.set_index('cell_label', inplace=True)
+    merfishCCF = merfishCCF.join(merfishXYZ, how='inner').drop(columns=['x','y','z'])
 
 
     imputed_h5ad_path = abc_cache.get_data_path('MERFISH-C57BL6J-638850-imputed', 'C57BL6J-638850-imputed/log2')
@@ -73,11 +84,7 @@ def merfishLoader(savePath,geneLimit=-1):
     joined_filtered = joined.join(filter_IT_ET, how='inner')
     joined_filtered = joined_filtered.drop(columns=['class','unique_name'])
 
-    scaler = StandardScaler()
-    standardMerfish_CCF_Genes = scaler.fit_transform(joined_filtered)
-    standardMerfish_CCF_Genes = pd.DataFrame(standardMerfish_CCF_Genes,columns=joined_filtered.columns)
-
-    return standardMerfish_CCF_Genes
+    return joined_filtered
 
 
 def pilotLoader(savePath):

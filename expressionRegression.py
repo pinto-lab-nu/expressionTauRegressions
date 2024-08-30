@@ -30,6 +30,7 @@ from statsmodels.regression.linear_model import WLS
 from sklearn.preprocessing import OneHotEncoder
 from packages.regressionUtils import *
 from packages.dataloading import *
+from collections import Counter
 
 
 
@@ -111,12 +112,15 @@ for resolution in [10,25,100]:
     # The file should be moved to the reference space key directory, only needs to be done once
     os.listdir(Path(output_dir) / reference_space_key)
     rsp[f'{resolution}'] = rspc.get_reference_space()
-            
+
 
 geneLimit = 7 #for testing purposes only, remove later
 if loadData:
     gene_data_dense, geneNames, fn_clustid, fn_CCF = pilotLoader(savePath)
-    standardMerfish_CCF_Genes = merfishLoader(savePath,geneLimit)
+    merfish_CCF_Genes = merfishLoader(savePath,geneLimit)
+
+standardMerfish_CCF_Genes = standard_scaler.fit_transform(merfish_CCF_Genes)
+standardMerfish_CCF_Genes = pd.DataFrame(standardMerfish_CCF_Genes, columns=merfish_CCF_Genes.columns)
 
 enrichedGeneNames = list(standardMerfish_CCF_Genes.drop(columns=['x','y','z']).columns)
 total_genes = gene_data_dense.shape[1]
@@ -132,7 +136,7 @@ for curstate in H3_names:
         H2_names.append(curstate)
 grouping = sorted(list(set(H2_names)))
 
-layerNames  = ['L2_3 IT',   'L4_5 IT',  'L5 IT',    'L6 IT',    'L5 ET']
+pilotLayerNames  = ['L2_3 IT',   'L4_5 IT',  'L5 IT',    'L6 IT',    'L5 ET']
 layerIDs    = [12,          4,          14,         11,         17]
 numLayers = len(layerIDs)
 
@@ -144,29 +148,52 @@ numLayers = len(layerIDs)
 #         print(tree.get_structures_by_acronym([structureOfInterestAppend]))
 
 
-cell_region = (np.ones(fn_CCF.shape[0])*-1).astype(int)
-fig, ax = plt.subplots(1,1,figsize=(8,8))
-for structIDX,structureOfInterest in enumerate(structList):
-    print(f'Making {structureOfInterest} mask...')
-    structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest])
-    structureName = structureTree[0]['name']
-    structureID = structureTree[0]['id']
-    structure_mask = rsp[f'{resolution}'].make_structure_mask([structureID])
+if not os.path.exists(os.path.join(savePath,'Masks')):
+    os.makedirs(os.path.join(savePath,'Masks'))
 
-    plt.figure()
-    plt.title(f'{structureOfInterest}')
-    plt.imshow(np.mean(structure_mask[:,:,:],axis=1)) #restrict to ~40 voxels along axis 1 to get dorsal cortex, this is just for viz
-    plt.savefig(os.path.join(savePath,f'{structureOfInterest}.pdf'),dpi=600,bbox_inches='tight')
-    plt.close()
+cell_region = [(np.ones(merfish_CCF_Genes.shape[0])*-1).astype(int), (np.ones(fn_CCF.shape[0])*-1).astype(int)]
 
-    maskCoord = np.argwhere(structure_mask[:,:,:] == 1)
-    ax.scatter(maskCoord[:,0],maskCoord[:,1],color=areaColors[structIDX],s=1)
-    ax.axis('equal')
+for rezIDX,resolution in enumerate([10,25]):
+    if resolution == 10:
+        CCFvalues = np.array(merfish_CCF_Genes.loc[:,['x_ccf','y_ccf','z_ccf']])
+        CCFmultiplier = 100
+        CCFindexOrder = [0,1,2]
+    if resolution == 25:
+        CCFvalues = fn_CCF
+        CCFmultiplier = 1
+        CCFindexOrder = [0,1,2]
+    
+    fig, ax = plt.subplots(1,3,figsize=(15,5))
+    for ccfIDX,axes in enumerate(ax):
+        axes.hist(CCFvalues[:,ccfIDX], color='black', bins=500)
+    plt.suptitle(f'CCF Distributions (resolution={resolution})')
+    plt.savefig(os.path.join(savePath,'Masks',f'CCFdistributions_resolution{resolution}.pdf'), dpi=600, bbox_inches='tight')
+    plt.close
 
-    for cell in range(fn_CCF.shape[0]):
-        currentMask = structure_mask[round(fn_CCF[cell,0]),round(fn_CCF[cell,1]),round(fn_CCF[cell,2])]
-        if currentMask > 0:
-            cell_region[cell] = structIDX
+    #fig, ax = plt.subplots(1,1,figsize=(8,8))
+    for structIDX,structureOfInterest in enumerate(structList):
+        print(f'Making {structureOfInterest} CCF mask (resolution={resolution})...')
+        structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest])
+        structureName = structureTree[0]['name']
+        structureID = structureTree[0]['id']
+        structure_mask = rsp[f'{resolution}'].make_structure_mask([structureID])
+
+        plt.figure()
+        plt.title(f'{structureOfInterest}')
+        plt.imshow(np.mean(structure_mask[:,:,:],axis=1)) #restrict to ~40 voxels along axis 1 to get dorsal cortex (for 25 rez), this is just for viz
+        plt.savefig(os.path.join(savePath,'Masks',f'{structureOfInterest}_{resolution}.pdf'),dpi=600,bbox_inches='tight')
+        plt.close()
+
+        #maskCoord = np.argwhere(structure_mask[6,:,:] == 1)
+        #ax.scatter(maskCoord[:,0],maskCoord[:,1],color=areaColors[structIDX],s=1)
+        #ax.axis('equal')
+
+        for cell in range(cell_region[rezIDX].shape[0]):
+            currentMask = structure_mask[round(CCFvalues[cell,CCFindexOrder[0]]*CCFmultiplier),round(CCFvalues[cell,CCFindexOrder[1]]*CCFmultiplier),round(CCFvalues[cell,CCFindexOrder[2]]*CCFmultiplier)]
+            if currentMask > 0:
+                cell_region[rezIDX][cell] = structIDX
+    
+    print(Counter(cell_region[rezIDX]))
 
 
 # ####################################
@@ -207,7 +234,7 @@ for structIDX,structureOfInterest in enumerate(structList):
 #     regionTausFromFullDist = np.array(random.choices(fullTauDist[regionIDX], k=regionCells.shape[0])).reshape(-1)
 #     tau_per_cell[regionCells] = regionTausFromFullDist #regionTausFromGammaDist
 
-# from collections import Counter
+
 # occurrences = Counter(cell_region)
 
 
@@ -230,7 +257,7 @@ for layerIDX,(layer,layerName) in enumerate(zip(layerIDs,layerNames)):
         layerIDXs = set([i for i, s in enumerate(H2_all) if s == grouping[layer]])
         regionIDXs = set(np.where(cell_region == structIDX)[0])
         H2layerFilter = list(layerIDXs&regionIDXs)
-
+        
         print(f'layer:{layerName}, {structureOfInterest}, count: {len(H2layerFilter)}')
         print(np.unique(fn_clustid[H2layerFilter]))
 
@@ -408,7 +435,6 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
 
 
 
-        mean_expression_scaler = StandardScaler()
         ######################################################################################
         ### Standard Scaler transform the gene expression and tau data prior to regression ###
         mean_expression_standard = np.zeros_like(mean_expression)
@@ -421,7 +447,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
         mlCCF_per_cell_H2layerFiltered_standard = [np.zeros_like(mlCCF_per_cell_H2layerFiltered[layerIDX]) for layerIDX in range(numLayers)]
         apCCF_per_cell_H2layerFiltered_standard = [np.zeros_like(apCCF_per_cell_H2layerFiltered[layerIDX]) for layerIDX in range(numLayers)]
         for layerIDX in range(numLayers):
-            mean_expression_standard[layerIDX,:,:] = mean_expression_scaler.fit_transform(mean_expression[layerIDX,:,:])
+            mean_expression_standard[layerIDX,:,:] = standard_scaler.fit_transform(mean_expression[layerIDX,:,:])
             # Tau Regressions #
             pooledTau_cellAligned_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(pooledTau_cellAligned[layerIDX][:,:]).T)
             resampledGenes_aligned_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(resampledGenes_aligned[layerIDX][:,:]).T)
@@ -436,25 +462,38 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
 
 
         if poolIndex == 1:
-            regressionsToStart = [0,1]
-            plottingConditions = [False,True]
+            regressionsToStart = [0,1,2]
+            plottingConditions = [False,True] #plot spatial reconstruction?
         else:
-            regressionsToStart = [0,1]#[0] #no need to run spatial regression multiple times across pooling sizes, just when the meanPredictionThresh changes
+            regressionsToStart = [0,1,2]#[0] #no need to run spatial regression multiple times across pooling sizes, just when the meanPredictionThresh changes
             plottingConditions = [False]#[False] #no need to plot spatial regression plots across "..."
 
-        for namePredictors,predictorTitle,predictorEncodeType,predictorPathSuffix,genePredictorsCondition in zip(['Merfish-Imputed Gene Predictors','Pilot Gene Predictors','H3 Predictors'],['Gene Expression','Gene Expression','H3 Level'],['Standardized','Standardized','OneHot'],['merfishImputedGenePredictors','pilotGenePredictors','H3Predictors'],[True,True,False]):
+        for namePredictors,predictorTitle,predictorEncodeType,predictorPathSuffix in zip(['Merfish-Imputed Gene Predictors', 'Pilot Gene Predictors', 'H3 Predictors'],
+                                                                                         ['Merfish-Imputed Gene Expression', 'Pilot Gene Expression', 'H3 Level'],
+                                                                                         ['Standardized',                    'Standardized',          'OneHot'],
+                                                                                         ['merfishImputedGenePredictors',    'pilotGenePredictors',   'H3Predictors']):
             
             if not os.path.exists(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}')):
                 os.makedirs(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}'))
 
-            if genePredictorsCondition:
+            if predictorPathSuffix == 'pilotGenePredictors':
                 predictorDataRaw = gene_data_dense_H2layerFiltered
                 meanPredictionThresh = meanExpressionThresh
                 predictorNamesArray = np.array(geneNames)
-            else:
+                numLayers = len(layerIDs)
+                layerNames = pilotLayerNames
+            if predictorPathSuffix == 'H3Predictors':
                 predictorDataRaw = H3_per_cell_H2layerFiltered_OneHot
                 meanPredictionThresh = meanH3Thresh
                 predictorNamesArray = np.arange(0, predictorDataRaw[layerIDX].shape[1], 1)
+                numLayers = len(layerIDs)
+                layerNames = pilotLayerNames
+            if predictorPathSuffix == 'merfishImputedGenePredictors':
+                predictorDataRaw = [np.array(merfish_CCF_Genes.drop(columns=['x','y','z']))]
+                meanPredictionThresh = -1e10
+                predictorNamesArray = np.array(enrichedGeneNames)
+                numLayers = 1
+                layerNames = ['CTX IT, ET']
 
             highMeanPredictorIDXs = [[] for _ in range(numLayers)]
             for layerIDX in range(numLayers):
@@ -472,7 +511,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 # #plt.yscale('log')
                 # plt.title(f'Cux2 Expression, Layer {layerNames[layerIDX]}')
                 # plt.xlim(0,10)
-
+                
                 #lowExpressionGeneIDXs = np.where(layerMeanPredictors < 0.1)[0]
                 #print(f'{layerNames[layerIDX]}: \n{np.array(geneNames)[lowExpressionGeneIDXs]}\n\n')
                 fig, ax = plt.subplots(1,1,figsize=(15,10))
@@ -480,7 +519,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 ax.vlines(x=meanPredictorCutoffIDX, ymin=0, ymax=np.max(layerMeanPredictors),color='black',alpha=0.5,linestyles='dashed')
                 ax.hlines(y=meanPredictionThresh, xmin=0, xmax=predictorDataRaw[layerIDX].shape[1],color='black',alpha=0.5,linestyles='dashed')
                 ax.set_xticks(np.arange(0, predictorDataRaw[layerIDX].shape[1], 1))
-                if genePredictorsCondition:
+                if (predictorPathSuffix == 'pilotGenePredictors') or (predictorPathSuffix == 'merfishImputedGenePredictors'):
                     ax.set_xticklabels(predictorNamesArray[sortedMeanPredictor], rotation=90)
                 else:
                     ax.set_xticklabels(predictorNamesArray[sortedMeanPredictor])
@@ -498,11 +537,10 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 if regressionType == 0: # geneX, H3 -> Tau
                     spatialReconstruction = False
                     tauRegression = True
-                    genePredictors = genePredictorsCondition #are genes the predictor variables? If so this is handled later by selecting only high-expression genes (determined separately for each cortical layer) for the regression
                     cell_region_filtered = pooled_cell_region_H2layerFiltered
                     y_data = pooledTau_cellAligned_standard
                     pred_dim = 1
-                    if genePredictors:
+                    if predictorPathSuffix == 'pilotGenePredictors':
                         x_data = resampledGenes_aligned_H2layerFiltered_standard
                     else:
                         x_data = resampledH3_aligned_H2layerFiltered_OneHot
@@ -510,11 +548,10 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 if regressionType == 1: # geneX, H3 -> CCF
                     spatialReconstruction = True
                     tauRegression = False
-                    genePredictors = genePredictorsCondition
                     cell_region_filtered = cell_region_H2layerFiltered
                     y_data = [np.hstack((apCCF_per_cell_H2layerFiltered_standard[layerIDX],mlCCF_per_cell_H2layerFiltered_standard[layerIDX])) for layerIDX in range(numLayers)]
                     pred_dim = 2
-                    if genePredictors:
+                    if predictorPathSuffix == 'pilotGenePredictors':
                         x_data = gene_data_dense_H2layerFiltered_standard
                     else:
                         x_data = H3_per_cell_H2layerFiltered_OneHot
@@ -540,15 +577,11 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 if regressionType == 2: # Merfish-Imputed -> CCF
                     spatialReconstruction = True
                     tauRegression = False
-                    genePredictors = genePredictorsCondition
                     #cell_region_filtered = cell_region_H2layerFiltered
                     enrichedGeneNames = list(standardMerfish_CCF_Genes.drop(columns=['x','y','z']).columns)
-                    x_data = []
-                    y_data = []
-                    x_data.append(np.array(standardMerfish_CCF_Genes.loc[:,enrichedGeneNames]))
-                    y_data.append(np.array(standardMerfish_CCF_Genes.loc[:,['x','y']]))
+                    x_data = [np.array(standardMerfish_CCF_Genes.loc[:,enrichedGeneNames])]
+                    y_data = [np.array(standardMerfish_CCF_Genes.loc[:,['x','y']])]
                     pred_dim = 2
-                    meanPredictionThresh = -1e10
                     highMeanPredictorIDXs = [[] for _ in range(numLayers)]
                     for layerIDX in range(numLayers):
                         layerMeanPredictors = np.mean(np.asarray(x_data[layerIDX][:,:]),axis=0)
@@ -561,7 +594,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 # if ???:
                 #     y_data = tau_per_cell_H2layerFiltered_standard
 
-                regressionConditions = [spatialReconstruction,tauRegression,regionalResample,genePredictors]
+                regressionConditions = [spatialReconstruction,tauRegression,regionalResample] #genePredictors (relic term at index 3)
                 n_splits = 5
                 alphaParams = [-4,0,25] #Alpha Lower (10**x), Alpha Upper (10**x), Steps
 
@@ -632,7 +665,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
                 with open(os.path.join(plottingDir,f'regression_{titleAppend}.txt'), "w") as file:
                     file.write(f'{titleAppend}\n\n')
 
-                for layerIDX,(layer,layerName) in enumerate(zip(layerIDs,layerNames)):
+                for layerIDX,layerName in enumerate(layerNames):
 
                     bestR2_mean, bestR2_SD = round(np.mean(bestR2[layerIDX,:]),numPrecision), round(np.std(bestR2[layerIDX,:]),numPrecision)
                     bestAlpha_mean, bestAlpha_SD = np.mean(bestAlpha[layerIDX,:]), np.std(bestAlpha[layerIDX,:])
@@ -755,7 +788,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
 
 
 
-            for layerIDX,(layer,layerName) in enumerate(zip(layerIDs,layerNames)):
+            for layerIDX,layerName in enumerate(layerNames):
                 fig, ax = plt.subplots(1,2,figsize=(15,7))
                 plt.suptitle(f'{resampTitle} Spatial and {lineSelection} Tau Reconstruction from {predictorTitle}\n{lineSelection} Tau vs A-P, M-L $\\beta$ Values\n{layerName}, error:5-fold SD')
                 ax[0].scatter(mean_fold_coef_0[layerIDX].reshape(-1), mean_fold_coef_1[layerIDX][0,:].reshape(-1),color='black',s=0.5)
@@ -776,7 +809,7 @@ for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3Thr
 
 
             if poolIndex == 1:
-                for layerIDX,(layer,layerName) in enumerate(zip(layerIDs,layerNames)):
+                for layerIDX,layerName in enumerate(layerNames):
                     apR2,mlR2 = [],[]
                     for foldIDX in range(n_splits):
                         apR2.append(r2_score(tauPredictions_1[layerIDX][foldIDX][:,0],tauPredictions_1[layerIDX][foldIDX][:,2]))

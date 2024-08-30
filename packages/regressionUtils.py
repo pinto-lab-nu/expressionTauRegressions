@@ -63,7 +63,8 @@ def layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layer
             lasso.fit(train_x, train_y)
             best_betas[layerIDX][foldIDX,:,:] = lasso.coef_
             pred_y = lasso.predict(test_x)
-            cell_region_IDX = (cell_region[layerIDX][test_index,:]).reshape(-1)
+            if predAnnotationColumn == 1:
+                cell_region_IDX = (cell_region[layerIDX][test_index,:]).reshape(-1)
             #tauPredictions[layerIDX][foldIDX].append([test_y,pred_y,cell_region_IDX])
             #print(test_y.shape)
             #print(pred_y.shape)
