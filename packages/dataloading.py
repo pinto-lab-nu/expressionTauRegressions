@@ -1,7 +1,6 @@
 import pandas as pd
 from pathlib import Path
 import numpy as np
-import anndata
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from scipy.sparse import csc_matrix
@@ -11,6 +10,7 @@ import os
 import sys
 import platform
 from abc_atlas_access.abc_atlas_cache.abc_project_cache import AbcProjectCache
+import anndata
 
 
 def merfishLoader(savePath,pilotGeneNames,geneLimit=-1):
