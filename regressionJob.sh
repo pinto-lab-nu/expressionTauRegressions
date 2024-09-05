@@ -17,4 +17,4 @@ export PYTHONUNBUFFERED=1 #for log files
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate allenSDKenv
 
-python expressionRegression.py $SLURM_ARRAY_TASK_ID 0
+python expressionRegression.py $SLURM_ARRAY_TASK_ID 1
