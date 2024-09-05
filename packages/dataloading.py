@@ -44,6 +44,7 @@ def merfishLoader(savePath,download_base,pilotGeneNames,geneLimit=-1):
 
 
     imputed_h5ad_path = abc_cache.get_data_path('MERFISH-C57BL6J-638850-imputed', 'C57BL6J-638850-imputed/log2')
+    print(f'imputed_h5ad_path: {imputed_h5ad_path}')
     adata = anndata.read_h5ad(imputed_h5ad_path, backed='r')
 
 
@@ -149,6 +150,7 @@ def pathSetter(lineSelection):
         savePath = os.path.join(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3')
         download_base = Path(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\Seq')
     
-    print(download_base)
+    print(f'merfish download_base: {download_base}')
+    print(f'download_base contents: {os.listdir(download_base)}')
 
     return lineSelection, my_os, tauPath, savePath, download_base

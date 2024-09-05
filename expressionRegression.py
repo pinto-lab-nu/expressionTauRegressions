@@ -40,7 +40,7 @@ hotencoder = OneHotEncoder(sparse_output=False)
 ### Script Parameters and Settings
 lineSelection = 'Cux2-Ai96'
 #lineSelection = 'Rpb4-Ai96'
-geneLimit = 50 #for testing purposes only, remove later
+geneLimit = 10 #for testing purposes only, remove later
 loadData = True
 lineSelection, my_os, tauPath, savePath, download_base = pathSetter(lineSelection)
 
@@ -184,7 +184,7 @@ for resolution in ['10','25']:
             print(f'Making {structureOfInterest} CCF mask (resolution={resolution})...')
 
             for layerAppend in ['2/3']:
-
+                
                 if structureOfInterest == 'RSP':
                     structure_mask = np.zeros((maskDim0,maskDim1,maskDim2))
                     for subRSP in ['v','d','agl']:
@@ -326,6 +326,10 @@ for layerNames,numLayers,resolution in zip([pilotLayerNames,merfishLayerNames],[
             gene_data_dense_H2layerFiltered[resolution][layerIDX] = np.vstack((gene_data_dense_H2layerFiltered[resolution][layerIDX],gene_data[H2layerFilter,:]))
 
 
+CCF_ML_Center = 227.53027784753124 #this is hard-coded CCF 'true' center (in CCF 25 resolution), this comes from the tform_Tallen2CCF of the mean ML coordinates of bregma & lambda from five Cux mice, this should be replaced with a more robust method!!!
+if resolution == '10':
+    apCCF_per_cell_H2layerFiltered[resolution][layerIDX] = apCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1) * ((10/25)*100)
+    mlCCF_per_cell_H2layerFiltered[resolution][layerIDX] = np.abs((mlCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1) * ((10/25)*100)) - CCF_ML_Center)
 
 #############################################################################################
 ### visualization of and calculation of high expression genes are combined here, separate ###
@@ -348,7 +352,6 @@ for layerNames,numLayers,resolution,datasetName in zip([pilotLayerNames,merfishL
             tauSortedPath = os.path.join(savePath,lineSelection,f'pooling{tauPoolSize}')
             if not os.path.exists(tauSortedPath):
                 os.makedirs(tauSortedPath)
-            CCF_ML_Center = 227.53027784753124 #this is hard-coded CCF 'true' center (in CCF 25 resolution), this comes from the tform_Tallen2CCF of the mean ML coordinates of bregma & lambda from five Cux mice, this should be replaced with a more robust method!!!
             allTauCCF_Coords = np.load(os.path.join(tauPath,f'{lineSelection}_tauCCF.npy'))
             ### pool tau into a grid for bootstrapping the regression ###
             minML_CCF, maxML_CCF, minAP_CCF, maxAP_CCF = np.floor(np.min(allTauCCF_Coords[0,:])), np.ceil(np.max(allTauCCF_Coords[0,:])), np.floor(np.min(allTauCCF_Coords[1,:])), np.ceil(np.max(allTauCCF_Coords[1,:]))
@@ -370,21 +373,21 @@ for layerNames,numLayers,resolution,datasetName in zip([pilotLayerNames,merfishL
                 for current_tau_ML_pool in np.arange(minML_CCF,CCF_ML_Center,tauPoolSize):
                     current_ML_tau_pooling_IDXs = np.where(np.abs(np.abs(allTauCCF_Coords[0,:]-CCF_ML_Center)-np.abs(current_tau_ML_pool-CCF_ML_Center))<(tauPoolSize/2))[0] #our pixel space extents bilaterally, but CCF is unilateral, so 'CCF' coordinates from pixel space need to reflected over the ML center axis (CCF_ML_center)
                     
-                    if resolution == '25':
-                        cellwise_ML_CCF_25 = mlCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1)
-                    if resolution == '10':
-                        cellwise_ML_CCF_25 = np.abs((mlCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1) * ((10/25)*100)) - CCF_ML_Center)
+                    # if resolution == '25':
+                    #     cellwise_ML_CCF_25 = mlCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1)
+                    # if resolution == '10':
+                    #     cellwise_ML_CCF_25 = np.abs((mlCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1) * ((10/25)*100)) - CCF_ML_Center)
 
-                    current_ML_cell_pooling_IDXs = np.where(np.abs(cellwise_ML_CCF_25-current_tau_ML_pool)<(tauPoolSize/2))[0]
+                    current_ML_cell_pooling_IDXs = np.where(np.abs(mlCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1)-current_tau_ML_pool)<(tauPoolSize/2))[0]
                     for current_tau_AP_pool in np.arange(minAP_CCF,maxAP_CCF,tauPoolSize):
                         current_tau_pooling_IDXs = np.where(np.abs(allTauCCF_Coords[1,current_ML_tau_pooling_IDXs]-current_tau_AP_pool)<(tauPoolSize/2))
 
-                        if resolution == '25':
-                            cellwise_AP_CCF_25 = apCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1)
-                        if resolution == '10':
-                            cellwise_AP_CCF_25 = apCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1) * ((10/25)*100)
+                        # if resolution == '25':
+                        #     cellwise_AP_CCF_25 = apCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1)
+                        # if resolution == '10':
+                        #     cellwise_AP_CCF_25 = apCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1) * ((10/25)*100)
 
-                        current_cell_pooling_IDXs = np.where(np.abs(cellwise_AP_CCF_25[current_ML_cell_pooling_IDXs]-current_tau_AP_pool)<(tauPoolSize/2))[0]
+                        current_cell_pooling_IDXs = np.where(np.abs(apCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1)[current_ML_cell_pooling_IDXs]-current_tau_AP_pool)<(tauPoolSize/2))[0]
                         pooledTaus = allTauCCF_Coords[2,current_ML_tau_pooling_IDXs[current_tau_pooling_IDXs]]
                         if pooledTaus.size > 0:
                             #print(mlCCF_per_cell_H2layerFiltered[layerIDX][current_ML_cell_pooling_IDXs])
