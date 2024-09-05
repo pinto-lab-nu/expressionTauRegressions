@@ -13,13 +13,13 @@ from abc_atlas_access.abc_atlas_cache.abc_project_cache import AbcProjectCache
 import anndata
 
 
-def merfishLoader(savePath,pilotGeneNames,geneLimit=-1):
+def merfishLoader(savePath,download_base,pilotGeneNames,geneLimit=-1):
 
     print(f'Loading Merfish-Imputed Dataset...')
 
     ##############################################################################################################
     ### Code modified from: alleninstitute.github.io/abc_atlas_access/notebooks/merfish_imputed_genes_example.html
-    download_base = Path(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\Seq')
+    #download_base = Path(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\Seq')
     abc_cache = AbcProjectCache.from_s3_cache(download_base)
     abc_cache.current_manifest
     abc_cache.cache.manifest_file_names
@@ -143,8 +143,10 @@ def pathSetter(lineSelection):
     if my_os == 'Linux':
         tauPath = os.path.join(r'/mnt/fsmresfiles/Tau_Processing/',projectFolder+'/')
         savePath = os.path.join(r'/mnt/fsmresfiles/Tau_Processing/H3/')
+        download_base = os.path.join(r'/mnt/fsmresfiles/Tau_Processing/Seq/')
     if my_os == 'Windows':
         tauPath = os.path.join(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing',projectFolder)
         savePath = os.path.join(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3')
+        download_base = os.path.join(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\Seq')
 
-    return my_os, tauPath, savePath
+    return my_os, tauPath, savePath, download_base

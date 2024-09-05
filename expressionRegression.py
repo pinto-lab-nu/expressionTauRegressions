@@ -41,7 +41,7 @@ hotencoder = OneHotEncoder(sparse_output=False)
 lineSelection = 'Cux2-Ai96'
 #lineSelection = 'Rpb4-Ai96'
 loadData = True
-my_os, tauPath, savePath = pathSetter(lineSelection)
+my_os, tauPath, savePath, download_base = pathSetter(lineSelection)
 
 
 structListMerge = np.array(['MOp','MOs','VISa','VISp','VISam','VISpm','SS','RSP'])
@@ -89,7 +89,7 @@ for resolution in [10,25,100]:
 geneLimit = -1 #for testing purposes only, remove later
 if loadData:
     gene_data_dense, pilotGeneNames, fn_clustid, fn_CCF = pilotLoader(savePath)
-    merfish_CCF_Genes, allMerfishGeneNames = merfishLoader(savePath,pilotGeneNames,geneLimit)
+    merfish_CCF_Genes, allMerfishGeneNames = merfishLoader(savePath,download_base,pilotGeneNames,geneLimit)
 
 standardMerfish_CCF_Genes = standard_scaler.fit_transform(merfish_CCF_Genes)
 standardMerfish_CCF_Genes = pd.DataFrame(standardMerfish_CCF_Genes, columns=merfish_CCF_Genes.columns)
@@ -329,8 +329,8 @@ for layerNames,numLayers,resolution in zip([pilotLayerNames,merfishLayerNames],[
 
 #############################################################################################
 ### visualization of and calculation of high expression genes are combined here, separate ###
-meanExpressionThreshArrayFull = [0.4,0.2,0.1,0]
-meanH3ThreshArrayFull = [0.1,0.05,0.025,0]
+meanExpressionThreshArrayFull = [0.1,0] #[0.4,0.2,0.1,0]
+meanH3ThreshArrayFull = [0.025,0] #[0.1,0.05,0.025,0]
 if my_os == 'Linux':
     meanExpressionThreshArray = [meanExpressionThreshArrayFull[int(sys.argv[1])]] #batch job will distribute parameter instances among jobs run in parallel
     meanH3ThreshArray = [meanH3ThreshArrayFull[int(sys.argv[1])]]                 #same for these regressions, just with a different parameter range
@@ -343,7 +343,7 @@ for layerNames,numLayers,resolution,datasetName in zip([pilotLayerNames,merfishL
     for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3ThreshArray):
         
         poolIndex = 0
-        for tauPoolSize in [2,4,8,16]:
+        for tauPoolSize in [2,4,8]:
             poolIndex += 1
             tauSortedPath = os.path.join(savePath,lineSelection,f'pooling{tauPoolSize}')
             if not os.path.exists(tauSortedPath):
