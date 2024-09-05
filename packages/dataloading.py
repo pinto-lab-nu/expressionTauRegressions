@@ -25,6 +25,9 @@ def merfishLoader(savePath,download_base,pilotGeneNames,geneLimit=-1):
     print(abc_cache.cache.manifest_file_names)
     abc_cache.load_manifest('releases/20240831/manifest.json')
 
+    abc_cache.list_directories
+
+
 
     cell = abc_cache.get_metadata_dataframe(directory='MERFISH-C57BL6J-638850', file_name='cell_metadata_with_cluster_annotation', dtype={"cell_label": str,"neurotransmitter": str})
     cell.set_index('cell_label', inplace=True)
@@ -43,12 +46,13 @@ def merfishLoader(savePath,download_base,pilotGeneNames,geneLimit=-1):
     merfishCCF = merfishCCF.join(merfishXYZ, how='inner').drop(columns=['x','y','z'])
 
 
-    imputed_h5ad_path = abc_cache.get_data_path('MERFISH-C57BL6J-638850-imputed', 'C57BL6J-638850-imputed/log2')
+    imputed_h5ad_path = abc_cache.get_data_path('MERFISH-C57BL6J-638850-imputed', 'C57BL6J-638850-imputed/log2') #will download data if it doesn't already exist, ~2hr for ~50GB
     print(f'imputed_h5ad_path: {imputed_h5ad_path}')
     adata = anndata.read_h5ad(imputed_h5ad_path, backed='r')
 
 
-    allMerfishGeneNames = list(adata.var.gene_symbol)
+    merfishGenes = list(np.array(abc_cache.get_metadata_dataframe(directory='MERFISH-C57BL6J-638850', file_name='gene').set_index('gene_identifier').gene_symbol))
+    allMerfishImputedGeneNames = list(np.array(abc_cache.get_metadata_dataframe(directory='MERFISH-C57BL6J-638850-imputed', file_name='gene').set_index('gene_identifier').gene_symbol)) #list(adata.var.gene_symbol)
     geneFamilyList = ['Grin', 'Grm', 'Grik', 'Gria', 'Gabr', 'Kcnj', 'Kcna', 'Kcnn', 'Scn', 'Cacn', 'Clca', 'Clcn']
 
     with open(os.path.join(savePath,f'familyGenes_merfishImputed.txt'), "w") as file:
@@ -57,10 +61,10 @@ def merfishLoader(savePath,download_base,pilotGeneNames,geneLimit=-1):
         enriched_gene_names = []
         for currentGeneFamily in geneFamilyList:
             fullGeneFamily = []
-            for geneIDX,currentGene in enumerate(allMerfishGeneNames):
+            for geneIDX,currentGene in enumerate(allMerfishImputedGeneNames):
                 if currentGene[:len(currentGeneFamily)] == currentGeneFamily:
-                    fullGeneFamily.append(allMerfishGeneNames[geneIDX])
-                    enriched_gene_names.append(allMerfishGeneNames[geneIDX])
+                    fullGeneFamily.append(allMerfishImputedGeneNames[geneIDX])
+                    enriched_gene_names.append(allMerfishImputedGeneNames[geneIDX])
 
             geneText = f'Gene Family {currentGeneFamily}: {fullGeneFamily}\n\n'
             #print(geneText)
@@ -73,7 +77,7 @@ def merfishLoader(savePath,download_base,pilotGeneNames,geneLimit=-1):
         file.write('Gene Overlap (Pilot & Merfish-Imputed Datasets):\n\n')
 
         for currentGene in pilotGeneNames:
-            pilot2merfishIDX = np.where(np.array(allMerfishGeneNames)==currentGene)[0]
+            pilot2merfishIDX = np.where(np.array(allMerfishImputedGeneNames)==currentGene)[0]
             geneIDX_Text = f'Merfish Imputed IDX of {currentGene}: {pilot2merfishIDX}'
             print(geneIDX_Text)
             file.write(geneIDX_Text+'\n')
@@ -101,7 +105,7 @@ def merfishLoader(savePath,download_base,pilotGeneNames,geneLimit=-1):
     joined_filtered = joined.join(filter_IT_ET, how='inner')
     joined_filtered = joined_filtered.drop(columns=['class','unique_name'])
 
-    return joined_filtered, allMerfishGeneNames
+    return joined_filtered, allMerfishImputedGeneNames
 
 
 def pilotLoader(savePath):

@@ -549,7 +549,7 @@ for layerNames,numLayers,resolution,datasetName in zip([pilotLayerNames,merfishL
                                                                                             ['Standardized',     'OneHot'],
                                                                                             ['GenePredictors',   'H3Predictors']):
                 
-                if (predictorPathSuffix == 'H3Predictors') and (resolution == '10'):
+                if (predictorPathSuffix == 'H3Predictors') and (datasetName == 'Merfish'):
                     break
                 
                 if not os.path.exists(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}')):
