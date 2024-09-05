@@ -143,10 +143,12 @@ def pathSetter(lineSelection):
     if my_os == 'Linux':
         tauPath = os.path.join(r'/mnt/fsmresfiles/Tau_Processing/',projectFolder+'/')
         savePath = os.path.join(r'/mnt/fsmresfiles/Tau_Processing/H3/')
-        download_base = os.path.join(r'/mnt/fsmresfiles/Tau_Processing/Seq/')
+        download_base = Path(r'/mnt/fsmresfiles/Tau_Processing/Seq/')
     if my_os == 'Windows':
         tauPath = os.path.join(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing',projectFolder)
         savePath = os.path.join(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3')
-        download_base = os.path.join(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\Seq')
+        download_base = Path(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\Seq')
+    
+    print(download_base)
 
-    return my_os, tauPath, savePath, download_base
+    return lineSelection, my_os, tauPath, savePath, download_base

@@ -40,8 +40,9 @@ hotencoder = OneHotEncoder(sparse_output=False)
 ### Script Parameters and Settings
 lineSelection = 'Cux2-Ai96'
 #lineSelection = 'Rpb4-Ai96'
+geneLimit = 50 #for testing purposes only, remove later
 loadData = True
-my_os, tauPath, savePath, download_base = pathSetter(lineSelection)
+lineSelection, my_os, tauPath, savePath, download_base = pathSetter(lineSelection)
 
 
 structListMerge = np.array(['MOp','MOs','VISa','VISp','VISam','VISpm','SS','RSP'])
@@ -49,16 +50,16 @@ structList = structListMerge
 
 
 structNum = structList.shape[0]
-applyLayerSpecificityFilter = False #ensure that CCM coordinates are contained within a layer specified in layerAppend
-layerAppend = '2/3'
+#applyLayerSpecificityFilter = False #ensure that CCM coordinates are contained within a layer specified in layerAppend
+#layerAppend = '2/3'
 #groupSelector = 12  #12 -> IT_7  -> L2/3 IT
                     #4  -> IT_11 -> L4/5 IT
                     #14 -> IT_9  -> L5 IT
                     #11 -> IT_6  -> L6 IT
 
 
-if applyLayerSpecificityFilter:
-    structList = [x+layerAppend for x in structList]
+#if applyLayerSpecificityFilter:
+#    structList = [x+layerAppend for x in structList]
 
 
 areaColors = ['#ff0000','#ff704d',                      #MO, reds
@@ -86,7 +87,6 @@ for resolution in [10,25,100]:
     rsp[f'{resolution}'] = rspc.get_reference_space()
 
 
-geneLimit = -1 #for testing purposes only, remove later
 if loadData:
     gene_data_dense, pilotGeneNames, fn_clustid, fn_CCF = pilotLoader(savePath)
     merfish_CCF_Genes, allMerfishGeneNames = merfishLoader(savePath,download_base,pilotGeneNames,geneLimit)
