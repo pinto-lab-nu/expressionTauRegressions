@@ -21,8 +21,8 @@ def merfishLoader(savePath,download_base,pilotGeneNames,geneLimit=-1):
     ### Code modified from: alleninstitute.github.io/abc_atlas_access/notebooks/merfish_imputed_genes_example.html
     #download_base = Path(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\Seq')
     abc_cache = AbcProjectCache.from_s3_cache(download_base)
-    abc_cache.current_manifest
-    abc_cache.cache.manifest_file_names
+    print(abc_cache.current_manifest)
+    print(abc_cache.cache.manifest_file_names)
     abc_cache.load_manifest('releases/20240831/manifest.json')
 
 
