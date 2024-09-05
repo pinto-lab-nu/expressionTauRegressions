@@ -8,7 +8,6 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --output=/mnt/fsmresfiles/Tau_Processing/H3/SlurmLogs/regression_%j.txt
 #SBATCH --array=0-3%4
-#SBATCH --nodelist=FSM2JSX7Y3
 
 export PYTHONUNBUFFERED=1 #for log files
 
