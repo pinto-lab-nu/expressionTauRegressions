@@ -159,7 +159,7 @@ cell_region['10'] = (np.ones(merfish_CCF_Genes.shape[0])*-1).astype(int)
 cell_region['25'] = (np.ones(fn_CCF.shape[0])*-1).astype(int)
 cell_layer = [(np.ones(merfish_CCF_Genes.shape[0])*-1).astype(int)]
 
-for resolution,datasetName in enumerate(['10','25'],['Merfish-Imputed','Pilot']):
+for resolution,datasetName in zip(['10','25'],['Merfish-Imputed','Pilot']):
     if resolution == '10':
         CCFvalues = np.array(merfish_CCF_Genes.loc[:,['x_ccf','y_ccf','z_ccf']])
         CCFmultiplier = 100
