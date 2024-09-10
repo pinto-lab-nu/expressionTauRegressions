@@ -1,13 +1,13 @@
 #!/bin/bash
 
 #SBATCH --nodes=1
-#SBATCH --time=04:00:00
+#SBATCH --time=02:00:00
 #SBATCH --job-name=tauRegression
-#SBATCH --mem=15GB
+#SBATCH --mem=75GB
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --output=/mnt/fsmresfiles/Tau_Processing/H3/SlurmLogs/regression_%j.txt
-#SBATCH --array=0-4%1
+#SBATCH --array=0-2%3
 
 export PYTHONUNBUFFERED=1 #for real-time log files
 

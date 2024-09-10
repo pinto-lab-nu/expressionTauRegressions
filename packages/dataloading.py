@@ -86,7 +86,10 @@ def merfishLoader(savePath,download_base,pilotGeneNames,geneLimit=-1):
 
 
     used_genes_list = enriched_gene_names + unrepresentedPilotGenes
-    used_genes_list = used_genes_list[:geneLimit]
+    if geneLimit == -1:
+        used_genes_list = used_genes_list
+    else:
+        used_genes_list = used_genes_list[:geneLimit]
     pred = [x in used_genes_list for x in adata.var.gene_symbol]
     gene_filtered = adata.var[pred]
 
@@ -102,10 +105,10 @@ def merfishLoader(savePath,download_base,pilotGeneNames,geneLimit=-1):
     filter_IT_ET = joined['class'][(joined["class"] == '01 IT-ET Glut')] #for isolating dataset to just cortical IT & ET neurons
     filter_IT_ET = filter_IT_ET.rename("unique_name")
 
-    joined_filtered = joined.join(filter_IT_ET, how='inner')
-    joined_filtered = joined_filtered.drop(columns=['class','unique_name'])
+    joined = joined.join(filter_IT_ET, how='inner') #joined_filtered = joined.join(filter_IT_ET, how='inner')
+    joined = joined.drop(columns=['class','unique_name']) #joined_filtered = joined_filtered.drop(columns=['class','unique_name'])
 
-    return joined_filtered, allMerfishImputedGeneNames
+    return joined, allMerfishImputedGeneNames
 
 
 def pilotLoader(savePath):
