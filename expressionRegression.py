@@ -28,9 +28,10 @@ from sklearn.preprocessing import OneHotEncoder
 from packages.regressionUtils import *
 from packages.dataloading import *
 from collections import Counter
+from datatime import datetime
 
 
-
+time_start = datatime.now()
 
 standard_scaler = StandardScaler()
 hotencoder = OneHotEncoder(sparse_output=False)
@@ -93,6 +94,9 @@ if loadData:
     gene_data_dense, pilotGeneNames, fn_clustid, fn_CCF = pilotLoader(savePath)
     merfish_CCF_Genes, allMerfishGeneNames = merfishLoader(savePath,download_base,pilotGeneNames,geneLimit)
 
+time_load_data = datetime.now()
+print(f'Time to load data: {time_start - time_load_data}')
+
 #standardMerfish_CCF_Genes = standard_scaler.fit_transform(merfish_CCF_Genes)
 #standardMerfish_CCF_Genes = pd.DataFrame(standardMerfish_CCF_Genes, columns=merfish_CCF_Genes.columns)
 
@@ -131,6 +135,7 @@ for curstate in H3_names:
         H2_names.append(curstate)
 grouping = sorted(list(set(H2_names)))
 
+#For layers, it's important that the first layer indexed is L2/3, since a Cux2 expression filter is applied later
 merfishLayerNames = ['L2_3 IT_ET'] # 'L4_5 IT_ET', 'L5 IT_ET', 'L6 IT_ET'] #['CTX IT, ET']
 pilotLayerNames  =  ['L2_3 IT',   'L4_5 IT',  'L5 IT',    'L6 IT',    'L5 ET']
 layerIDs    =       [12,          4,          14,         11,         17]
@@ -758,12 +763,12 @@ for layerNames,numLayers,resolution,datasetName in zip([merfishLayerNames,pilotL
 
 
 
-            mean_fold_coef_0 = [np.mean(best_coef_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
-            sd_fold_coef_0 = [np.std(best_coef_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
-            sorted_coef_0 = [np.argsort(mean_fold_coef_0[layerIDX]) for layerIDX in range(numLayers)]
-            mean_fold_coef_1 = [np.mean(best_coef_spatial[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
-            sd_fold_coef_1 = [np.std(best_coef_spatial[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
-            sorted_coef_1 = [np.argsort(mean_fold_coef_1[layerIDX]) for layerIDX in range(numLayers)]
+            mean_fold_coef_tau = [np.mean(best_coef_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
+            sd_fold_coef_tau = [np.std(best_coef_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
+            sorted_coef_tau = [np.argsort(mean_fold_coef_tau[layerIDX]) for layerIDX in range(numLayers)]
+            mean_fold_coef_spatial = [np.mean(best_coef_spatial[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
+            sd_fold_coef_spatial = [np.std(best_coef_spatial[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
+            sorted_coef_spatial = [np.argsort(mean_fold_coef_spatial[layerIDX]) for layerIDX in range(numLayers)]
 
 
 
@@ -780,12 +785,12 @@ for layerNames,numLayers,resolution,datasetName in zip([merfishLayerNames,pilotL
                     titleAppend = f'Spatial Reconstruction from {datasetName} {predictorTitle}, {resampTitle}'
                     tauPredictions = tauPredictions_spatial
                     bestR2 = bestR2_spatial
-                    mean_fold_coef = mean_fold_coef_1
-                    sorted_coef = sorted_coef_1
+                    mean_fold_coef = mean_fold_coef_spatial
+                    sorted_coef = sorted_coef_spatial
                     bestAlpha = bestAlpha_spatial
                     alphas = alphas_spatial
                     lasso_weight = lasso_weight_spatial
-                    sd_fold_coef = sd_fold_coef_1
+                    sd_fold_coef = sd_fold_coef_spatial
                     pred_dim = 2
                     plottingDir = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}')
                 else:
@@ -793,22 +798,56 @@ for layerNames,numLayers,resolution,datasetName in zip([merfishLayerNames,pilotL
                     titleAppend = f'{lineSelection} Tau Reconstruction from {datasetName} {predictorTitle} (pooling={tauPoolSize}mm, {resampTitle})'
                     tauPredictions = tauPredictions_tau
                     bestR2 = bestR2_tau
-                    mean_fold_coef = mean_fold_coef_0
-                    sorted_coef = sorted_coef_0
+                    mean_fold_coef = mean_fold_coef_tau
+                    sorted_coef = sorted_coef_tau
                     bestAlpha = bestAlpha_tau
                     alphas = alphas_tau
                     lasso_weight = lasso_weight_tau
-                    sd_fold_coef = sd_fold_coef_0
+                    sd_fold_coef = sd_fold_coef_tau
                     pred_dim = 1
                     plottingDir = os.path.join(tauSortedPath,f'{predictorPathSuffix}',f'{datasetName}')
                     if not os.path.exists(plottingDir):
                         os.makedirs(plottingDir)
 
+
+                beta_dict = {}
+                beta_dict['mean_fold_coef'] = mean_fold_coef
+                beta_dict['sd_fold_coef'] = sd_fold_coef
+                beta_dict['sorted_coef'] = sorted_coef
+                beta_dict['layerNames'] = layerNames
+                beta_dict['regressionTitle'] = titleAppend
+                beta_dict['spatialReconstruction'] = spatialReconstruction
+                with open(os.path.join(plottingDir,f'betaDictionary.txt'), 'wb+') as f:
+                    pickle.dump(beta_dict, f)
+
+                if spatialReconstruction and (predictorPathSuffix != 'H3Predictors') and (meanExpressionThresh == 0):
+                    fig, axes = plt.subplots(numLayers,numLayers,figsize=(15,15))
+                    plt.suptitle(f'Cross-Layer A-P $\\beta$ Correlations, {datasetName} Transcripts')
+                    for layerIDX0 in range(numLayers):
+                        for layerIDX1 in range(numLayers):
+
+                            linearmodel.fit(mean_fold_coef_spatial[layerIDX0][0].reshape(-1,1),mean_fold_coef_spatial[layerIDX1][0].reshape(-1,1))
+                            beta_pred = linearmodel.predict(mean_fold_coef_spatial[layerIDX0][0].reshape(-1,1))
+                            L2L_r2 = r2_score(mean_fold_coef_spatial[layerIDX1][0].reshape(-1,1), beta_pred)
+                            
+                            axes[layerIDX0,layerIDX1].set_title(f'$R^2$={round(L2L_r2,3)}')
+                            axes[layerIDX0,layerIDX1].scatter(mean_fold_coef_spatial[layerIDX0][0],mean_fold_coef_spatial[layerIDX1][0],color='black',s=0.25)
+                            axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_spatial[layerIDX0][0],mean_fold_coef_spatial[layerIDX1][0], xerr=sd_fold_coef_spatial[layerIDX0][0], yerr=sd_fold_coef_spatial[layerIDX1][0], fmt="o", color='black', markersize=0.25)
+                            for i, predictorText in enumerate(predictorNamesArray):
+                                axes[layerIDX0,layerIDX1].annotate(predictorText, (mean_fold_coef_spatial[layerIDX0][0][i], mean_fold_coef_spatial[layerIDX1][0][i]))
+                            if layerIDX1 == 0:
+                                axes[layerIDX0,layerIDX1].set_ylabel(f"{layerNames[layerIDX0]} A-P$\\beta$")
+                            if layerIDX0 == numLayers-1:
+                                axes[layerIDX0,layerIDX1].set_xlabel(f"{layerNames[layerIDX1]} A-P$\\beta$")
+                    plt.savefig(os.path.join(savePath,'Spatial',f'crossLayer_{datasetName}APbeta_Correlations.pdf'),dpi=600,bbox_inches='tight')
+                    plt.close()
+
+
                 with open(os.path.join(plottingDir,f'regression_{titleAppend}.txt'), "w") as file:
                     file.write(f'{titleAppend}\n\n')
 
                 for layerIDX,layerName in enumerate(layerNames):
-
+                    
                     bestR2_mean, bestR2_SD = round(np.mean(bestR2[layerIDX,:]),numPrecision), round(np.std(bestR2[layerIDX,:]),numPrecision)
                     bestAlpha_mean, bestAlpha_SD = np.mean(bestAlpha[layerIDX,:]), np.std(bestAlpha[layerIDX,:])
                     
@@ -933,13 +972,13 @@ for layerNames,numLayers,resolution,datasetName in zip([merfishLayerNames,pilotL
             for layerIDX,layerName in enumerate(layerNames):
                 fig, ax = plt.subplots(1,2,figsize=(15,7))
                 plt.suptitle(f'{resampTitle} Spatial and {lineSelection} Tau Reconstruction from {datasetName} {predictorTitle}\n{lineSelection} Tau vs A-P, M-L $\\beta$ Values\n{layerName}, error:5-fold SD')
-                ax[0].scatter(mean_fold_coef_0[layerIDX].reshape(-1), mean_fold_coef_1[layerIDX][0,:].reshape(-1),color='black',s=0.5)
-                ax[0].errorbar(mean_fold_coef_0[layerIDX].reshape(-1), mean_fold_coef_1[layerIDX][0,:].reshape(-1), xerr=sd_fold_coef_0[layerIDX][0,:], yerr=sd_fold_coef_1[layerIDX][0,:], fmt="o", color='black')
-                ax[1].scatter(mean_fold_coef_0[layerIDX].reshape(-1), mean_fold_coef_1[layerIDX][1,:].reshape(-1),color='black',s=0.5)
-                ax[1].errorbar(mean_fold_coef_0[layerIDX].reshape(-1), mean_fold_coef_1[layerIDX][1,:].reshape(-1), xerr=sd_fold_coef_0[layerIDX][0,:], yerr=sd_fold_coef_1[layerIDX][1,:], fmt="o", color='black')
+                ax[0].scatter(mean_fold_coef_tau[layerIDX].reshape(-1), mean_fold_coef_spatial[layerIDX][0,:].reshape(-1),color='black',s=0.5)
+                ax[0].errorbar(mean_fold_coef_tau[layerIDX].reshape(-1), mean_fold_coef_spatial[layerIDX][0,:].reshape(-1), xerr=sd_fold_coef_tau[layerIDX][0,:], yerr=sd_fold_coef_spatial[layerIDX][0,:], fmt="o", color='black')
+                ax[1].scatter(mean_fold_coef_tau[layerIDX].reshape(-1), mean_fold_coef_spatial[layerIDX][1,:].reshape(-1),color='black',s=0.5)
+                ax[1].errorbar(mean_fold_coef_tau[layerIDX].reshape(-1), mean_fold_coef_spatial[layerIDX][1,:].reshape(-1), xerr=sd_fold_coef_tau[layerIDX][0,:], yerr=sd_fold_coef_spatial[layerIDX][1,:], fmt="o", color='black')
                 for i, predictorText in enumerate(predictorNamesArray[highMeanPredictorIDXs[layerIDX]]):
-                    ax[0].annotate(predictorText, (mean_fold_coef_0[layerIDX][0,i], mean_fold_coef_1[layerIDX][0,i]))
-                    ax[1].annotate(predictorText, (mean_fold_coef_0[layerIDX][0,i], mean_fold_coef_1[layerIDX][1,i]))
+                    ax[0].annotate(predictorText, (mean_fold_coef_tau[layerIDX][0,i], mean_fold_coef_spatial[layerIDX][0,i]))
+                    ax[1].annotate(predictorText, (mean_fold_coef_tau[layerIDX][0,i], mean_fold_coef_spatial[layerIDX][1,i]))
                 ax[0].set_xlabel(f'Tau $\\beta$')
                 ax[0].set_ylabel(f'A-P $\\beta$')
                 ax[1].set_xlabel(f'Tau $\\beta$')
@@ -1008,3 +1047,5 @@ plt.savefig(os.path.join(savePath,'Spatial',f'crossLayerGeneExpressionCorrelatio
 plt.close()
 
 
+time_end = datatime.now()
+print(f'Time to run analysis: {time_load_data - time_end}')
