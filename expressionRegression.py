@@ -28,10 +28,10 @@ from sklearn.preprocessing import OneHotEncoder
 from packages.regressionUtils import *
 from packages.dataloading import *
 from collections import Counter
-from datatime import datetime
+import datetime
 
 
-time_start = datatime.now()
+time_start = datetime.datetime.now()
 
 standard_scaler = StandardScaler()
 hotencoder = OneHotEncoder(sparse_output=False)
@@ -94,8 +94,8 @@ if loadData:
     gene_data_dense, pilotGeneNames, fn_clustid, fn_CCF = pilotLoader(savePath)
     merfish_CCF_Genes, allMerfishGeneNames = merfishLoader(savePath,download_base,pilotGeneNames,geneLimit)
 
-time_load_data = datetime.now()
-print(f'Time to load data: {time_start - time_load_data}')
+time_load_data = datetime.datetime.now()
+print(f'Time to load data: {time_load_data - time_start}')
 
 #standardMerfish_CCF_Genes = standard_scaler.fit_transform(merfish_CCF_Genes)
 #standardMerfish_CCF_Genes = pd.DataFrame(standardMerfish_CCF_Genes, columns=merfish_CCF_Genes.columns)
@@ -1047,5 +1047,5 @@ plt.savefig(os.path.join(savePath,'Spatial',f'crossLayerGeneExpressionCorrelatio
 plt.close()
 
 
-time_end = datatime.now()
-print(f'Time to run analysis: {time_load_data - time_end}')
+time_end = datetime.datetime.now()
+print(f'Time to run analysis: {time_end - time_load_data}')
