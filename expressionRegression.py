@@ -290,7 +290,7 @@ regional_resampling = 3000
 cell_region_H2layerFiltered, gene_data_dense_H2layerFiltered, mlCCF_per_cell_H2layerFiltered, apCCF_per_cell_H2layerFiltered, H3_per_cell_H2layerFiltered, mean_expression = {},{},{},{},{},{}
 for layerNames,numLayers,resolution in zip([pilotLayerNames,merfishLayerNames],[len(pilotLayerNames),len(merfishLayerNames)],['25','10']):
     if resolution == '10':
-        CCFvalues = np.array(raw_merfish_CCF, dtype=np.float16) #to avoid convergence issues, since the merfish-imputed expression data have only float16 precision
+        CCFvalues = raw_merfish_CCF
         gene_data = raw_merfish_genes
     if resolution == '25':
         CCFvalues = fn_CCF
@@ -317,14 +317,16 @@ for layerNames,numLayers,resolution in zip([pilotLayerNames,merfishLayerNames],[
             if resolution == '25':
                 cux2columnIDX = np.where(np.array(pilotGeneNames)=='Cux2')[0][0]
             if resolution == '10':
-                cux2columnIDX = np.where(np.array(enrichedGeneNames)=='Cux2')[0][0]
-            cux2IDXs = set(np.where(gene_data[:,cux2columnIDX]>0)[0]) #for layer 2/3 filter out cells not expressing Cux2 (helps to align population to the functional dataset)
+                if geneLimit == -1:
+                    cux2columnIDX = np.where(np.array(enrichedGeneNames)=='Cux2')[0][0]
+            if geneLimit == -1:
+                cux2IDXs = set(np.where(gene_data[:,cux2columnIDX]>0)[0]) #for layer 2/3 filter out cells not expressing Cux2 (helps to align population to the functional dataset)
 
         for structIDX,structureOfInterest in enumerate(structList):
             regionIDXs = set(np.where(cell_region[resolution] == structIDX)[0])
             
             H2layerFilter = layerIDXs&regionIDXs
-            if layerIDX == 0:
+            if (layerIDX == 0) and (geneLimit == -1):
                 H2layerFilter = H2layerFilter&cux2IDXs
             H2layerFilter = list(H2layerFilter)
         
@@ -688,7 +690,7 @@ for layerNames,numLayers,resolution,datasetName in zip([merfishLayerNames,pilotL
                     spatialReconstruction = True
                     tauRegression = False
                     cell_region_filtered = cell_region_H2layerFiltered[resolution]
-                    y_data = [np.hstack((apCCF_per_cell_H2layerFiltered_standard[layerIDX],mlCCF_per_cell_H2layerFiltered_standard[layerIDX])) for layerIDX in range(numLayers)]
+                    y_data = [np.array(np.hstack((apCCF_per_cell_H2layerFiltered_standard[layerIDX],mlCCF_per_cell_H2layerFiltered_standard[layerIDX])),dtype=np.float16) for layerIDX in range(numLayers)]
                     pred_dim = 2
                     if predictorPathSuffix == 'GenePredictors':
                         x_data = gene_data_dense_H2layerFiltered_standard

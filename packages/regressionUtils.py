@@ -7,7 +7,7 @@ from random import choices
 from statsmodels.regression.linear_model import WLS
 from pypdf import PdfMerger
 
-max_iter = 10000
+max_iter = 5000
 
 def layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,cell_region,alphaParams):
     numLayers = len(layerNames)
