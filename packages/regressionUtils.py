@@ -7,6 +7,7 @@ from random import choices
 from statsmodels.regression.linear_model import WLS
 from pypdf import PdfMerger
 
+max_iter = 10000
 
 def layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,cell_region,alphaParams):
     numLayers = len(layerNames)
@@ -43,7 +44,7 @@ def layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layer
 
             #GLM (Basic, Identity Linker) with L1 Regularization
             for alphaIDX,alpha in enumerate(alphas):
-                lasso = Lasso(alpha=alpha)
+                lasso = Lasso(alpha=alpha, max_iter=max_iter)
                 lasso.fit(train_x, train_y)
                 pred_y = lasso.predict(test_x)
                 R2_GLM_L1 = r2_score(test_y,pred_y)
@@ -59,7 +60,7 @@ def layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layer
             # r2_score(test_y,L1_WLS_pred_y)
 
             #now predict test fold using the best alpha
-            lasso = Lasso(alpha=bestAlpha[layerIDX,foldIDX]) #choose the best alpha
+            lasso = Lasso(alpha=bestAlpha[layerIDX,foldIDX], max_iter=max_iter) #choose the best alpha
             lasso.fit(train_x, train_y)
             best_betas[layerIDX][foldIDX,:,:] = lasso.coef_
             pred_y = lasso.predict(test_x)
