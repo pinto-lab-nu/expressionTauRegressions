@@ -41,7 +41,7 @@ hotencoder = OneHotEncoder(sparse_output=False)
 ### Script Parameters and Settings
 lineSelection = 'Cux2-Ai96'
 #lineSelection = 'Rpb4-Ai96'
-geneLimit = -1 #for testing purposes only, remove later
+geneLimit = -1 #for testing purposes only for loading merfish-imputed data, set to -1 to include all genes
 loadData = True
 lineSelection, my_os, tauPath, savePath, download_base = pathSetter(lineSelection)
 plotting = True
@@ -290,7 +290,7 @@ regional_resampling = 3000
 cell_region_H2layerFiltered, gene_data_dense_H2layerFiltered, mlCCF_per_cell_H2layerFiltered, apCCF_per_cell_H2layerFiltered, H3_per_cell_H2layerFiltered, mean_expression = {},{},{},{},{},{}
 for layerNames,numLayers,resolution in zip([pilotLayerNames,merfishLayerNames],[len(pilotLayerNames),len(merfishLayerNames)],['25','10']):
     if resolution == '10':
-        CCFvalues = raw_merfish_CCF
+        CCFvalues = np.array(raw_merfish_CCF, dtype=np.float16) #to avoid convergence issues, since the merfish-imputed expression data have only float16 precision
         gene_data = raw_merfish_genes
     if resolution == '25':
         CCFvalues = fn_CCF
@@ -820,28 +820,28 @@ for layerNames,numLayers,resolution,datasetName in zip([merfishLayerNames,pilotL
                 with open(os.path.join(plottingDir,f'betaDictionary.txt'), 'wb+') as f:
                     pickle.dump(beta_dict, f)
 
-                # if spatialReconstruction and (predictorPathSuffix != 'H3Predictors') and (meanExpressionThresh == 0):
-                #     fig, axes = plt.subplots(numLayers,numLayers,figsize=(15,15))
-                #     axes = np.atleast_1d(axes)
-                #     plt.suptitle(f'Cross-Layer A-P $\\beta$ Correlations, {datasetName} Transcripts')
-                #     for layerIDX0 in range(numLayers):
-                #         for layerIDX1 in range(numLayers):
+                if spatialReconstruction and (predictorPathSuffix == 'GenePredictors') and (datasetName == 'Pilot') and (meanExpressionThresh == 0):
+                    fig, axes = plt.subplots(numLayers,numLayers,figsize=(15,15))
+                    axes = np.atleast_1d(axes)
+                    plt.suptitle(f'Cross-Layer A-P $\\beta$ Correlations, {datasetName} Transcripts')
+                    for layerIDX0 in range(numLayers):
+                        for layerIDX1 in range(numLayers):
 
-                #             linearmodel.fit(mean_fold_coef_spatial[layerIDX0][0].reshape(-1,1),mean_fold_coef_spatial[layerIDX1][0].reshape(-1,1))
-                #             beta_pred = linearmodel.predict(mean_fold_coef_spatial[layerIDX0][0].reshape(-1,1))
-                #             L2L_r2 = r2_score(mean_fold_coef_spatial[layerIDX1][0].reshape(-1,1), beta_pred)
+                            linearmodel.fit(mean_fold_coef_spatial[layerIDX0][0].reshape(-1,1),mean_fold_coef_spatial[layerIDX1][0].reshape(-1,1))
+                            beta_pred = linearmodel.predict(mean_fold_coef_spatial[layerIDX0][0].reshape(-1,1))
+                            L2L_r2 = r2_score(mean_fold_coef_spatial[layerIDX1][0].reshape(-1,1), beta_pred)
                             
-                #             axes[layerIDX0,layerIDX1].set_title(f'$R^2$={round(L2L_r2,3)}')
-                #             axes[layerIDX0,layerIDX1].scatter(mean_fold_coef_spatial[layerIDX0][0],mean_fold_coef_spatial[layerIDX1][0],color='black',s=0.25)
-                #             axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_spatial[layerIDX0][0],mean_fold_coef_spatial[layerIDX1][0], xerr=sd_fold_coef_spatial[layerIDX0][0], yerr=sd_fold_coef_spatial[layerIDX1][0], fmt="o", color='black', markersize=0.25)
-                #             for i, predictorText in enumerate(predictorNamesArray):
-                #                 axes[layerIDX0,layerIDX1].annotate(predictorText, (mean_fold_coef_spatial[layerIDX0][0][i], mean_fold_coef_spatial[layerIDX1][0][i]))
-                #             if layerIDX1 == 0:
-                #                 axes[layerIDX0,layerIDX1].set_ylabel(f"{layerNames[layerIDX0]} A-P$\\beta$")
-                #             if layerIDX0 == numLayers-1:
-                #                 axes[layerIDX0,layerIDX1].set_xlabel(f"{layerNames[layerIDX1]} A-P$\\beta$")
-                #     plt.savefig(os.path.join(savePath,'Spatial',f'crossLayer_{datasetName}APbeta_Correlations.pdf'),dpi=600,bbox_inches='tight')
-                #     plt.close()
+                            axes[layerIDX0,layerIDX1].set_title(f'$R^2$={round(L2L_r2,3)}')
+                            axes[layerIDX0,layerIDX1].scatter(mean_fold_coef_spatial[layerIDX0][0],mean_fold_coef_spatial[layerIDX1][0],color='black',s=0.25)
+                            axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_spatial[layerIDX0][0],mean_fold_coef_spatial[layerIDX1][0], xerr=sd_fold_coef_spatial[layerIDX0][0], yerr=sd_fold_coef_spatial[layerIDX1][0], fmt="o", color='black', markersize=0.25)
+                            for i, predictorText in enumerate(predictorNamesArray):
+                                axes[layerIDX0,layerIDX1].annotate(predictorText, (mean_fold_coef_spatial[layerIDX0][0][i], mean_fold_coef_spatial[layerIDX1][0][i]))
+                            if layerIDX1 == 0:
+                                axes[layerIDX0,layerIDX1].set_ylabel(f"{layerNames[layerIDX0]} A-P$\\beta$")
+                            if layerIDX0 == numLayers-1:
+                                axes[layerIDX0,layerIDX1].set_xlabel(f"{layerNames[layerIDX1]} A-P$\\beta$")
+                    plt.savefig(os.path.join(savePath,'Spatial',f'crossLayer_{datasetName}APbeta_Correlations.pdf'),dpi=600,bbox_inches='tight')
+                    plt.close()
 
 
                 with open(os.path.join(plottingDir,f'regression_{titleAppend}.txt'), "w") as file:
