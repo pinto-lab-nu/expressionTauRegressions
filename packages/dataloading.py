@@ -13,7 +13,7 @@ from abc_atlas_access.abc_atlas_cache.abc_project_cache import AbcProjectCache
 import anndata
 
 
-def merfishLoader(savePath,download_base,pilotGeneNames,geneLimit=-1):
+def merfishLoader(savePath,download_base,pilotGeneNames,restrict_merfish_imputed_values,geneLimit=-1):
 
     print(f'Loading Merfish-Imputed Dataset...')
 
@@ -53,23 +53,23 @@ def merfishLoader(savePath,download_base,pilotGeneNames,geneLimit=-1):
 
     merfishGenes = list(np.array(abc_cache.get_metadata_dataframe(directory='MERFISH-C57BL6J-638850', file_name='gene').set_index('gene_identifier').gene_symbol))
     allMerfishImputedGeneNames = list(np.array(abc_cache.get_metadata_dataframe(directory='MERFISH-C57BL6J-638850-imputed', file_name='gene').set_index('gene_identifier').gene_symbol)) #list(adata.var.gene_symbol)
-    geneFamilyList = ['Grin', 'Grm', 'Grik', 'Gria', 'Gabr', 'Kcnj', 'Kcna', 'Kcnn', 'Scn', 'Cacn', 'Clca', 'Clcn']
+    channelGeneFamilyList = ['Grin', 'Grm', 'Grik', 'Gria', 'Gabr', 'Kcnj', 'Kcna', 'Kcnn', 'Scn', 'Cacn', 'Clca', 'Clcn']
 
     with open(os.path.join(savePath,f'familyGenes_merfishImputed.txt'), "w") as file:
         file.write('Gene Family Representation (Merfish-Imputed Dataset):\n\n')
 
-        enriched_gene_names = []
-        for currentGeneFamily in geneFamilyList:
+        enriched_gene_names_merfish_imputed = []
+        for currentGeneFamily in channelGeneFamilyList:
             fullGeneFamily = []
             for geneIDX,currentGene in enumerate(allMerfishImputedGeneNames):
                 if currentGene[:len(currentGeneFamily)] == currentGeneFamily:
                     fullGeneFamily.append(allMerfishImputedGeneNames[geneIDX])
-                    enriched_gene_names.append(allMerfishImputedGeneNames[geneIDX])
+                    enriched_gene_names_merfish_imputed.append(allMerfishImputedGeneNames[geneIDX])
 
             geneText = f'Gene Family {currentGeneFamily}: {fullGeneFamily}\n\n'
             #print(geneText)
             file.write(geneText)
-        file.write(f'Full Gene List: {enriched_gene_names}')
+        file.write(f'Full Gene List: {enriched_gene_names_merfish_imputed}')
     
 
     unrepresentedPilotGenes = []
@@ -79,17 +79,22 @@ def merfishLoader(savePath,download_base,pilotGeneNames,geneLimit=-1):
         for currentGene in pilotGeneNames:
             pilot2merfishIDX = np.where(np.array(allMerfishImputedGeneNames)==currentGene)[0]
             geneIDX_Text = f'Merfish Imputed IDX of {currentGene}: {pilot2merfishIDX}'
-            print(geneIDX_Text)
+            #print(geneIDX_Text)
             file.write(geneIDX_Text+'\n')
-            if (pilot2merfishIDX.shape[0] > 0) and (np.where(np.array(enriched_gene_names)==currentGene)[0].shape[0] < 1):
+            if (pilot2merfishIDX.shape[0] > 0) and (np.where(np.array(enriched_gene_names_merfish_imputed)==currentGene)[0].shape[0] < 1):
                 unrepresentedPilotGenes.append(currentGene)
 
 
-    used_genes_list = enriched_gene_names + unrepresentedPilotGenes
+    if restrict_merfish_imputed_values:
+        used_genes_list = list((set(enriched_gene_names_merfish_imputed) | set(pilotGeneNames)) & set(merfishGenes))
+    else:
+        used_genes_list = list((set(enriched_gene_names_merfish_imputed) | set(pilotGeneNames)) & set(allMerfishImputedGeneNames)) #enriched_gene_names_merfish_imputed + unrepresentedPilotGenes
+
     if geneLimit == -1:
         used_genes_list = used_genes_list
     else:
         used_genes_list = used_genes_list[:geneLimit]
+
     pred = [x in used_genes_list for x in adata.var.gene_symbol]
     gene_filtered = adata.var[pred]
 
