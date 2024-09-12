@@ -174,9 +174,9 @@ cell_region['25'] = (np.ones(fn_CCF.shape[0])*-1).astype(int)
 cell_layer = [(np.ones(numMerfishCells)*-1).astype(int)]
 
 if restrict_merfish_imputed_values:
-    merfish_datasetName_append = '-Imputed'
-else:
     merfish_datasetName_append = ''
+else:
+    merfish_datasetName_append = '-Imputed'
 
 for resolution,datasetName in zip(['10','25'],['Merfish'+merfish_datasetName_append,'Pilot']):
     if resolution == '10':
