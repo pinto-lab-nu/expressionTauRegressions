@@ -85,10 +85,11 @@ def merfishLoader(savePath,download_base,pilotGeneNames,restrict_merfish_imputed
                 unrepresentedPilotGenes.append(currentGene)
 
 
+    ensured_gene_list = ['Cux2'] #make sure to include these genes, regardless of whether they are imputed or not
     if restrict_merfish_imputed_values:
-        used_genes_list = list((set(enriched_gene_names_merfish_imputed) | set(pilotGeneNames)) & set(merfishGenes))
+        used_genes_list = list(((set(enriched_gene_names_merfish_imputed) | set(pilotGeneNames)) & set(merfishGenes)) | set(ensured_gene_list))
     else:
-        used_genes_list = list((set(enriched_gene_names_merfish_imputed) | set(pilotGeneNames)) & set(allMerfishImputedGeneNames)) #enriched_gene_names_merfish_imputed + unrepresentedPilotGenes
+        used_genes_list = list(((set(enriched_gene_names_merfish_imputed) | set(pilotGeneNames)) & set(allMerfishImputedGeneNames)) | set(ensured_gene_list)) #enriched_gene_names_merfish_imputed + unrepresentedPilotGenes
 
     if geneLimit == -1:
         used_genes_list = used_genes_list

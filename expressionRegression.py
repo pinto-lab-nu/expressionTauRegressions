@@ -208,7 +208,6 @@ for resolution,datasetName in zip(['10','25'],['Merfish'+merfish_datasetName_app
                     structure_mask = np.zeros((maskDim0,maskDim1,maskDim2))
                     for subRSP in ['v','d','agl']:
                         structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest+subRSP+layerAppend])
-                        structureName = structureTree[0]['name']
                         structureID = structureTree[0]['id']
                         structure_mask += rsp[f'{resolution}'].make_structure_mask([structureID])
                 
@@ -216,13 +215,11 @@ for resolution,datasetName in zip(['10','25'],['Merfish'+merfish_datasetName_app
                     structure_mask = np.zeros((maskDim0,maskDim1,maskDim2))
                     for subSS in ['p-n','p-bfd','p-ll','p-m','p-ul','p-tr','p-un','s']:
                         structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest+subSS+layerAppend])
-                        structureName = structureTree[0]['name']
                         structureID = structureTree[0]['id']
                         structure_mask += rsp[f'{resolution}'].make_structure_mask([structureID])
 
                 if not(structureOfInterest == 'SS') and not(structureOfInterest == 'RSP'):
                     structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest+layerAppend])
-                    structureName = structureTree[0]['name']
                     structureID = structureTree[0]['id']
                     structure_mask = rsp[f'{resolution}'].make_structure_mask([structureID])
 
