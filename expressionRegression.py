@@ -29,6 +29,7 @@ from packages.regressionUtils import *
 from packages.dataloading import *
 from collections import Counter
 import datetime
+import re
 
 
 time_start = datetime.datetime.now()
@@ -112,6 +113,9 @@ del merfish_CCF_Genes
 print(f'Memory usage of raw_merfish_genes: {round(sys.getsizeof(raw_merfish_genes)/1024/1024,1)}GB')
 print(f'Memory usage of raw_merfish_CCF: {round(sys.getsizeof(raw_merfish_CCF)/1024/1024,1)}GB') #even though there are only three coordinate axes, the precision of these values is higher than the gene expressions (uses up more memory than might be expected)
 
+def string_sanitizer(input_string):
+    sanitized_string = re.sub(r'\/','_',input_string)
+    return sanitized_string
 
 
 # with open(os.path.join(savePath,f'Chen_merfishImputed_geneOverlap.txt'), "w") as file:
@@ -137,7 +141,8 @@ for curstate in H3_names:
 grouping = sorted(list(set(H2_names)))
 
 #For layers, it's important that the first layer indexed is L2/3, since a Cux2 expression filter is applied later
-merfishLayerNames = ['L2_3 IT_ET'] # 'L4_5 IT_ET', 'L5 IT_ET', 'L6 IT_ET'] #['CTX IT, ET']
+merfishLayerNames = ['L2_3 IT_ET','L5 IT_ET'] # 'L4_5 IT_ET', 'L5 IT_ET', 'L6 IT_ET'] #['CTX IT, ET']
+merfish_layers = ['2/3','5']
 pilotLayerNames  =  ['L2_3 IT',   'L4_5 IT',  'L5 IT',    'L6 IT',    'L5 ET']
 layerIDs    =       [12,          4,          14,         11,         17]
 #numLayers = len(layerIDs)
@@ -157,13 +162,23 @@ def plotMask(structureOfInterest,structure_mask,savePath,resolution):
     plt.savefig(os.path.join(savePath,'Masks',f'{structureOfInterest}_{resolution}.pdf'),dpi=600,bbox_inches='tight')
     plt.close()
 
-def CellRegion(cell_region,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX):
+def CellRegion(cell_region,cell_layer,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX,layerIDX):
     for cell in range(cell_region[resolution].shape[0]):
         currentMask = structure_mask[round(CCFvalues[cell,CCFindexOrder[0]]*CCFmultiplier),round(CCFvalues[cell,CCFindexOrder[1]]*CCFmultiplier),round(CCFvalues[cell,CCFindexOrder[2]]*CCFmultiplier)]
         if currentMask > 0:
             cell_region[resolution][cell] = structIDX
+            if resolution == '10':
+                cell_layer[resolution][cell] = layerIDX
 
-    return cell_region
+    return cell_region,cell_layer
+
+def region_count_printer(cell_region,resolution,datasetName,structList):
+    regionalCounts = Counter(cell_region[resolution])
+    print(f'Regional Cell Counts, {datasetName}:')
+    for structIDX in range(len(structList)):
+        print(f'{structList[structIDX]}:{regionalCounts[structIDX]}')
+    print('\n')
+
 
 if not os.path.exists(os.path.join(savePath,'Masks')):
     os.makedirs(os.path.join(savePath,'Masks'))
@@ -171,7 +186,9 @@ if not os.path.exists(os.path.join(savePath,'Masks')):
 cell_region = {}
 cell_region['10'] = (np.ones(numMerfishCells)*-1).astype(int)
 cell_region['25'] = (np.ones(fn_CCF.shape[0])*-1).astype(int)
-cell_layer = [(np.ones(numMerfishCells)*-1).astype(int)]
+cell_layer = {}
+cell_layer['10'] = (np.ones(numMerfishCells)*-1).astype(int)
+cell_layer['25'] = np.empty(0)
 
 if restrict_merfish_imputed_values:
     merfish_datasetName_append = ''
@@ -199,10 +216,10 @@ for resolution,datasetName in zip(['10','25'],['Merfish'+merfish_datasetName_app
 
     #fig, ax = plt.subplots(1,1,figsize=(8,8))
     if resolution == '10':
-        for structIDX,structureOfInterest in enumerate(structList):
-            print(f'Making {structureOfInterest} CCF mask (resolution={resolution})...')
+        for layerIDX,layerAppend in enumerate(merfish_layers):
 
-            for layerAppend in ['2/3']:
+            for structIDX,structureOfInterest in enumerate(structList):
+                print(f'Making L{layerAppend} {structureOfInterest} CCF mask (resolution={resolution})...')
                 
                 if structureOfInterest == 'RSP':
                     structure_mask = np.zeros((maskDim0,maskDim1,maskDim2))
@@ -223,8 +240,9 @@ for resolution,datasetName in zip(['10','25'],['Merfish'+merfish_datasetName_app
                     structureID = structureTree[0]['id']
                     structure_mask = rsp[f'{resolution}'].make_structure_mask([structureID])
 
-                plotMask(structureOfInterest,structure_mask,savePath,resolution)
-                cell_region = CellRegion(cell_region,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX)
+                plotMask(structureOfInterest+string_sanitizer(layerAppend),structure_mask,savePath,resolution)
+                cell_region,cell_layer = CellRegion(cell_region,cell_layer,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX,layerIDX)
+            region_count_printer(cell_region,resolution,datasetName+string_sanitizer(layerAppend),structList)
     
     if resolution == '25':
         for structIDX,structureOfInterest in enumerate(structList):
@@ -236,13 +254,9 @@ for resolution,datasetName in zip(['10','25'],['Merfish'+merfish_datasetName_app
             structure_mask = rsp[f'{resolution}'].make_structure_mask([structureID])
 
             plotMask(structureOfInterest,structure_mask,savePath,resolution)
-            cell_region = CellRegion(cell_region,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX)
+            cell_region,cell_layer = CellRegion(cell_region,cell_layer,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX,layerIDX)
+        region_count_printer(cell_region,resolution,datasetName,structList)
 
-    regionalCounts = Counter(cell_region[resolution])
-    print(f'Regional Cell Counts, {datasetName}:')
-    for structIDX in range(len(structList)):
-        print(f'{structList[structIDX]}:{regionalCounts[structIDX]}')
-    print('\n')
 
 
 # ####################################
@@ -313,8 +327,8 @@ for layerNames,numLayers,resolution in zip([pilotLayerNames,merfishLayerNames],[
 
         if resolution == '25':
             layerIDXs = set([i for i, s in enumerate(H2_all) if s == grouping[layer]])
-        else:
-            layerIDXs = set(np.where(cell_region['10'] > -1)[0])
+        if resolution == '10':
+            layerIDXs = set(np.where(cell_layer['10'] == layerIDX)[0]) #set(np.where(cell_region['10'] > -1)[0])
         
         if layerIDX == 0:
             if resolution == '25':
@@ -836,7 +850,7 @@ for layerNames,numLayers,resolution,datasetName in zip([merfishLayerNames,pilotL
                 with open(os.path.join(plottingDir,f'betaDictionary.txt'), 'wb+') as f:
                     pickle.dump(beta_dict, f)
 
-                if spatialReconstruction and (predictorPathSuffix == 'GenePredictors') and (datasetName == 'Pilot') and (meanExpressionThresh == 0):
+                if spatialReconstruction and (predictorPathSuffix == 'GenePredictors') and (meanExpressionThresh == 0): #(datasetName == 'Pilot') #removed Pilot qualifier
                     for mean_fold_coef_plot, sd_fold_coef_plot, typeTitle in zip([mean_fold_coef_spatial,mean_fold_coef_tau],[sd_fold_coef_spatial,sd_fold_coef_tau],['Spatial','Tau']):
                         if typeTitle == 'Spatial':
                             dimArray = [0,1]
