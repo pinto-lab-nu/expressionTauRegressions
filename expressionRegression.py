@@ -1,58 +1,56 @@
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
+#import matplotlib.patches as mpatches
 import matplotlib
 from pathlib import Path
-from statistics import fmean as mean
+#from statistics import fmean as mean
 from allensdk.core.reference_space_cache import ReferenceSpaceCache
 from sklearn.linear_model import LinearRegression
-from scipy.sparse import csc_matrix
-import scipy.io
-from scipy import stats
-from scipy.stats import gamma
-from scipy.ndimage import gaussian_filter
+#from scipy.sparse import csc_matrix
+#import scipy.io
+#from scipy import stats
+#from scipy.stats import gamma
+#from scipy.ndimage import gaussian_filter
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split, KFold
-from sklearn.metrics import mean_squared_error
+#from sklearn.model_selection import train_test_split, KFold
+#from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
-from sklearn.linear_model import Lasso
+#from sklearn.linear_model import Lasso
 import pickle
 import sys
 import os
-import h5py
+#import h5py
 import numpy as np
 import random
 from random import choices
 import pandas as pd
-from statsmodels.regression.linear_model import WLS
-from sklearn.preprocessing import OneHotEncoder
+#from statsmodels.regression.linear_model import WLS
+#from sklearn.preprocessing import OneHotEncoder
 from packages.regressionUtils import *
 from packages.dataloading import *
 from collections import Counter
 import datetime
 import re
 
-
-time_start = datetime.datetime.now()
-
-standard_scaler = StandardScaler()
-hotencoder = OneHotEncoder(sparse_output=False)
-
-
-##################################
-### Script Parameters and Settings
-lineSelection = 'Cux2-Ai96'
-#lineSelection = 'Rpb4-Ai96'
+######################################
+### Script Parameters and Settings ###
+######################################
+lineSelection = 'Cux2-Ai96' #'Rpb4-Ai96' #select the functional dataset for tau regressions
 geneLimit = -1 #for testing purposes only for loading merfish-imputed data, set to -1 to include all genes
 restrict_merfish_imputed_values = True #condition to restrict merfish-imputed dataset to non-imputed genes
 loadData = True
-lineSelection, my_os, tauPath, savePath, download_base = pathSetter(lineSelection)
 plotting = True
 numPrecision, alphaPrecision = 3, 5 #just for display (in plotting and regression text files)
 verbose = True
+predictorOrder = [1,0] #select predictors for regressions, and order (0:merfish[-imputed], 1:pilot)
 
 
-structListMerge = np.array(['MOp','MOs','VISa','VISp','VISam','VISpm','SS','RSP'])
-structList = structListMerge
+
+structList = np.array(['MOp','MOs','VISa','VISp','VISam','VISpm','SS','RSP'])
+
+areaColors = ['#ff0000','#ff704d',                      #MO, reds
+            '#4dd2ff','#0066ff','#003cb3','#00ffff',    #VIS, blues
+            '#33cc33',                                  #SSp, greens
+            '#a366ff']                                  #RSP, purples
 
 
 structNum = structList.shape[0]
@@ -68,12 +66,12 @@ structNum = structList.shape[0]
 #    structList = [x+layerAppend for x in structList]
 
 
-areaColors = ['#ff0000','#ff704d',                      #MO, reds
-            '#4dd2ff','#0066ff','#003cb3','#00ffff',    #VIS, blues
-            '#33cc33',                                  #SSp, greens
-            '#a366ff']                                  #RSP, purples
+lineSelection, my_os, tauPath, savePath, download_base = pathSetter(lineSelection)
 
+time_start = datetime.datetime.now()
 
+standard_scaler = StandardScaler()
+#hotencoder = OneHotEncoder(sparse_output=False)
 
 ################################
 ### CCF Reference Space Creation
@@ -180,7 +178,6 @@ def region_count_printer(cell_region,resolution,datasetName,structList):
     print(f'Regional Cell Counts, {datasetName}:')
     for structIDX in range(len(structList)):
         print(f'{structList[structIDX]}:{regionalCounts[structIDX]}')
-    print('\n')
 
 
 if not os.path.exists(os.path.join(savePath,'Masks')):
@@ -220,6 +217,7 @@ for resolution,datasetName in zip(['10','25'],['Merfish'+merfish_datasetName_app
     #fig, ax = plt.subplots(1,1,figsize=(8,8))
     if resolution == '10':
         for layerIDX,layerAppend in enumerate(merfishLayerNames):
+            print('\n')
 
             for structIDX,structureOfInterest in enumerate(structList):
                 print(f'Making {layerAppend} {structureOfInterest} CCF mask (resolution={resolution})...')
@@ -254,7 +252,7 @@ for resolution,datasetName in zip(['10','25'],['Merfish'+merfish_datasetName_app
             region_count_printer(cell_region,resolution,f'{datasetName} {string_sanitizer(layerAppend)}',structList)
     
     if resolution == '25':
-        print(f'(no layer masking required, as it is already present in dataset)')
+        print(f'\n(no layer masking required, as it is already present in dataset)')
         for structIDX,structureOfInterest in enumerate(structList):
             print(f'Making {structureOfInterest} CCF mask (resolution={resolution})...')
 
@@ -413,7 +411,12 @@ if my_os == 'Windows':
 
 meanExpressionThresh,meanH3Thresh = 0,0
 
-for layerNames,numLayers,resolution,datasetName in zip([merfishLayerNames,pilotLayerNames],[len(merfishLayerNames),len(pilotLayerNames)],['10','25'],['Merfish'+merfish_datasetName_append,'Pilot']):
+layerNamesList  = [merfishLayerNames,pilotLayerNames]
+numLayersList   = [len(merfishLayerNames),len(pilotLayerNames)]
+resolutionList  = ['10','25']
+datasetNameList = ['Merfish'+merfish_datasetName_append,'Pilot']
+
+for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] for order in predictorOrder],[numLayersList[order] for order in predictorOrder],[resolutionList[order] for order in predictorOrder],[datasetNameList[order] for order in predictorOrder]):
 
     #for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3ThreshArray):
     
@@ -668,7 +671,7 @@ for layerNames,numLayers,resolution,datasetName in zip([merfishLayerNames,pilotL
             #     layerNames = merfishLayerNames
 
             if predictorPathSuffix == 'merfishImputedGenePredictors':
-                figWidth = 20
+                figWidth = 23
             else:
                 figWidth = 15
 
@@ -1140,7 +1143,7 @@ for layerIDX0 in range(numLayers):
         
         axes[layerIDX0,layerIDX1].set_title(f'$R^2$={round(L2L_r2,3)}')
         for currentRegion in range(structNum):
-            axes[layerIDX0,layerIDX1].scatter(mean_expression_standard[layerIDX0,currentRegion,:],mean_expression_standard[layerIDX1,currentRegion,:],label=structListMerge[currentRegion],color=areaColors[currentRegion],s=0.25)
+            axes[layerIDX0,layerIDX1].scatter(mean_expression_standard[layerIDX0,currentRegion,:],mean_expression_standard[layerIDX1,currentRegion,:],label=structList[currentRegion],color=areaColors[currentRegion],s=0.25)
             if layerIDX1 == 0:
                 axes[layerIDX0,layerIDX1].set_ylabel(f"{layerNames[layerIDX0]}\nGene Expressions")
             if layerIDX0 == numLayers-1:
