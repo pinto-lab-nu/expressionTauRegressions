@@ -48,6 +48,7 @@ loadData = True
 lineSelection, my_os, tauPath, savePath, download_base = pathSetter(lineSelection)
 plotting = True
 numPrecision, alphaPrecision = 3, 5 #just for display (in plotting and regression text files)
+verbose = True
 
 
 structListMerge = np.array(['MOp','MOs','VISa','VISp','VISam','VISpm','SS','RSP'])
@@ -630,7 +631,7 @@ for layerNames,numLayers,resolution,datasetName in zip([merfishLayerNames,pilotL
                                                                                         ['Standardized',     'Normalized'],
                                                                                         ['GenePredictors',   'H3Predictors']):
             
-            if (predictorPathSuffix == 'H3Predictors') and (datasetName == 'Merfish-Imputed'):
+            if (predictorPathSuffix == 'H3Predictors') and ((datasetName == 'Merfish-Imputed') or (datasetName == 'Merfish')):
                 break
             
             if not os.path.exists(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}')):
@@ -727,7 +728,7 @@ for layerNames,numLayers,resolution,datasetName in zip([merfishLayerNames,pilotL
                     pred_dim = 2
                     if predictorPathSuffix == 'GenePredictors':
                         x_data = gene_data_dense_H2layerFiltered_standard
-                        y_data = [np.array(np.hstack((apCCF_per_cell_H2layerFiltered_standard[layerIDX],mlCCF_per_cell_H2layerFiltered_standard[layerIDX])),dtype=np.float16) for layerIDX in range(numLayers)]
+                        y_data = [np.hstack((apCCF_per_cell_H2layerFiltered_standard[layerIDX],mlCCF_per_cell_H2layerFiltered_standard[layerIDX])) for layerIDX in range(numLayers)]
                         region_label_filtered = cell_region_H2layerFiltered[resolution]
                     if predictorPathSuffix == 'H3Predictors':
                         x_data = [m.T for m in pooledH3_for_spatial] #H3_per_cell_H2layerFiltered
@@ -783,13 +784,17 @@ for layerNames,numLayers,resolution,datasetName in zip([merfishLayerNames,pilotL
                 n_splits = 5
                 alphaParams = [-4,0,25] #Alpha Lower (10**x), Alpha Upper (10**x), Steps
 
-                print(f'Starting Regressions, Type {regressionType}:')
+                print(f'\nStarting Regressions, Type {regressionType}:')
                 if (regressionType == 0):
                     print(f'{datasetName} {predictorTitle} -> {lineSelection} Tau (CCF Pooling={tauPoolSize}mm, predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
+                    if verbose:
+                        predictor_response_info(x_data,y_data)
                     best_coef_tau,lasso_weight_tau,bestAlpha_tau,alphas_tau,tauPredictions_tau,bestR2_tau = layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alphaParams)
                 
                 if (regressionType == 1):
                     print(f'{datasetName} {predictorTitle} -> CCF (predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
+                    if verbose:
+                        predictor_response_info(x_data,y_data)
                     best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial = layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alphaParams)
 
                 # if regressionType == 2:
