@@ -141,8 +141,10 @@ for curstate in H3_names:
 grouping = sorted(list(set(H2_names)))
 
 #For layers, it's important that the first layer indexed is L2/3, since a Cux2 expression filter is applied later
-merfishLayerNames = ['L2_3 IT_ET','L5 IT_ET'] # 'L4_5 IT_ET', 'L5 IT_ET', 'L6 IT_ET'] #['CTX IT, ET']
-merfish_layers = ['2/3','5']
+merfishLayerNames = ['L4_5 IT_ET','L6 IT_ET','L2_3 IT_ET'] # 'L4_5 IT_ET', 'L5 IT_ET', 'L6 IT_ET'] #['CTX IT, ET']
+#merfish_layers = ['4/5','6','2/3']
+merfish_subLayers = [['4','5'],['6a','6b'],['2/3']]
+
 pilotLayerNames  =  ['L2_3 IT',   'L4_5 IT',  'L5 IT',    'L6 IT',    'L5 ET']
 layerIDs    =       [12,          4,          14,         11,         17]
 #numLayers = len(layerIDs)
@@ -216,35 +218,42 @@ for resolution,datasetName in zip(['10','25'],['Merfish'+merfish_datasetName_app
 
     #fig, ax = plt.subplots(1,1,figsize=(8,8))
     if resolution == '10':
-        for layerIDX,layerAppend in enumerate(merfish_layers):
+        for layerIDX,layerAppend in enumerate(merfishLayerNames):
 
             for structIDX,structureOfInterest in enumerate(structList):
-                print(f'Making L{layerAppend} {structureOfInterest} CCF mask (resolution={resolution})...')
+                print(f'Making {layerAppend} {structureOfInterest} CCF mask (resolution={resolution})...')
                 
                 if structureOfInterest == 'RSP':
                     structure_mask = np.zeros((maskDim0,maskDim1,maskDim2))
-                    for subRSP in ['v','d','agl']:
-                        structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest+subRSP+layerAppend])
-                        structureID = structureTree[0]['id']
-                        structure_mask += rsp[f'{resolution}'].make_structure_mask([structureID])
+                    for subLayerAppend in merfish_subLayers[layerIDX]:
+                        if subLayerAppend != '4':
+                            for subRSP in ['v','d','agl']:
+                                structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest+subRSP+subLayerAppend])
+                                structureID = structureTree[0]['id']
+                                structure_mask += rsp[f'{resolution}'].make_structure_mask([structureID])
                 
                 if structureOfInterest == 'SS':
                     structure_mask = np.zeros((maskDim0,maskDim1,maskDim2))
-                    for subSS in ['p-n','p-bfd','p-ll','p-m','p-ul','p-tr','p-un','s']:
-                        structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest+subSS+layerAppend])
-                        structureID = structureTree[0]['id']
-                        structure_mask += rsp[f'{resolution}'].make_structure_mask([structureID])
+                    for subLayerAppend in merfish_subLayers[layerIDX]:
+                        for subSS in ['p-n','p-bfd','p-ll','p-m','p-ul','p-tr','p-un','s']:
+                            structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest+subSS+subLayerAppend])
+                            structureID = structureTree[0]['id']
+                            structure_mask += rsp[f'{resolution}'].make_structure_mask([structureID])
 
-                if not(structureOfInterest == 'SS') and not(structureOfInterest == 'RSP'):
-                    structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest+layerAppend])
-                    structureID = structureTree[0]['id']
-                    structure_mask = rsp[f'{resolution}'].make_structure_mask([structureID])
+                if (structureOfInterest != 'SS') and (structureOfInterest != 'RSP'):
+                    structure_mask = np.zeros((maskDim0,maskDim1,maskDim2))
+                    for subLayerAppend in merfish_subLayers[layerIDX]:
+                        if not((subLayerAppend == '4') and (structureOfInterest == 'MOp')) and not((subLayerAppend == '4') and (structureOfInterest == 'MOs')):
+                            structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest+subLayerAppend])
+                            structureID = structureTree[0]['id']
+                            structure_mask += rsp[f'{resolution}'].make_structure_mask([structureID])
 
-                plotMask(structureOfInterest+string_sanitizer(layerAppend),structure_mask,savePath,resolution)
+                plotMask(f'{structureOfInterest} {string_sanitizer(layerAppend)}',structure_mask,savePath,resolution)
                 cell_region,cell_layer = CellRegion(cell_region,cell_layer,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX,layerIDX)
-            region_count_printer(cell_region,resolution,datasetName+string_sanitizer(layerAppend),structList)
+            region_count_printer(cell_region,resolution,f'{datasetName} {string_sanitizer(layerAppend)}',structList)
     
     if resolution == '25':
+        print(f'(no layer masking required, as it is already present in dataset)')
         for structIDX,structureOfInterest in enumerate(structList):
             print(f'Making {structureOfInterest} CCF mask (resolution={resolution})...')
 
