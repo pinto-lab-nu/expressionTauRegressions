@@ -141,9 +141,9 @@ for curstate in H3_names:
 grouping = sorted(list(set(H2_names)))
 
 #For layers, it's important that the first layer indexed is L2/3, since a Cux2 expression filter is applied later
-merfishLayerNames = ['L4_5 IT_ET','L6 IT_ET','L2_3 IT_ET'] # 'L4_5 IT_ET', 'L5 IT_ET', 'L6 IT_ET'] #['CTX IT, ET']
-#merfish_layers = ['4/5','6','2/3']
-merfish_subLayers = [['4','5'],['6a','6b'],['2/3']]
+merfishLayerNames = ['L2_3 IT_ET','L4_5 IT_ET','L6 IT_ET'] # 'L4_5 IT_ET', 'L5 IT_ET', 'L6 IT_ET'] #['CTX IT, ET']
+#merfish_layers = ['2/3','4/5','6']
+merfish_subLayers = [['2/3'],['4','5'],['6a','6b']]
 
 pilotLayerNames  =  ['L2_3 IT',   'L4_5 IT',  'L5 IT',    'L6 IT',    'L5 ET']
 layerIDs    =       [12,          4,          14,         11,         17]
