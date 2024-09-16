@@ -1,30 +1,37 @@
 from sklearn.model_selection import train_test_split, KFold
 from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
 from sklearn.linear_model import Lasso
 import os
 import numpy as np
 from random import choices
 from statsmodels.regression.linear_model import WLS
 from pypdf import PdfMerger
+import warnings
+from sklearn.exceptions import ConvergenceWarning
 
-max_iter = 1000
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
-def layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,cell_region,alphaParams):
+
+def layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,cell_region,alphaParams,max_iter):
     numLayers = len(layerNames)
     kfold = KFold(n_splits=n_splits, shuffle=True, random_state=42)
     GLMpredictDFFsorted = [[] for _ in range(numLayers)]
     alphas = np.power(10, np.linspace(alphaParams[0],alphaParams[1],num=alphaParams[2])) #np.linspace(0.0, 1.0, num=10) #np.power(10, np.linspace(-3, 7, num=30)) #This might be too high, taking too long in processing
-    lasso_betas = [np.zeros((alphas.shape[0],pred_dim,highMeanPredictorIDXs[layerIDX].shape[0])) for layerIDX in range(numLayers)]
+    lasso_betas = [np.zeros((alphas.shape[0],response_dim,highMeanPredictorIDXs[layerIDX].shape[0])) for layerIDX in range(numLayers)]
     alpha_R2 = np.zeros((numLayers,alphas.shape[0]))
     bestAlpha = np.zeros((numLayers,n_splits))
     bestR2 = np.zeros((numLayers,n_splits))
-    best_betas = [np.zeros((n_splits,pred_dim,highMeanPredictorIDXs[layerIDX].shape[0])) for layerIDX in range(numLayers)]
+    best_betas = [np.zeros((n_splits,response_dim,highMeanPredictorIDXs[layerIDX].shape[0])) for layerIDX in range(numLayers)]
+    loss_history_test_global = [[[] for _ in range(n_splits)] for _ in range(numLayers)]
+    loss_history_train_global = [[[] for _ in range(n_splits)] for _ in range(numLayers)]
+    dual_gap_history_global = [[[] for _ in range(n_splits)] for _ in range(numLayers)]
     #tauPredictions = [[[] for _ in range(n_splits)] for _ in range(numLayers)]
     if len(cell_region) == 0:
         predAnnotationColumn = 0
     else:
         predAnnotationColumn = 1
-    tauPredictions = [[np.empty((0,2*pred_dim+predAnnotationColumn)) for _ in range(n_splits)] for _ in range(numLayers)]
+    tauPredictions = [[np.empty((0,2*response_dim+predAnnotationColumn)) for _ in range(n_splits)] for _ in range(numLayers)]
     for layerIDX, layer in enumerate(layerNames):
         print(f'Fitting: {layerNames[layerIDX]}')
         GLMpredictTau = []
@@ -60,8 +67,35 @@ def layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layer
             # r2_score(test_y,L1_WLS_pred_y)
 
             #now predict test fold using the best alpha
-            lasso = Lasso(alpha=bestAlpha[layerIDX,foldIDX], max_iter=max_iter) #choose the best alpha
-            lasso.fit(train_x, train_y)
+            lasso = Lasso(alpha=bestAlpha[layerIDX,foldIDX], warm_start=True, max_iter=1) #choose the best alpha
+            
+            loss_history_test = []
+            loss_history_train = []
+            dual_gap_history = []
+            for iter in range(max_iter):
+                if iter == max_iter-1:
+                    print(f'Last iteration of fold {foldIDX}...')
+
+                lasso.fit(train_x, train_y)
+                lasso_penalty = lasso.alpha * np.sum(np.abs(lasso.coef_))
+
+                pred_y_test = lasso.predict(test_x)
+                mse_test = mean_squared_error(test_y,pred_y_test)
+                test_loss = 0.5 * mse_test + lasso_penalty
+                loss_history_test.append(test_loss)
+
+                pred_y_train = lasso.predict(train_x)
+                mse_train = mean_squared_error(train_y,pred_y_train)
+                train_loss = 0.5 * mse_train + lasso_penalty
+                loss_history_train.append(train_loss)
+
+                dual_gap_history.append(lasso.dual_gap_)
+
+                #loss_history.append(lasso.loss_)
+            loss_history_test_global[layerIDX][foldIDX] = loss_history_test
+            loss_history_train_global[layerIDX][foldIDX] = loss_history_train
+            dual_gap_history_global[layerIDX][foldIDX] = dual_gap_history
+            
             best_betas[layerIDX][foldIDX,:,:] = lasso.coef_
             pred_y = lasso.predict(test_x)
             if predAnnotationColumn == 1:
@@ -71,9 +105,9 @@ def layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layer
             #print(pred_y.shape)
             #print(cell_region_IDX.shape)
             if predAnnotationColumn == 1:
-                predCat = np.hstack((test_y.reshape(-1,pred_dim),pred_y.reshape(-1,pred_dim),cell_region_IDX.reshape(-1,1)))
+                predCat = np.hstack((test_y.reshape(-1,response_dim),pred_y.reshape(-1,response_dim),cell_region_IDX.reshape(-1,1)))
             else:
-                predCat = np.hstack((test_y.reshape(-1,pred_dim),pred_y.reshape(-1,pred_dim)))
+                predCat = np.hstack((test_y.reshape(-1,response_dim),pred_y.reshape(-1,response_dim)))
             #print(predCat.shape)
             tauPredictions[layerIDX][foldIDX] = np.vstack((tauPredictions[layerIDX][foldIDX][:,:],predCat))
             GLMpredictTau.append(pred_y)
@@ -85,7 +119,7 @@ def layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layer
         #sorted_indices = np.argsort(GLMpredictIDX_allFolds)
         #GLMpredictDFFsorted[layerIDX] = GLMpredictTau_allFolds[sorted_indices]
     
-    return best_betas,lasso_betas,bestAlpha,alphas,tauPredictions,bestR2
+    return best_betas,lasso_betas,bestAlpha,alphas,tauPredictions,bestR2,loss_history_test_global,loss_history_train_global,dual_gap_history_global
 
 
 

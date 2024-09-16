@@ -42,6 +42,7 @@ plotting = True
 numPrecision, alphaPrecision = 3, 5 #just for display (in plotting and regression text files)
 verbose = True
 predictorOrder = [1,0] #select predictors for regressions, and order (0:merfish[-imputed], 1:pilot)
+max_iter = 300
 
 
 
@@ -350,9 +351,9 @@ for layerNames,numLayers,resolution in zip([pilotLayerNames,merfishLayerNames],[
         for structIDX,structureOfInterest in enumerate(structList):
             regionIDXs = set(np.where(cell_region[resolution] == structIDX)[0])
             
-            H2layerFilter = layerIDXs&regionIDXs
+            H2layerFilter = layerIDXs & regionIDXs
             if (layerIDX == 0) and (geneLimit == -1):
-                H2layerFilter = H2layerFilter&cux2IDXs
+                H2layerFilter = H2layerFilter & cux2IDXs
             H2layerFilter = list(H2layerFilter)
         
             print(f'layer:{layerName}, {structureOfInterest}, count: {len(H2layerFilter)}')
@@ -433,7 +434,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         pooledTauCCF_coords = [np.empty((4,0)) for _ in range(numLayers)]
         pooledTauCCF_coords_noGene = [np.empty((4,0)) for _ in range(numLayers)]
         pooledPixelCount_v_CellCount = [np.empty((2,0)) for _ in range(numLayers)]
-        pooledTau_cellAligned = [np.empty((1,0)) for _ in range(numLayers)]
+        resampledTau_aligned = [np.empty((1,0)) for _ in range(numLayers)]
         pooled_cell_region_H2layerFiltered = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
         total_genes = gene_data_dense_H2layerFiltered[resolution][0].shape[1]
         resampledGenes_aligned = [np.empty((total_genes,0)) for _ in range(numLayers)]
@@ -444,6 +445,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         #resampledH3_aligned_H2layerFiltered_OneHot = []
         #H3_per_cell_H2layerFiltered_OneHot = []
         genePoolSaturation = []
+        print('\n')
         for layerIDX in range(numLayers):
             geneProfilePresentCount = 0
             possiblePoolsCount = 0
@@ -466,22 +468,29 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     #     cellwise_AP_CCF_25 = apCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1) * ((10/25)*100)
 
                     current_cell_pooling_IDXs = np.where(np.abs(apCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1)[current_ML_cell_pooling_IDXs]-current_tau_AP_pool)<(tauPoolSize/2))[0]
-                    pooledTaus = allTauCCF_Coords[2,current_ML_tau_pooling_IDXs[current_tau_pooling_IDXs]]
-                    if pooledTaus.size > 0:
+                    pooledTaus = allTauCCF_Coords[2,current_ML_tau_pooling_IDXs[current_tau_pooling_IDXs]].reshape(-1,1)
+                    if pooledTaus.shape[0] > 0:
                         #print(mlCCF_per_cell_H2layerFiltered[layerIDX][current_ML_cell_pooling_IDXs])
                         possiblePoolsCount += 1
                         if current_cell_pooling_IDXs.shape[0] > 0:
                             #print(current_tau_ML_pool,current_tau_AP_pool)
-
                             geneProfilePresentCount += 1
 
                             pooledTauCCF_coords[layerIDX] = np.hstack((pooledTauCCF_coords[layerIDX], np.array((current_tau_ML_pool,current_tau_AP_pool,np.mean(pooledTaus),np.std(pooledTaus))).reshape(-1,1))) #switched order
                             
-                            pooledTau_cellAligned[layerIDX] = np.hstack((pooledTau_cellAligned[layerIDX],pooledTaus.reshape(1,-1)))
+                            #######################################################
+                            ### Alignment of functional and expression datasets ###
+                            pool_resample_size = current_cell_pooling_IDXs.shape[0] #<- resample to the size of the expression data (sets expression dataset as the bottleneck)
+                            
+                            tauResamplingIDX = random.choices(np.arange(0,pooledTaus.shape[0]), k=pool_resample_size)
+                            resampledTau_aligned[layerIDX] = np.hstack((resampledTau_aligned[layerIDX],pooledTaus[tauResamplingIDX,:].reshape(1,-1)))
+                            #resampledTau_aligned[layerIDX] = np.hstack((resampledTau_aligned[layerIDX],pooledTaus.reshape(1,-1))) #old, when expression (below) was resampled to size of functional dataset at pool (k=pooledTaus.shape[0])
                             
                             gene_pool_data = gene_data_dense_H2layerFiltered[resolution][layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs],:]
-                            geneResamplingIDX = random.choices(np.arange(0,gene_pool_data.shape[0]), k=pooledTaus.shape[0])
+                            geneResamplingIDX = random.choices(np.arange(0,gene_pool_data.shape[0]), k=pool_resample_size)
                             resampledGenes_aligned[layerIDX] = np.hstack((resampledGenes_aligned[layerIDX],gene_pool_data[geneResamplingIDX,:].reshape(total_genes,-1)))
+                            ### Alignment handled ###
+                            #########################
 
                             if resolution == '25':
                                 H3_pool_data = H3_per_cell_H2layerFiltered[resolution][layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs],:]
@@ -545,7 +554,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
             plt.figure(), plt.xlabel('Pool Pixel Count'), plt.ylabel('Pool Cell Count')
             plt.title(f'Pool Size:{tauPoolSize}mm, Pixel & Cell Counts by CCF Pool\n{layerNames[layerIDX]}\n{lineSelection}, {layerNames[layerIDX]}')
             plt.scatter(pooledPixelCount_v_CellCount[layerIDX][0,:],pooledPixelCount_v_CellCount[layerIDX][1,:],color='black',s=1)
-            plt.axis('equal')
+            #plt.axis('equal')
             plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{lineSelection}_pooling{tauPoolSize}mm_CellPixelCounts_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
             plt.close()
 
@@ -599,7 +608,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         ### Standard Scaler transform the gene expression and tau data prior to regression ###
         mean_expression_standard = np.zeros_like(mean_expression[resolution])
         # Tau Regressions #
-        pooledTau_cellAligned_standard = [np.zeros_like(pooledTau_cellAligned[layerIDX].T) for layerIDX in range(numLayers)]
+        resampledTau_aligned_standard = [np.zeros_like(resampledTau_aligned[layerIDX].T) for layerIDX in range(numLayers)]
         resampledGenes_aligned_H2layerFiltered_standard = [np.zeros_like(resampledGenes_aligned[layerIDX].T) for layerIDX in range(numLayers)]
         # CCF Regressions #
         gene_data_dense_H2layerFiltered_standard = [np.zeros_like(gene_data_dense_H2layerFiltered[resolution][layerIDX]) for layerIDX in range(numLayers)]
@@ -608,7 +617,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         apCCF_per_cell_H2layerFiltered_standard = [np.zeros_like(apCCF_per_cell_H2layerFiltered[resolution][layerIDX]) for layerIDX in range(numLayers)]
         for layerIDX in range(numLayers):
             ## Tau ##
-            pooledTau_cellAligned_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(pooledTau_cellAligned[layerIDX][:,:]).T)
+            resampledTau_aligned_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(resampledTau_aligned[layerIDX][:,:]).T)
             #tau_per_cell_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(tau_per_cell_H2layerFiltered[layerIDX][:,:]))
             ## Genes ##
             mean_expression_standard[layerIDX,:,:] = standard_scaler.fit_transform(mean_expression[resolution][layerIDX,:,:])
@@ -635,6 +644,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                                                                                         ['GenePredictors',   'H3Predictors']):
             
             if (predictorPathSuffix == 'H3Predictors') and ((datasetName == 'Merfish-Imputed') or (datasetName == 'Merfish')):
+                print(f'\nAborting H3 Predictor regressions for Merfish{merfish_datasetName_append} dataset...')
                 break
             
             if not os.path.exists(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}')):
@@ -718,8 +728,8 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     spatialReconstruction = False
                     tauRegression = True
                     region_label_filtered = pooled_cell_region_H2layerFiltered
-                    y_data = pooledTau_cellAligned_standard
-                    pred_dim = 1
+                    y_data = resampledTau_aligned_standard
+                    response_dim = 1
                     if predictorPathSuffix == 'GenePredictors':
                         x_data = resampledGenes_aligned_H2layerFiltered_standard
                     if predictorPathSuffix == 'H3Predictors':
@@ -728,7 +738,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                 if regressionType == 1: # geneX, H3 -> CCF
                     spatialReconstruction = True
                     tauRegression = False
-                    pred_dim = 2
+                    response_dim = 2
                     if predictorPathSuffix == 'GenePredictors':
                         x_data = gene_data_dense_H2layerFiltered_standard
                         y_data = [np.hstack((apCCF_per_cell_H2layerFiltered_standard[layerIDX],mlCCF_per_cell_H2layerFiltered_standard[layerIDX])) for layerIDX in range(numLayers)]
@@ -743,8 +753,8 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                 #     tauRegression = True
                 #     genePredictors = False
                 #     cell_region = pooled_cell_region_H2layerFiltered
-                #     y_data = pooledTau_cellAligned_standard
-                #     pred_dim = 1
+                #     y_data = resampledTau_aligned_standard
+                #     response_dim = 1
                 #     x_data = resampledH3_aligned_H2layerFiltered
 
                 # if regressionType == 3: # H3 -> CCF
@@ -753,15 +763,15 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                 #     genePredictors = False
                 #     cell_region = cell_region_H2layerFiltered
                 #     y_data = [np.hstack((apCCF_per_cell_H2layerFiltered_standard[layerIDX],mlCCF_per_cell_H2layerFiltered_standard[layerIDX])) for layerIDX in range(numLayers)]
-                #     pred_dim = 2
+                #     response_dim = 2
                 #     x_data = H3_per_cell_H2layerFiltered
 
                 # if regressionType == 2: #Merfish-Imputed -> Tau
                 #     spatialReconstruction = False
                 #     tauRegression = True
                 #     cell_region_filtered = pooled_cell_region_H2layerFiltered
-                #     y_data = pooledTau_cellAligned_standard
-                #     pred_dim = 1
+                #     y_data = resampledTau_aligned_standard
+                #     response_dim = 1
                 #     x_data = resampledGenes_aligned_H2layerFiltered_standard
 
                 # if regressionType == 3: # Merfish-Imputed -> CCF
@@ -770,7 +780,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                 #     cell_region_filtered = cell_region_H2layerFiltered[resolution]
                 #     x_data = [np.array(standardMerfish_CCF_Genes.loc[:,enrichedGeneNames])]
                 #     y_data = [np.array(standardMerfish_CCF_Genes.loc[:,['x_ccf','y_ccf']])]
-                #     pred_dim = 2
+                #     response_dim = 2
                 #     highMeanPredictorIDXs = [[] for _ in range(numLayers)]
                 #     for layerIDX in range(numLayers):
                 #         layerMeanPredictors = np.mean(np.asarray(predictorDataRaw[layerIDX][:,:]),axis=0)
@@ -792,21 +802,23 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     print(f'{datasetName} {predictorTitle} -> {lineSelection} Tau (CCF Pooling={tauPoolSize}mm, predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
                     if verbose:
                         predictor_response_info(x_data,y_data)
-                    best_coef_tau,lasso_weight_tau,bestAlpha_tau,alphas_tau,tauPredictions_tau,bestR2_tau = layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alphaParams)
-                
+                    best_coef_tau,lasso_weight_tau,bestAlpha_tau,alphas_tau,tauPredictions_tau,bestR2_tau,loss_history_test_tau,loss_history_train_tau,dual_gap_history_tau = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alphaParams,max_iter)
+                    predictor_condition_numbers_tau = [np.linalg.cond(x) for x in x_data]
+
                 if (regressionType == 1):
                     print(f'{datasetName} {predictorTitle} -> CCF (predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
                     if verbose:
                         predictor_response_info(x_data,y_data)
-                    best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial = layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alphaParams)
+                    best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial,loss_history_test_spatial,loss_history_train_spatial,dual_gap_history_spatial = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alphaParams,max_iter)
+                    predictor_condition_numbers_spatial = [np.linalg.cond(x) for x in x_data]
 
                 # if regressionType == 2:
                 #     print(f'{datasetName} {predictorTitle} -> {lineSelection} Tau (CCF Pooling={tauPoolSize}, predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
-                #     best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial = layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,[],alphaParams)
+                #     best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,[],alphaParams)
 
                 # if regressionType == 3:
                 #     print(f'{datasetName} {predictorTitle} -> CCF (predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
-                #     best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial = layerRegressions(pred_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,[],alphaParams)
+                #     best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,[],alphaParams)
 
 
 
@@ -828,6 +840,10 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
             resampTitle = f'predThresh={meanPredictionThresh}'
             for spatialReconstruction in plottingConditions: #[True,False]
                 if spatialReconstruction:
+                    loss_history_test = loss_history_test_spatial
+                    loss_history_train = loss_history_train_spatial
+                    dual_gap_history = dual_gap_history_spatial
+                    predictor_condition_numbers = predictor_condition_numbers_spatial
                     plottingTitles = ["A-P CCF","M-L CCF"]
                     titleAppend = f'Spatial Reconstruction from {datasetName} {predictorTitle}, {resampTitle}'
                     tauPredictions = tauPredictions_spatial
@@ -838,9 +854,13 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     alphas = alphas_spatial
                     lasso_weight = lasso_weight_spatial
                     sd_fold_coef = sd_fold_coef_spatial
-                    pred_dim = 2
+                    response_dim = 2
                     plottingDir = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}')
                 else:
+                    loss_history_test = loss_history_test_tau
+                    loss_history_train = loss_history_train_tau
+                    dual_gap_history = dual_gap_history_tau
+                    predictor_condition_numbers = predictor_condition_numbers_tau
                     plottingTitles = ["tau"]
                     titleAppend = f'{lineSelection} Tau Reconstruction from {datasetName} {predictorTitle} (pooling={tauPoolSize}mm, {resampTitle})'
                     tauPredictions = tauPredictions_tau
@@ -851,7 +871,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     alphas = alphas_tau
                     lasso_weight = lasso_weight_tau
                     sd_fold_coef = sd_fold_coef_tau
-                    pred_dim = 1
+                    response_dim = 1
                     plottingDir = os.path.join(tauSortedPath,f'{predictorPathSuffix}',f'{datasetName}')
                     if not os.path.exists(plottingDir):
                         os.makedirs(plottingDir)
@@ -952,13 +972,26 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     file.write(f'{titleAppend}\n\n')
 
                 for layerIDX,layerName in enumerate(layerNames):
+
+                    ### Loss landscape ###
+                    fig, axes = plt.subplots(3,n_splits,figsize=(17,18))
+                    for foldIDX in range(n_splits):
+                        for hist_IDX,(history_type,history_title) in enumerate(zip([loss_history_train,loss_history_test,dual_gap_history],['Lasso Training Loss','Lasso Testing Loss','Duality Gap'])):
+                            axes[hist_IDX,foldIDX].plot(history_type[layerIDX][foldIDX])
+                            axes[hist_IDX,foldIDX].set_xlabel('Iteration')
+                            axes[hist_IDX,foldIDX].set_ylabel(f'{history_title}')
+                            axes[hist_IDX,foldIDX].set_yscale('log')
+                            axes[hist_IDX,foldIDX].set_title(f'fold:{foldIDX}')
+                    plt.suptitle(f'{titleAppend}, {layerName}, Lasso Loss and Duality Gap by Iteration,\nPredictor Condition Number (of complete matrix): {round(predictor_condition_numbers[layerIDX],numPrecision)}')
+                    plt.savefig(os.path.join(plottingDir,f'{predictorPathSuffix}LossConvergence_{layerName}_{titleAppend}.pdf'),dpi=600,bbox_inches='tight')
+                    plt.close()
                     
                     bestR2_mean, bestR2_SD = round(np.mean(bestR2[layerIDX,:]),numPrecision), round(np.std(bestR2[layerIDX,:]),numPrecision)
                     bestAlpha_mean, bestAlpha_SD = np.mean(bestAlpha[layerIDX,:]), np.std(bestAlpha[layerIDX,:])
                     
                     with open(os.path.join(plottingDir,f'regression_{titleAppend}.txt'), "a") as file:
                         file.write(f'{layerName}, Best R2+-SD:{bestR2_mean}+-{bestR2_SD} (at alpha+-SD={round(bestAlpha_mean,alphaPrecision)}+-{round(bestAlpha_SD,alphaPrecision)})\n')
-                        for dim in range(pred_dim):
+                        for dim in range(response_dim):
                             if spatialReconstruction:
                                 file.write(f'####### {plottingTitles[dim]} #######\n')
                             file.write(f'Highest + Predictors:{predictorNamesArray[highMeanPredictorIDXs[layerIDX]][sorted_coef[layerIDX][dim,:]][-5:]}\n')
@@ -969,7 +1002,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                                 file.write(f'Central A-P betas on margins of Tau beta distribution: {significantTau_centeredSpatial_betas_list[layerIDX]}\n')
                         file.write(f'\n')
 
-                    fig, axes = plt.subplots(pred_dim,1,figsize=(10,10))
+                    fig, axes = plt.subplots(response_dim,1,figsize=(10,10))
                     plt.suptitle(f'{titleAppend}, {layerName}, best $R^2\pm$SD: {bestR2_mean}$\pm${bestR2_SD} ($\\alpha\pm$SD: {round(bestAlpha_mean,alphaPrecision)}$\pm${round(bestAlpha_SD,alphaPrecision)})')
                     for dim,ax in enumerate(np.atleast_1d(axes)):
                         ax.set_title(f'{plottingTitles[dim]}')
@@ -997,7 +1030,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                             plt.savefig(os.path.join(plottingDir,f'APvsML_{predictorPathSuffix}BetaWeights_{layerName}_{titleAppend}.pdf'),dpi=600,bbox_inches='tight')
                             plt.close()
 
-                    fig, axes = plt.subplots(pred_dim,1,figsize=(16,13))
+                    fig, axes = plt.subplots(response_dim,1,figsize=(16,13))
                     plt.suptitle(f'{titleAppend}\n{layerName}, $\\alpha\pm$SD={round(bestAlpha_mean,alphaPrecision)}$\pm${round(bestAlpha_SD,alphaPrecision)}, $R^2\pm$SD={bestR2_mean}$\pm${bestR2_SD}, error:5-fold SD')
                     for dim,ax in enumerate(np.atleast_1d(axes)):
                         ax.set_title(f'{plottingTitles[dim]}')
@@ -1011,7 +1044,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                         plt.savefig(os.path.join(plottingDir,f'{predictorPathSuffix}LassoWeights_{layerName}_{titleAppend}.pdf'),dpi=600,bbox_inches='tight')
                         plt.close()
                     
-                    fig1, axes = plt.subplots(pred_dim,1,figsize=(12,12))
+                    fig1, axes = plt.subplots(response_dim,1,figsize=(12,12))
                     #fig2, ax2 = plt.subplots(1,1,figsize=(15,8))
                     for dim,ax in enumerate(np.atleast_1d(axes)):
                         for structIDX,structureOfInterest in enumerate(structList):
@@ -1026,14 +1059,14 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                         plt.savefig(os.path.join(plottingDir,f'regional{predictorPathSuffix}_{layerName}_{titleAppend}.pdf'),dpi=600,bbox_inches='tight')
                         plt.close()
 
-                    for dim in range(pred_dim):
+                    for dim in range(response_dim):
                         currentPlottingTitle = plottingTitles[dim]
                         fig, axes = plt.subplots(1,n_splits,figsize=(20,6))
                         plt.suptitle(f'{titleAppend}, {layerName}')
                         for foldIDX,ax in enumerate(axes):
                             #cell_region_IDX = (cell_region_H2layerFiltered[layerIDX][test_index,:]).astype(int).reshape(-1)
                             test_y = tauPredictions[layerIDX][foldIDX][:,dim]
-                            pred_y = tauPredictions[layerIDX][foldIDX][:,dim+pred_dim]
+                            pred_y = tauPredictions[layerIDX][foldIDX][:,dim+response_dim]
                             cell_region_IDX = tauPredictions[layerIDX][foldIDX][:,-1].astype(int)
                             cell_region_colors = np.asarray(areaColors)[cell_region_IDX]
 
@@ -1069,7 +1102,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                 #     rename = os.path.join(plottingDir,f'regional{predictorPathSuffix}_{titleAppend}.pdf')
                 #     #PDFmerger(plottingDir,f'regional{predictorPathSuffix}_',layerNames,f'_{titleAppend}.pdf',rename)
 
-                #     for dim in range(pred_dim):
+                #     for dim in range(response_dim):
                 #         currentPlottingTitle = plottingTitles[dim]
                 #         rename = os.path.join(plottingDir,f'predicted{currentPlottingTitle}_{titleAppend}.pdf')
                 #         #PDFmerger(plottingDir,f'predicted{currentPlottingTitle}_',layerNames,f'_{titleAppend}.pdf',rename)
