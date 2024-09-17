@@ -41,9 +41,8 @@ loadData = True
 plotting = True
 numPrecision, alphaPrecision = 3, 5 #just for display (in plotting and regression text files)
 verbose = True
-predictorOrder = [0,1] #select predictors for regressions, and order (0:merfish[-imputed], 1:pilot)
-max_iter = 300
-
+predictorOrder = [0,1] #select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
+max_iter = 200
 
 
 structList = np.array(['MOp','MOs','VISa','VISp','VISam','VISpm','SS','RSP'])
@@ -437,6 +436,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         resampledTau_aligned = [np.empty((1,0)) for _ in range(numLayers)]
         tau_aligned_forH3 = [np.empty((1,0)) for _ in range(numLayers)]
         pooled_cell_region_geneAligned_H2layerFiltered = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
+        pooled_region_label_alignedForTau = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
         total_genes = gene_data_dense_H2layerFiltered[resolution][0].shape[1]
         resampledGenes_aligned = [np.empty((total_genes,0)) for _ in range(numLayers)]
         resampledH3_aligned_H2layerFiltered = [np.empty((9,0)) for _ in range(numLayers)] #[np.empty((1,0)) for _ in range(numLayers)]
@@ -450,7 +450,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         for layerIDX in range(numLayers):
             geneProfilePresentCount = 0
             possiblePoolsCount = 0
-            print(f'Tau-Gene Alignment Pooling (size {tauPoolSize}mm): {layerNames[layerIDX]}')
+            print(f'Tau-Gene Alignment Pooling ({datasetName}, size {tauPoolSize}mm): {layerNames[layerIDX]}')
             for current_tau_ML_pool in np.arange(minML_CCF,CCF_ML_Center_mm,tauPoolSize):
                 current_ML_tau_pooling_IDXs = np.where(np.abs(np.abs(allTauCCF_Coords[0,:]-CCF_ML_Center_mm)-np.abs(current_tau_ML_pool-CCF_ML_Center_mm))<(tauPoolSize/2))[0] #our pixel space extents bilaterally, but CCF is unilateral, so 'CCF' coordinates from pixel space need to reflected over the ML center axis (CCF_ML_center)
                 
@@ -507,8 +507,10 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                                 resampledH3_aligned_H2layerFiltered[layerIDX] = np.hstack((resampledH3_aligned_H2layerFiltered[layerIDX],normalized_counts[H3ResamplingIDX,:].reshape(9,-1)))
                                 pooledH3_for_spatial[layerIDX] = np.hstack((pooledH3_for_spatial[layerIDX],normalized_counts.reshape(9,-1)))
 
-                                pool_region_label = cell_region_H2layerFiltered[resolution][layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs],:][0][0]
+                                pool_region_label = cell_region_H2layerFiltered[resolution][layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs],:][0][0].reshape(1,-1)
                                 pooled_region_label[layerIDX] = np.hstack((pooled_region_label[layerIDX],pool_region_label.reshape(1,-1))) ###finish to correctly label brain region for H3 regressions
+
+                                pooled_region_label_alignedForTau[layerIDX] = np.vstack((pooled_region_label_alignedForTau[layerIDX],pool_region_label[H3ResamplingIDX,:].reshape(-1,1)))
 
                             pooledPixelCount_v_CellCount[layerIDX] = np.hstack((pooledPixelCount_v_CellCount[layerIDX],np.array((pooledTaus.shape[0],gene_pool_data.shape[0])).reshape(2,-1)))
 
@@ -696,7 +698,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
 
                 sortedMeanPredictor = np.argsort(layerMeanPredictors)
                 meanPredictorCutoffIDX = np.argmin(np.abs(layerMeanPredictors[sortedMeanPredictor]-meanPredictionThresh))
-
+                
                 # geneNameOI = 'Cux2'
                 # geneOI = np.where(gene_names==geneNameOI)[0][0]
                 # plt.figure()
@@ -738,7 +740,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     if predictorPathSuffix == 'H3Predictors':
                         x_data = [m.T for m in resampledH3_aligned_H2layerFiltered]
                         y_data = tau_aligned_forH3_standard
-                        #region_label_filtered = 
+                        region_label_filtered = pooled_region_label_alignedForTau
 
                 if regressionType == 1: # geneX, H3 -> CCF
                     spatialReconstruction = True
@@ -753,48 +755,6 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                         y_data = [standardized_CCF_Tau[layerIDX][[1,0],:].T for layerIDX in range(numLayers)]
                         region_label_filtered = [np.array(pooled_region_label[layerIDX]).T for layerIDX in range(numLayers)]
 
-                # if regressionType == 2: # H3 -> Tau
-                #     spatialReconstruction = False
-                #     tauRegression = True
-                #     genePredictors = False
-                #     cell_region = pooled_cell_region_geneAligned_H2layerFiltered
-                #     y_data = resampledTau_aligned_standard
-                #     response_dim = 1
-                #     x_data = resampledH3_aligned_H2layerFiltered
-
-                # if regressionType == 3: # H3 -> CCF
-                #     spatialReconstruction = True
-                #     tauRegression = False
-                #     genePredictors = False
-                #     cell_region = cell_region_H2layerFiltered
-                #     y_data = [np.hstack((apCCF_per_cell_H2layerFiltered_standard[layerIDX],mlCCF_per_cell_H2layerFiltered_standard[layerIDX])) for layerIDX in range(numLayers)]
-                #     response_dim = 2
-                #     x_data = H3_per_cell_H2layerFiltered
-
-                # if regressionType == 2: #Merfish-Imputed -> Tau
-                #     spatialReconstruction = False
-                #     tauRegression = True
-                #     cell_region_filtered = pooled_cell_region_geneAligned_H2layerFiltered
-                #     y_data = resampledTau_aligned_standard
-                #     response_dim = 1
-                #     x_data = resampledGenes_aligned_H2layerFiltered_standard
-
-                # if regressionType == 3: # Merfish-Imputed -> CCF
-                #     spatialReconstruction = True
-                #     tauRegression = False
-                #     cell_region_filtered = cell_region_H2layerFiltered[resolution]
-                #     x_data = [np.array(standardMerfish_CCF_Genes.loc[:,enrichedGeneNames])]
-                #     y_data = [np.array(standardMerfish_CCF_Genes.loc[:,['x_ccf','y_ccf']])]
-                #     response_dim = 2
-                #     highMeanPredictorIDXs = [[] for _ in range(numLayers)]
-                #     for layerIDX in range(numLayers):
-                #         layerMeanPredictors = np.mean(np.asarray(predictorDataRaw[layerIDX][:,:]),axis=0)
-                #         highMeanPredictorIDXs[layerIDX] = (np.where(layerMeanPredictors > meanPredictionThresh)[0]).astype(int)
-
-                if regressionType == 4: # CCF <-> Tau
-                    print('To Do: make regression type 4')
-                    break
-                
                 # if ???:
                 #     y_data = tau_per_cell_H2layerFiltered_standard
 
@@ -823,15 +783,6 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial,loss_history_test_spatial,loss_history_train_spatial,dual_gap_history_spatial = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alphaParams,max_iter)
                     predictor_condition_numbers_spatial = [np.linalg.cond(x) for x in x_data]
 
-                # if regressionType == 2:
-                #     print(f'{datasetName} {predictorTitle} -> {lineSelection} Tau (CCF Pooling={tauPoolSize}, predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
-                #     best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,[],alphaParams)
-
-                # if regressionType == 3:
-                #     print(f'{datasetName} {predictorTitle} -> CCF (predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
-                #     best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,[],alphaParams)
-
-
 
             mean_fold_coef_tau = [np.mean(best_coef_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
             sd_fold_coef_tau = [np.std(best_coef_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
@@ -839,8 +790,6 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
             mean_fold_coef_spatial = [np.mean(best_coef_spatial[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
             sd_fold_coef_spatial = [np.std(best_coef_spatial[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
             sorted_coef_spatial = [np.argsort(mean_fold_coef_spatial[layerIDX]) for layerIDX in range(numLayers)]
-
-
 
 
 
