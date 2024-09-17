@@ -435,6 +435,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         pooledTauCCF_coords_noGene = [np.empty((4,0)) for _ in range(numLayers)]
         pooledPixelCount_v_CellCount = [np.empty((2,0)) for _ in range(numLayers)]
         resampledTau_aligned = [np.empty((1,0)) for _ in range(numLayers)]
+        tau_aligned_forH3 = [np.empty((1,0)) for _ in range(numLayers)]
         pooled_cell_region_H2layerFiltered = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
         total_genes = gene_data_dense_H2layerFiltered[resolution][0].shape[1]
         resampledGenes_aligned = [np.empty((total_genes,0)) for _ in range(numLayers)]
@@ -484,7 +485,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                             
                             tauResamplingIDX = random.choices(np.arange(0,pooledTaus.shape[0]), k=pool_resample_size)
                             resampledTau_aligned[layerIDX] = np.hstack((resampledTau_aligned[layerIDX],pooledTaus[tauResamplingIDX,:].reshape(1,-1)))
-                            #resampledTau_aligned[layerIDX] = np.hstack((resampledTau_aligned[layerIDX],pooledTaus.reshape(1,-1))) #old, when expression (below) was resampled to size of functional dataset at pool (k=pooledTaus.shape[0])
+                            tau_aligned_forH3[layerIDX] = np.hstack((tau_aligned_forH3[layerIDX],pooledTaus.reshape(1,-1))) #old, when expression (below) was resampled to size of functional dataset at pool (k=pooledTaus.shape[0]), this is kept for H3 regressions, which shouldn't be resampled to match th size of the expression dataset
                             
                             gene_pool_data = gene_data_dense_H2layerFiltered[resolution][layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs],:]
                             geneResamplingIDX = random.choices(np.arange(0,gene_pool_data.shape[0]), k=pool_resample_size)
@@ -609,6 +610,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         mean_expression_standard = np.zeros_like(mean_expression[resolution])
         # Tau Regressions #
         resampledTau_aligned_standard = [np.zeros_like(resampledTau_aligned[layerIDX].T) for layerIDX in range(numLayers)]
+        tau_aligned_forH3_standard = [np.zeros_like(tau_aligned_forH3[layerIDX].T) for layerIDX in range(numLayers)]
         resampledGenes_aligned_H2layerFiltered_standard = [np.zeros_like(resampledGenes_aligned[layerIDX].T) for layerIDX in range(numLayers)]
         # CCF Regressions #
         gene_data_dense_H2layerFiltered_standard = [np.zeros_like(gene_data_dense_H2layerFiltered[resolution][layerIDX]) for layerIDX in range(numLayers)]
@@ -618,6 +620,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         for layerIDX in range(numLayers):
             ## Tau ##
             resampledTau_aligned_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(resampledTau_aligned[layerIDX][:,:]).T)
+            tau_aligned_forH3_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(tau_aligned_forH3[layerIDX][:,:]).T)
             #tau_per_cell_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(tau_per_cell_H2layerFiltered[layerIDX][:,:]))
             ## Genes ##
             mean_expression_standard[layerIDX,:,:] = standard_scaler.fit_transform(mean_expression[resolution][layerIDX,:,:])
@@ -728,12 +731,13 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     spatialReconstruction = False
                     tauRegression = True
                     region_label_filtered = pooled_cell_region_H2layerFiltered
-                    y_data = resampledTau_aligned_standard
                     response_dim = 1
                     if predictorPathSuffix == 'GenePredictors':
                         x_data = resampledGenes_aligned_H2layerFiltered_standard
+                        y_data = resampledTau_aligned_standard
                     if predictorPathSuffix == 'H3Predictors':
                         x_data = [m.T for m in resampledH3_aligned_H2layerFiltered]
+                        y_data = tau_aligned_forH3_standard
 
                 if regressionType == 1: # geneX, H3 -> CCF
                     spatialReconstruction = True
