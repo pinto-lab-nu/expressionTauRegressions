@@ -41,7 +41,7 @@ loadData = True
 plotting = True
 numPrecision, alphaPrecision = 3, 5 #just for display (in plotting and regression text files)
 verbose = True
-predictorOrder = [0,1] #select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
+predictorOrder = [1,0] #select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
 max_iter = 200
 
 
