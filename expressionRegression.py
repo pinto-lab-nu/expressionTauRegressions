@@ -41,7 +41,7 @@ loadData = True
 plotting = True
 numPrecision, alphaPrecision = 3, 5 #just for display (in plotting and regression text files)
 verbose = True
-predictorOrder = [1,0] #select predictors for regressions, and order (0:merfish[-imputed], 1:pilot)
+predictorOrder = [0,1] #select predictors for regressions, and order (0:merfish[-imputed], 1:pilot)
 max_iter = 300
 
 
@@ -436,7 +436,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         pooledPixelCount_v_CellCount = [np.empty((2,0)) for _ in range(numLayers)]
         resampledTau_aligned = [np.empty((1,0)) for _ in range(numLayers)]
         tau_aligned_forH3 = [np.empty((1,0)) for _ in range(numLayers)]
-        pooled_cell_region_H2layerFiltered = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
+        pooled_cell_region_geneAligned_H2layerFiltered = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
         total_genes = gene_data_dense_H2layerFiltered[resolution][0].shape[1]
         resampledGenes_aligned = [np.empty((total_genes,0)) for _ in range(numLayers)]
         resampledH3_aligned_H2layerFiltered = [np.empty((9,0)) for _ in range(numLayers)] #[np.empty((1,0)) for _ in range(numLayers)]
@@ -513,7 +513,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                             pooledPixelCount_v_CellCount[layerIDX] = np.hstack((pooledPixelCount_v_CellCount[layerIDX],np.array((pooledTaus.shape[0],gene_pool_data.shape[0])).reshape(2,-1)))
 
                             cell_region_pool_data = cell_region_H2layerFiltered[resolution][layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs],:]
-                            pooled_cell_region_H2layerFiltered[layerIDX] = np.vstack((pooled_cell_region_H2layerFiltered[layerIDX],cell_region_pool_data[geneResamplingIDX,:].reshape(-1,1)))
+                            pooled_cell_region_geneAligned_H2layerFiltered[layerIDX] = np.vstack((pooled_cell_region_geneAligned_H2layerFiltered[layerIDX],cell_region_pool_data[geneResamplingIDX,:].reshape(-1,1)))
 
                             #gene_pool_ML_CCF = mlCCF_per_cell_H2layerFiltered[resolution][layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs]].reshape(-1)
                             #gene_pool_AP_CCF = apCCF_per_cell_H2layerFiltered[resolution][layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs]].reshape(-1)
@@ -730,14 +730,15 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                 if regressionType == 0: # geneX, H3 -> Tau
                     spatialReconstruction = False
                     tauRegression = True
-                    region_label_filtered = pooled_cell_region_H2layerFiltered
                     response_dim = 1
                     if predictorPathSuffix == 'GenePredictors':
                         x_data = resampledGenes_aligned_H2layerFiltered_standard
                         y_data = resampledTau_aligned_standard
+                        region_label_filtered = pooled_cell_region_geneAligned_H2layerFiltered
                     if predictorPathSuffix == 'H3Predictors':
                         x_data = [m.T for m in resampledH3_aligned_H2layerFiltered]
                         y_data = tau_aligned_forH3_standard
+                        #region_label_filtered = 
 
                 if regressionType == 1: # geneX, H3 -> CCF
                     spatialReconstruction = True
@@ -756,7 +757,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                 #     spatialReconstruction = False
                 #     tauRegression = True
                 #     genePredictors = False
-                #     cell_region = pooled_cell_region_H2layerFiltered
+                #     cell_region = pooled_cell_region_geneAligned_H2layerFiltered
                 #     y_data = resampledTau_aligned_standard
                 #     response_dim = 1
                 #     x_data = resampledH3_aligned_H2layerFiltered
@@ -773,7 +774,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                 # if regressionType == 2: #Merfish-Imputed -> Tau
                 #     spatialReconstruction = False
                 #     tauRegression = True
-                #     cell_region_filtered = pooled_cell_region_H2layerFiltered
+                #     cell_region_filtered = pooled_cell_region_geneAligned_H2layerFiltered
                 #     y_data = resampledTau_aligned_standard
                 #     response_dim = 1
                 #     x_data = resampledGenes_aligned_H2layerFiltered_standard
@@ -806,6 +807,9 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     print(f'{datasetName} {predictorTitle} -> {lineSelection} Tau (CCF Pooling={tauPoolSize}mm, predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
                     if verbose:
                         predictor_response_info(x_data,y_data)
+                    if y_data[0].shape[0] != x_data[0].shape[0]:
+                        print(f'Aborting regression, number of predictor and response matrix observations do not agree...')
+                        break
                     best_coef_tau,lasso_weight_tau,bestAlpha_tau,alphas_tau,tauPredictions_tau,bestR2_tau,loss_history_test_tau,loss_history_train_tau,dual_gap_history_tau = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alphaParams,max_iter)
                     predictor_condition_numbers_tau = [np.linalg.cond(x) for x in x_data]
 
@@ -813,6 +817,9 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     print(f'{datasetName} {predictorTitle} -> CCF (predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
                     if verbose:
                         predictor_response_info(x_data,y_data)
+                    if y_data[0].shape[0] != x_data[0].shape[0]:
+                        print(f'Aborting regression, number of predictor and response matrix observations do not agree...')
+                        break
                     best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial,loss_history_test_spatial,loss_history_train_spatial,dual_gap_history_spatial = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alphaParams,max_iter)
                     predictor_condition_numbers_spatial = [np.linalg.cond(x) for x in x_data]
 
