@@ -805,7 +805,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     dual_gap_history = dual_gap_history_spatial
                     predictor_condition_numbers = predictor_condition_numbers_spatial
                     plottingTitles = ["A-P CCF","M-L CCF"]
-                    titleAppend = f'Spatial Reconstruction from {datasetName} {predictorTitle}, {resampTitle}'
+                    titleAppend = f'Spatial Reconstruction from {datasetName} {predictorTitle} (pooling={tauPoolSize}mm, {resampTitle})'
                     tauPredictions = tauPredictions_spatial
                     bestR2 = bestR2_spatial
                     mean_fold_coef = mean_fold_coef_spatial
@@ -1048,6 +1048,31 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                             plt.savefig(os.path.join(plottingDir,f'predicted{currentPlottingTitle}_{layerName}_{titleAppend}.pdf'),dpi=600,bbox_inches='tight')
                             plt.close()
 
+                    #if poolIndex == 1:
+                    #for layerIDX,layerName in enumerate(layerNames):
+                    apR2,mlR2 = [],[]
+                    for foldIDX in range(n_splits):
+                        apR2.append(r2_score(tauPredictions_spatial[layerIDX][foldIDX][:,0],tauPredictions_spatial[layerIDX][foldIDX][:,2]))
+                        mlR2.append(r2_score(tauPredictions_spatial[layerIDX][foldIDX][:,1],tauPredictions_spatial[layerIDX][foldIDX][:,3]))
+                    fig, axes = plt.subplots(1,2,figsize=(20,10))
+                    plt.suptitle(f'{layerName} Cross-Fold Spatial Reconstructions from {predictorEncodeType} {datasetName} {predictorTitle}\n{titleAppend}')
+                    axes[0].set_xlabel(f'True Standardized A-P CCF'), axes[0].set_ylabel('True Standardized M-L CCF')
+                    axes[1].set_xlabel(f'Predicted Standardized A-P CCF\n$R^2$={round(np.mean(apR2),3)}'), axes[1].set_ylabel(f'Predicted Standardized M-L CCF\n$R^2$={round(np.mean(mlR2),3)}')
+                    for regionIDX,region in enumerate(structList):
+                        for foldIDX in range(n_splits):
+                            regionR2IDXs = np.where(tauPredictions_spatial[layerIDX][foldIDX][:,-1] == regionIDX)
+                            axes[0].scatter(tauPredictions_spatial[layerIDX][foldIDX][regionR2IDXs,0],tauPredictions_spatial[layerIDX][foldIDX][regionR2IDXs,1],color=areaColors[regionIDX],s=0.15)
+                            axes[1].scatter(tauPredictions_spatial[layerIDX][foldIDX][regionR2IDXs,2],tauPredictions_spatial[layerIDX][foldIDX][regionR2IDXs,3],color=areaColors[regionIDX],s=0.15)
+                            #axes[0].axis('equal')
+                            #axes[1].axis('equal')
+                            for axnum in range(2):
+                                axes[axnum].set_xlim(-2.5,2.5), axes[axnum].set_ylim(-2.5,2.5)
+                    plt.savefig(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}',f'{datasetName}{predictorPathSuffix}Thresh{meanPredictionThresh}_pooling{tauPoolSize}mm_spatialReconstruction_{layerName}.pdf'),dpi=600,bbox_inches='tight')
+                    plt.close()
+                    #rename = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{predictorPathSuffix}Thresh{meanPredictionThresh}_spatialReconstruction.pdf')
+                    #PDFmerger(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}'),f'{predictorPathSuffix}Thresh{meanPredictionThresh}_spatialReconstruction_',layerNames,'.pdf',rename)
+
+
                 # if plotting:
                 #     rename = os.path.join(plottingDir,f'{predictorPathSuffix}LassoWeightsAll_{titleAppend}.pdf')
                 #     #PDFmerger(plottingDir,f'{predictorPathSuffix}LassoWeightsAll_',layerNames,f'_{titleAppend}.pdf',rename)
@@ -1089,30 +1114,6 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
             #rename = os.path.join(tauSortedPath,f'{predictorPathSuffix}',f'{datasetName}_{resampTitle}_{lineSelection}Tau_vs_AP&ML_Betas.pdf')
             #PDFmerger(os.path.join(tauSortedPath,f'{predictorPathSuffix}'),f'{resampTitle}_{lineSelection}Tau_vs_AP&ML_Betas_',layerNames,'.pdf',rename)
 
-
-            if poolIndex == 1:
-                for layerIDX,layerName in enumerate(layerNames):
-                    apR2,mlR2 = [],[]
-                    for foldIDX in range(n_splits):
-                        apR2.append(r2_score(tauPredictions_spatial[layerIDX][foldIDX][:,0],tauPredictions_spatial[layerIDX][foldIDX][:,2]))
-                        mlR2.append(r2_score(tauPredictions_spatial[layerIDX][foldIDX][:,1],tauPredictions_spatial[layerIDX][foldIDX][:,3]))
-                    fig, axes = plt.subplots(1,2,figsize=(20,10))
-                    plt.suptitle(f'{layerName} Cross-Fold Spatial Reconstructions from {predictorEncodeType} {predictorTitle}')
-                    axes[0].set_xlabel(f'True Standardized A-P CCF'), axes[0].set_ylabel('True Standardized M-L CCF')
-                    axes[1].set_xlabel(f'Predicted Standardized A-P CCF\n$R^2$={round(np.mean(apR2),3)}'), axes[1].set_ylabel(f'Predicted Standardized M-L CCF\n$R^2$={round(np.mean(mlR2),3)}')
-                    for regionIDX,region in enumerate(structList):
-                        for foldIDX in range(n_splits):
-                            regionR2IDXs = np.where(tauPredictions_spatial[layerIDX][foldIDX][:,-1] == regionIDX)
-                            axes[0].scatter(tauPredictions_spatial[layerIDX][foldIDX][regionR2IDXs,0],tauPredictions_spatial[layerIDX][foldIDX][regionR2IDXs,1],color=areaColors[regionIDX],s=0.15)
-                            axes[1].scatter(tauPredictions_spatial[layerIDX][foldIDX][regionR2IDXs,2],tauPredictions_spatial[layerIDX][foldIDX][regionR2IDXs,3],color=areaColors[regionIDX],s=0.15)
-                            #axes[0].axis('equal')
-                            #axes[1].axis('equal')
-                            for axnum in range(2):
-                                axes[axnum].set_xlim(-2.5,2.5), axes[axnum].set_ylim(-2.5,2.5)
-                    plt.savefig(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{predictorPathSuffix}Thresh{meanPredictionThresh}_spatialReconstruction_{layerName}.pdf'),dpi=600,bbox_inches='tight')
-                    plt.close()
-                #rename = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{predictorPathSuffix}Thresh{meanPredictionThresh}_spatialReconstruction.pdf')
-                #PDFmerger(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}'),f'{predictorPathSuffix}Thresh{meanPredictionThresh}_spatialReconstruction_',layerNames,'.pdf',rename)
 
 
 
