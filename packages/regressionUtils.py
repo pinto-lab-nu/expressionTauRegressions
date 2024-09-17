@@ -89,12 +89,12 @@ def layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,l
                 train_loss = 0.5 * mse_train + lasso_penalty
                 loss_history_train.append(train_loss)
 
-                dual_gap_history.append(lasso.dual_gap_)
+                dual_gap_history.append(lasso.dual_gap_ + 10e-17) #add small offset for log plotting later
 
                 #loss_history.append(lasso.loss_)
             loss_history_test_global[layerIDX][foldIDX] = loss_history_test
             loss_history_train_global[layerIDX][foldIDX] = loss_history_train
-            dual_gap_history_global[layerIDX][foldIDX] = dual_gap_history + 10e-17 #add small offset for log plotting later
+            dual_gap_history_global[layerIDX][foldIDX] = dual_gap_history
             
             best_betas[layerIDX][foldIDX,:,:] = lasso.coef_
             pred_y = lasso.predict(test_x)
