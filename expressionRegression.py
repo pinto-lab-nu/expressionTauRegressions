@@ -433,12 +433,12 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         pooledTauCCF_coords = [np.empty((4,0)) for _ in range(numLayers)]
         pooledTauCCF_coords_noGene = [np.empty((4,0)) for _ in range(numLayers)]
         pooledPixelCount_v_CellCount = [np.empty((2,0)) for _ in range(numLayers)]
-        resampledTau_aligned = [np.empty((1,0)) for _ in range(numLayers)]
+        resampledTau_aligned = [np.empty((0,1)) for _ in range(numLayers)]
         tau_aligned_forH3 = [np.empty((1,0)) for _ in range(numLayers)]
         pooled_cell_region_geneAligned_H2layerFiltered = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
         pooled_region_label_alignedForTau = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
         total_genes = gene_data_dense_H2layerFiltered[resolution][0].shape[1]
-        resampledGenes_aligned = [np.empty((total_genes,0)) for _ in range(numLayers)]
+        resampledGenes_aligned = [np.empty((0,total_genes)) for _ in range(numLayers)]
         resampledH3_aligned_H2layerFiltered = [np.empty((0,9)) for _ in range(numLayers)] #[np.empty((1,0)) for _ in range(numLayers)]
         pooledH3_for_spatial = [np.empty((9,0)) for _ in range(numLayers)]
         if resolution == '25':
@@ -484,12 +484,12 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                             pool_resample_size = current_cell_pooling_IDXs.shape[0] #<- resample to the size of the expression data (sets expression dataset as the bottleneck)
                             
                             tauResamplingIDX = random.choices(np.arange(0,pooledTaus.shape[0]), k=pool_resample_size)
-                            resampledTau_aligned[layerIDX] = np.hstack((resampledTau_aligned[layerIDX],pooledTaus[tauResamplingIDX,:].reshape(1,-1)))
+                            resampledTau_aligned[layerIDX] = np.vstack((resampledTau_aligned[layerIDX],pooledTaus[tauResamplingIDX,:].reshape(-1,1)))
                             tau_aligned_forH3[layerIDX] = np.hstack((tau_aligned_forH3[layerIDX],pooledTaus.reshape(1,-1))) #old, when expression (below) was resampled to size of functional dataset at pool (k=pooledTaus.shape[0]), this is kept for H3 regressions, which shouldn't be resampled to match th size of the expression dataset
                             
                             gene_pool_data = gene_data_dense_H2layerFiltered[resolution][layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs],:]
                             geneResamplingIDX = random.choices(np.arange(0,gene_pool_data.shape[0]), k=pool_resample_size)
-                            resampledGenes_aligned[layerIDX] = np.hstack((resampledGenes_aligned[layerIDX],gene_pool_data[geneResamplingIDX,:].reshape(total_genes,-1)))
+                            resampledGenes_aligned[layerIDX] = np.vstack((resampledGenes_aligned[layerIDX],gene_pool_data[geneResamplingIDX,:].reshape(-1,total_genes)))
                             ### Alignment handled ###
                             #########################
 
@@ -611,9 +611,9 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         ### Standard Scaler transform the gene expression and tau data prior to regression ###
         mean_expression_standard = np.zeros_like(mean_expression[resolution])
         # Tau Regressions #
-        resampledTau_aligned_standard = [np.zeros_like(resampledTau_aligned[layerIDX].T) for layerIDX in range(numLayers)]
+        resampledTau_aligned_standard = [np.zeros_like(resampledTau_aligned[layerIDX]) for layerIDX in range(numLayers)]
         tau_aligned_forH3_standard = [np.zeros_like(tau_aligned_forH3[layerIDX].T) for layerIDX in range(numLayers)]
-        resampledGenes_aligned_H2layerFiltered_standard = [np.zeros_like(resampledGenes_aligned[layerIDX].T) for layerIDX in range(numLayers)]
+        resampledGenes_aligned_H2layerFiltered_standard = [np.zeros_like(resampledGenes_aligned[layerIDX]) for layerIDX in range(numLayers)]
         # CCF Regressions #
         gene_data_dense_H2layerFiltered_standard = [np.zeros_like(gene_data_dense_H2layerFiltered[resolution][layerIDX]) for layerIDX in range(numLayers)]
         #tau_per_cell_H2layerFiltered_standard = [np.zeros_like(tau_per_cell_H2layerFiltered[layerIDX]) for layerIDX in range(numLayers)]
@@ -621,12 +621,12 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         apCCF_per_cell_H2layerFiltered_standard = [np.zeros_like(apCCF_per_cell_H2layerFiltered[resolution][layerIDX]) for layerIDX in range(numLayers)]
         for layerIDX in range(numLayers):
             ## Tau ##
-            resampledTau_aligned_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(resampledTau_aligned[layerIDX][:,:]).T)
+            resampledTau_aligned_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(resampledTau_aligned[layerIDX][:,:]))
             tau_aligned_forH3_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(tau_aligned_forH3[layerIDX][:,:]).T)
             #tau_per_cell_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(tau_per_cell_H2layerFiltered[layerIDX][:,:]))
             ## Genes ##
             mean_expression_standard[layerIDX,:,:] = standard_scaler.fit_transform(mean_expression[resolution][layerIDX,:,:])
-            resampledGenes_aligned_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(resampledGenes_aligned[layerIDX][:,:]).T)
+            resampledGenes_aligned_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(resampledGenes_aligned[layerIDX][:,:]))
             gene_data_dense_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(gene_data_dense_H2layerFiltered[resolution][layerIDX][:,:]))
             # CCF #
             mlCCF_per_cell_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(mlCCF_per_cell_H2layerFiltered[resolution][layerIDX][:,:]))
