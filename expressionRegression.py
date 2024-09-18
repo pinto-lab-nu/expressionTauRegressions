@@ -36,12 +36,12 @@ import re
 ######################################
 lineSelection = 'Cux2-Ai96' #'Rpb4-Ai96' #select the functional dataset for tau regressions
 geneLimit = -1 #for testing purposes only for loading merfish-imputed data, set to -1 to include all genes
-restrict_merfish_imputed_values = True #condition to restrict merfish-imputed dataset to non-imputed genes
+restrict_merfish_imputed_values = False #condition to restrict merfish-imputed dataset to non-imputed genes
 loadData = True
 plotting = True
 numPrecision, alphaPrecision = 3, 5 #just for display (in plotting and regression text files)
 verbose = True
-predictorOrder = [1,0] #select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
+predictorOrder = [0] #select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
 max_iter = 200
 
 
