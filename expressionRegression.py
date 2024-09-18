@@ -805,10 +805,6 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     dual_gap_history = dual_gap_history_spatial
                     predictor_condition_numbers = predictor_condition_numbers_spatial
                     plottingTitles = ["A-P CCF","M-L CCF"]
-                    if predictorPathSuffix == 'H3Predictors':
-                        titleAppend = f'Spatial Reconstruction from {datasetName} {predictorTitle} (pooling={tauPoolSize}mm, {resampTitle})'
-                    else:
-                        titleAppend = f'Spatial Reconstruction from {datasetName} {predictorTitle} ({resampTitle})'
                     tauPredictions = tauPredictions_spatial
                     bestR2 = bestR2_spatial
                     mean_fold_coef = mean_fold_coef_spatial
@@ -818,7 +814,12 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     lasso_weight = lasso_weight_spatial
                     sd_fold_coef = sd_fold_coef_spatial
                     response_dim = 2
-                    plottingDir = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}')
+                    if predictorPathSuffix == 'H3Predictors':
+                        titleAppend = f'Spatial Reconstruction from {datasetName} {predictorTitle} (pooling={tauPoolSize}mm, {resampTitle})'
+                        plottingDir = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'pooling={tauPoolSize}mm')
+                    else:
+                        titleAppend = f'Spatial Reconstruction from {datasetName} {predictorTitle} ({resampTitle})'
+                        plottingDir = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}')
                 else:
                     loss_history_test = loss_history_test_tau
                     loss_history_train = loss_history_train_tau
@@ -836,8 +837,9 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     sd_fold_coef = sd_fold_coef_tau
                     response_dim = 1
                     plottingDir = os.path.join(tauSortedPath,f'{predictorPathSuffix}',f'{datasetName}')
-                    if not os.path.exists(plottingDir):
-                        os.makedirs(plottingDir)
+                
+                if not os.path.exists(plottingDir):
+                    os.makedirs(plottingDir)
 
 
                 beta_dict = {}
