@@ -36,12 +36,12 @@ import re
 ######################################
 lineSelection = 'Cux2-Ai96' #'Rpb4-Ai96' #select the functional dataset for tau regressions
 geneLimit = -1 #for testing purposes only for loading merfish-imputed data, set to -1 to include all genes
-restrict_merfish_imputed_values = False #condition to restrict merfish-imputed dataset to non-imputed genes
+restrict_merfish_imputed_values = True #condition to restrict merfish-imputed dataset to non-imputed genes
 loadData = True
 plotting = True
 numPrecision, alphaPrecision = 3, 5 #just for display (in plotting and regression text files)
 verbose = True
-predictorOrder = [0] #select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
+predictorOrder = [1,0] #select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
 max_iter = 200
 
 
@@ -439,7 +439,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         pooled_region_label_alignedForTau = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
         total_genes = gene_data_dense_H2layerFiltered[resolution][0].shape[1]
         resampledGenes_aligned = [np.empty((total_genes,0)) for _ in range(numLayers)]
-        resampledH3_aligned_H2layerFiltered = [np.empty((9,0)) for _ in range(numLayers)] #[np.empty((1,0)) for _ in range(numLayers)]
+        resampledH3_aligned_H2layerFiltered = [np.empty((0,9)) for _ in range(numLayers)] #[np.empty((1,0)) for _ in range(numLayers)]
         pooledH3_for_spatial = [np.empty((9,0)) for _ in range(numLayers)]
         if resolution == '25':
             pooled_region_label = [np.empty((1,0)) for _ in range(numLayers)]
@@ -504,7 +504,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                                 H3ResamplingIDX = random.choices(np.arange(0,1), k=pooledTaus.shape[0])
 
                                 #resampledH3_aligned_H2layerFiltered[layerIDX] = np.hstack((resampledH3_aligned_H2layerFiltered[layerIDX],H3_pool_data[geneResamplingIDX,:].reshape(1,-1)))
-                                resampledH3_aligned_H2layerFiltered[layerIDX] = np.hstack((resampledH3_aligned_H2layerFiltered[layerIDX],normalized_counts[H3ResamplingIDX,:].reshape(9,-1)))
+                                resampledH3_aligned_H2layerFiltered[layerIDX] = np.vstack((resampledH3_aligned_H2layerFiltered[layerIDX],normalized_counts[H3ResamplingIDX,:].reshape(-1,9)))
                                 pooledH3_for_spatial[layerIDX] = np.hstack((pooledH3_for_spatial[layerIDX],normalized_counts.reshape(9,-1)))
 
                                 pool_region_label = cell_region_H2layerFiltered[resolution][layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs],:][0][0].reshape(1,-1)
@@ -672,7 +672,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     #layerNames = merfishLayerNames
 
             if predictorPathSuffix == 'H3Predictors':
-                predictorDataRaw = [m.T for m in resampledH3_aligned_H2layerFiltered] #H3_per_cell_H2layerFiltered
+                predictorDataRaw = resampledH3_aligned_H2layerFiltered#[m.T for m in resampledH3_aligned_H2layerFiltered] #H3_per_cell_H2layerFiltered
                 meanPredictionThresh = meanH3Thresh
                 predictorNamesArray = np.arange(1, predictorDataRaw[layerIDX].shape[0]+1, 1)
                 numLayers = len(layerIDs)
@@ -738,7 +738,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                         y_data = resampledTau_aligned_standard
                         region_label_filtered = pooled_cell_region_geneAligned_H2layerFiltered
                     if predictorPathSuffix == 'H3Predictors':
-                        x_data = [m.T for m in resampledH3_aligned_H2layerFiltered]
+                        x_data = resampledH3_aligned_H2layerFiltered#[m.T for m in resampledH3_aligned_H2layerFiltered]
                         y_data = tau_aligned_forH3_standard
                         region_label_filtered = pooled_region_label_alignedForTau
 
@@ -1021,9 +1021,9 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
 
                     for dim in range(response_dim):
                         currentPlottingTitle = plottingTitles[dim]
-                        fig, axes = plt.subplots(1,n_splits,figsize=(20,6))
+                        fig, axes = plt.subplots(3,n_splits,figsize=(20,18))
                         plt.suptitle(f'{titleAppend}, {layerName}')
-                        for foldIDX,ax in enumerate(axes):
+                        for foldIDX in range(n_splits):
                             #cell_region_IDX = (cell_region_H2layerFiltered[layerIDX][test_index,:]).astype(int).reshape(-1)
                             test_y = tauPredictions[layerIDX][foldIDX][:,dim]
                             pred_y = tauPredictions[layerIDX][foldIDX][:,dim+response_dim]
@@ -1033,17 +1033,35 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                             for regionIDX,region in enumerate(structList):
                                 regionR2IDXs = np.where(cell_region_IDX == regionIDX)
                                 label = f'{region}' #R2: {round(r2_score(test_y[regionR2IDXs],pred_y[regionR2IDXs]),3)}'
-                                ax.scatter(test_y[regionR2IDXs],pred_y[regionR2IDXs],color=areaColors[regionIDX],label=label,s=1)
+                                axes[0,foldIDX].scatter(test_y[regionR2IDXs],pred_y[regionR2IDXs],color=areaColors[regionIDX],label=label,s=1)
 
                             #ax.scatter(test_y,pred_y,color=cell_region_colors,s=1)
                             #ax.axis('equal')
                             #ax.set_xlim(4,10)
                             #ax.set_ylim(4,10)
-                            ax.set_title(f'Fold: {foldIDX}')
-                            ax.set_xlabel(f'True {currentPlottingTitle} (standardized)')
-                            ax.set_ylabel(f'Predicted {currentPlottingTitle} (standardized)')
+                            axes[0,foldIDX].set_title(f'Fold: {foldIDX}')
+                            axes[0,foldIDX].set_xlabel(f'True {currentPlottingTitle} (standardized)')
                             if foldIDX==0:
-                                ax.legend()
+                                axes[0,foldIDX].legend()
+                            
+                            foldTrueMeans, foldTrueSEM, foldPredMeans, foldPredSEM = [],[],[],[]
+                            for regionIDX in range(structNum):
+                                predictionRegionIDXs = np.where(tauPredictions[layerIDX][foldIDX][:,-1] == regionIDX)
+
+                                foldTrueMeans.append(np.mean(tauPredictions[layerIDX][foldIDX][predictionRegionIDXs,dim]))
+                                foldTrueSEM.append(np.std(tauPredictions[layerIDX][foldIDX][predictionRegionIDXs,dim]) / np.sqrt(predictionRegionIDXs[0].shape[0]))
+                                foldPredMeans.append(np.mean(tauPredictions[layerIDX][foldIDX][predictionRegionIDXs,dim+response_dim]))
+                                foldPredSEM.append(np.std(tauPredictions[layerIDX][foldIDX][predictionRegionIDXs,dim+response_dim]) / np.sqrt(predictionRegionIDXs[0].shape[0]))
+
+                            axes[1,foldIDX].bar(structList,foldTrueMeans,color=areaColors)
+                            axes[1,foldIDX].errorbar(structList,foldTrueMeans,foldTrueSEM,fmt='o',markersize=0.15,color='black')
+                            axes[2,foldIDX].bar(structList,foldPredMeans,color=areaColors)
+                            axes[2,foldIDX].errorbar(structList,foldPredMeans,foldPredSEM,fmt='o',markersize=0.15,color='black')
+
+                        axes[0,0].set_ylabel(f'Predicted {currentPlottingTitle} (standardized)')
+                        axes[1,0].set_ylabel(f'True {currentPlottingTitle} by Region\n(standardized mean +- SEM)')
+                        axes[2,0].set_ylabel(f'Predicted {currentPlottingTitle} by Region\n(standardized mean +- SEM)')
+
                         if plotting:
                             plt.savefig(os.path.join(plottingDir,f'predicted{currentPlottingTitle}_{layerName}_{titleAppend}.pdf'),dpi=600,bbox_inches='tight')
                             plt.close()
