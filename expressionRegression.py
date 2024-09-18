@@ -430,19 +430,19 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         
         ### pool tau into a grid for bootstrapping the regression ###
         minML_CCF, maxML_CCF, minAP_CCF, maxAP_CCF = np.min(allTauCCF_Coords[0,:]), np.max(allTauCCF_Coords[0,:]), np.min(allTauCCF_Coords[1,:]), np.max(allTauCCF_Coords[1,:])
-        pooledTauCCF_coords = [np.empty((4,0)) for _ in range(numLayers)]
-        pooledTauCCF_coords_noGene = [np.empty((4,0)) for _ in range(numLayers)]
-        pooledPixelCount_v_CellCount = [np.empty((2,0)) for _ in range(numLayers)]
+        pooledTauCCF_coords = [np.empty((0,4)) for _ in range(numLayers)]
+        pooledTauCCF_coords_noGene = [np.empty((0,4)) for _ in range(numLayers)]
+        pooledPixelCount_v_CellCount = [np.empty((0,2)) for _ in range(numLayers)]
         resampledTau_aligned = [np.empty((0,1)) for _ in range(numLayers)]
-        tau_aligned_forH3 = [np.empty((1,0)) for _ in range(numLayers)]
+        tau_aligned_forH3 = [np.empty((0,1)) for _ in range(numLayers)]
         pooled_cell_region_geneAligned_H2layerFiltered = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
         pooled_region_label_alignedForTau = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
         total_genes = gene_data_dense_H2layerFiltered[resolution][0].shape[1]
         resampledGenes_aligned = [np.empty((0,total_genes)) for _ in range(numLayers)]
         resampledH3_aligned_H2layerFiltered = [np.empty((0,9)) for _ in range(numLayers)] #[np.empty((1,0)) for _ in range(numLayers)]
-        pooledH3_for_spatial = [np.empty((9,0)) for _ in range(numLayers)]
+        pooledH3_for_spatial = [np.empty((0,9)) for _ in range(numLayers)]
         if resolution == '25':
-            pooled_region_label = [np.empty((1,0)) for _ in range(numLayers)]
+            pooled_region_label = [np.empty((0,1)) for _ in range(numLayers)]
         #resampledH3_aligned_H2layerFiltered_OneHot = []
         #H3_per_cell_H2layerFiltered_OneHot = []
         genePoolSaturation = []
@@ -477,7 +477,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                             #print(current_tau_ML_pool,current_tau_AP_pool)
                             geneProfilePresentCount += 1
 
-                            pooledTauCCF_coords[layerIDX] = np.hstack((pooledTauCCF_coords[layerIDX], np.array((current_tau_ML_pool,current_tau_AP_pool,np.mean(pooledTaus),np.std(pooledTaus))).reshape(-1,1))) #switched order
+                            pooledTauCCF_coords[layerIDX] = np.vstack((pooledTauCCF_coords[layerIDX], np.array((current_tau_ML_pool,current_tau_AP_pool,np.mean(pooledTaus),np.std(pooledTaus))).reshape(1,4))) #switched order
                             
                             #######################################################
                             ### Alignment of functional and expression datasets ###
@@ -485,7 +485,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                             
                             tauResamplingIDX = random.choices(np.arange(0,pooledTaus.shape[0]), k=pool_resample_size)
                             resampledTau_aligned[layerIDX] = np.vstack((resampledTau_aligned[layerIDX],pooledTaus[tauResamplingIDX,:].reshape(-1,1)))
-                            tau_aligned_forH3[layerIDX] = np.hstack((tau_aligned_forH3[layerIDX],pooledTaus.reshape(1,-1))) #old, when expression (below) was resampled to size of functional dataset at pool (k=pooledTaus.shape[0]), this is kept for H3 regressions, which shouldn't be resampled to match th size of the expression dataset
+                            tau_aligned_forH3[layerIDX] = np.vstack((tau_aligned_forH3[layerIDX],pooledTaus.reshape(-1,1))) #old, when expression (below) was resampled to size of functional dataset at pool (k=pooledTaus.shape[0]), this is kept for H3 regressions, which shouldn't be resampled to match th size of the expression dataset
                             
                             gene_pool_data = gene_data_dense_H2layerFiltered[resolution][layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs],:]
                             geneResamplingIDX = random.choices(np.arange(0,gene_pool_data.shape[0]), k=pool_resample_size)
@@ -505,14 +505,14 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
 
                                 #resampledH3_aligned_H2layerFiltered[layerIDX] = np.hstack((resampledH3_aligned_H2layerFiltered[layerIDX],H3_pool_data[geneResamplingIDX,:].reshape(1,-1)))
                                 resampledH3_aligned_H2layerFiltered[layerIDX] = np.vstack((resampledH3_aligned_H2layerFiltered[layerIDX],normalized_counts[H3ResamplingIDX,:].reshape(-1,9)))
-                                pooledH3_for_spatial[layerIDX] = np.hstack((pooledH3_for_spatial[layerIDX],normalized_counts.reshape(9,-1)))
+                                pooledH3_for_spatial[layerIDX] = np.vstack((pooledH3_for_spatial[layerIDX],normalized_counts.reshape(-1,9)))
 
                                 pool_region_label = cell_region_H2layerFiltered[resolution][layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs],:][0][0].reshape(1,-1)
-                                pooled_region_label[layerIDX] = np.hstack((pooled_region_label[layerIDX],pool_region_label.reshape(1,-1))) ###finish to correctly label brain region for H3 regressions
+                                pooled_region_label[layerIDX] = np.vstack((pooled_region_label[layerIDX],pool_region_label.reshape(-1,1))) ###finish to correctly label brain region for H3 regressions
 
                                 pooled_region_label_alignedForTau[layerIDX] = np.vstack((pooled_region_label_alignedForTau[layerIDX],pool_region_label[H3ResamplingIDX,:].reshape(-1,1)))
 
-                            pooledPixelCount_v_CellCount[layerIDX] = np.hstack((pooledPixelCount_v_CellCount[layerIDX],np.array((pooledTaus.shape[0],gene_pool_data.shape[0])).reshape(2,-1)))
+                            pooledPixelCount_v_CellCount[layerIDX] = np.vstack((pooledPixelCount_v_CellCount[layerIDX],np.array((pooledTaus.shape[0],gene_pool_data.shape[0])).reshape(-1,2)))
 
                             cell_region_pool_data = cell_region_H2layerFiltered[resolution][layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs],:]
                             pooled_cell_region_geneAligned_H2layerFiltered[layerIDX] = np.vstack((pooled_cell_region_geneAligned_H2layerFiltered[layerIDX],cell_region_pool_data[geneResamplingIDX,:].reshape(-1,1)))
@@ -522,7 +522,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
 
                             #print(f'CCF ML:{current_tau_ML_pool}, CCF AP:{current_tau_AP_pool}, GeneX ML CCFs:{gene_pool_ML_CCF}, GeneX AP CCFs:{gene_pool_AP_CCF}')
                         else:
-                            pooledTauCCF_coords_noGene[layerIDX] = np.hstack((np.array((current_tau_ML_pool,current_tau_AP_pool,np.mean(pooledTaus),np.std(pooledTaus))).reshape(-1,1),pooledTauCCF_coords_noGene[layerIDX]))
+                            pooledTauCCF_coords_noGene[layerIDX] = np.vstack((pooledTauCCF_coords_noGene[layerIDX], np.array((current_tau_ML_pool,current_tau_AP_pool,np.mean(pooledTaus),np.std(pooledTaus))).reshape(1,4)))
             genePoolSaturation.append(geneProfilePresentCount/possiblePoolsCount)
             # if resolution == '25':
             #     resampledH3_aligned_H2layerFiltered_OneHot.append(hotencoder.fit_transform(resampledH3_aligned_H2layerFiltered[layerIDX].T))
@@ -530,8 +530,8 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
 
         for layerIDX in range(numLayers):
             plt.figure(), plt.title(f'CCF Pooling:{tauPoolSize}mm, Fraction of Tau Pooled Points with at least one Gene Profile:{round(genePoolSaturation[layerIDX],3)}\n{lineSelection}, {layerNames[layerIDX]}')
-            plt.scatter(pooledTauCCF_coords_noGene[layerIDX][1,:],pooledTauCCF_coords_noGene[layerIDX][0,:],color='red',s=0.5)
-            plt.scatter(pooledTauCCF_coords[layerIDX][1,:],pooledTauCCF_coords[layerIDX][0,:],color='green',s=0.5)
+            plt.scatter(pooledTauCCF_coords_noGene[layerIDX][:,1],pooledTauCCF_coords_noGene[layerIDX][:,0],color='red',s=0.5)
+            plt.scatter(pooledTauCCF_coords[layerIDX][:,1],pooledTauCCF_coords[layerIDX][:,0],color='green',s=0.5)
             plt.xlabel(r'A$\leftrightarrow$P (mm)'), plt.ylabel(r'L$\leftrightarrow$M (mm)'), plt.axis('equal')
             plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{lineSelection}_tauExpressionPooling{tauPoolSize}mm_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
             plt.close()
@@ -541,8 +541,8 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
             cmap = plt.get_cmap('cool')
             global_min,global_max = np.log10(1),np.log10(30)
             norm = matplotlib.colors.Normalize(global_min, global_max)
-            tau_colors = cmap(norm(np.log10(pooledTauCCF_coords[layerIDX][2,:])))
-            ax.scatter(pooledTauCCF_coords[layerIDX][1,:],pooledTauCCF_coords[layerIDX][0,:],color=tau_colors,s=6)
+            tau_colors = cmap(norm(np.log10(pooledTauCCF_coords[layerIDX][:,2])))
+            ax.scatter(pooledTauCCF_coords[layerIDX][:,1],pooledTauCCF_coords[layerIDX][:,0],color=tau_colors,s=6)
             ax.set_xlabel(r'A$\leftrightarrow$P (mm)'), ax.set_ylabel(r'L$\leftrightarrow$M (mm)'), ax.axis('equal')
             mappable = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
             mappable.set_array(tau_colors)
@@ -556,7 +556,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
 
             plt.figure(), plt.xlabel('Pool Pixel Count'), plt.ylabel('Pool Cell Count')
             plt.title(f'Pool Size:{tauPoolSize}mm, Pixel & Cell Counts by CCF Pool\n{layerNames[layerIDX]}\n{lineSelection}, {layerNames[layerIDX]}')
-            plt.scatter(pooledPixelCount_v_CellCount[layerIDX][0,:],pooledPixelCount_v_CellCount[layerIDX][1,:],color='black',s=1)
+            plt.scatter(pooledPixelCount_v_CellCount[layerIDX][:,0],pooledPixelCount_v_CellCount[layerIDX][:,1],color='black',s=1)
             #plt.axis('equal')
             plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{lineSelection}_pooling{tauPoolSize}mm_CellPixelCounts_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
             plt.close()
@@ -571,19 +571,19 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         #PDFmerger(tauSortedPath,f'{lineSelection}_pooling{tauPoolSize}_CellPixelCounts_',layerNames,'.pdf',rename)
 
 
-        standardized_CCF_Tau = [standard_scaler.fit_transform(pooledTauCCF_coords[layerIDX].T).T for layerIDX in range(numLayers)]
+        standardized_CCF_Tau = [standard_scaler.fit_transform(pooledTauCCF_coords[layerIDX]) for layerIDX in range(numLayers)]
         linearmodel = LinearRegression()
         for layerIDX in range(numLayers):
             
             r_squared_regression = []
             for dim in range(2):
-                linearmodel.fit(standardized_CCF_Tau[layerIDX][dim,:].reshape(-1,1),standardized_CCF_Tau[layerIDX][2,:].reshape(-1))
-                tau_pred = linearmodel.predict(standardized_CCF_Tau[layerIDX][dim,:].reshape(-1,1))
-                r_squared_regression.append(r2_score(standardized_CCF_Tau[layerIDX][2,:].reshape(-1,1), tau_pred))
+                linearmodel.fit(standardized_CCF_Tau[layerIDX][:,dim].reshape(-1,1),standardized_CCF_Tau[layerIDX][:,2].reshape(-1))
+                tau_pred = linearmodel.predict(standardized_CCF_Tau[layerIDX][:,dim].reshape(-1,1))
+                r_squared_regression.append(r2_score(standardized_CCF_Tau[layerIDX][:,2].reshape(-1,1), tau_pred))
 
             fig, ax = plt.subplots(1,2,figsize=(8,4))
-            ax[0].scatter(standardized_CCF_Tau[layerIDX][0,:],standardized_CCF_Tau[layerIDX][2,:],color='black',s=1)
-            ax[1].scatter(standardized_CCF_Tau[layerIDX][1,:],standardized_CCF_Tau[layerIDX][2,:],color='black',s=1)
+            ax[0].scatter(standardized_CCF_Tau[layerIDX][:,0],standardized_CCF_Tau[layerIDX][:,2],color='black',s=1)
+            ax[1].scatter(standardized_CCF_Tau[layerIDX][:,1],standardized_CCF_Tau[layerIDX][:,2],color='black',s=1)
             ax[0].set_title(f'$R^2$={round(r_squared_regression[0],3)}'), ax[1].set_title(f'$R^2$={round(r_squared_regression[1],3)}')
             ax[0].set_xlabel('Standardized ML CCF'), ax[1].set_xlabel('Standardized AP CCF')
             ax[0].set_ylabel('Standardized Tau'), ax[1].set_ylabel('Standardized Tau')
@@ -612,7 +612,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         mean_expression_standard = np.zeros_like(mean_expression[resolution])
         # Tau Regressions #
         resampledTau_aligned_standard = [np.zeros_like(resampledTau_aligned[layerIDX]) for layerIDX in range(numLayers)]
-        tau_aligned_forH3_standard = [np.zeros_like(tau_aligned_forH3[layerIDX].T) for layerIDX in range(numLayers)]
+        tau_aligned_forH3_standard = [np.zeros_like(tau_aligned_forH3[layerIDX]) for layerIDX in range(numLayers)]
         resampledGenes_aligned_H2layerFiltered_standard = [np.zeros_like(resampledGenes_aligned[layerIDX]) for layerIDX in range(numLayers)]
         # CCF Regressions #
         gene_data_dense_H2layerFiltered_standard = [np.zeros_like(gene_data_dense_H2layerFiltered[resolution][layerIDX]) for layerIDX in range(numLayers)]
@@ -622,7 +622,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
         for layerIDX in range(numLayers):
             ## Tau ##
             resampledTau_aligned_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(resampledTau_aligned[layerIDX][:,:]))
-            tau_aligned_forH3_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(tau_aligned_forH3[layerIDX][:,:]).T)
+            tau_aligned_forH3_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(tau_aligned_forH3[layerIDX][:,:]))
             #tau_per_cell_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(tau_per_cell_H2layerFiltered[layerIDX][:,:]))
             ## Genes ##
             mean_expression_standard[layerIDX,:,:] = standard_scaler.fit_transform(mean_expression[resolution][layerIDX,:,:])
@@ -752,8 +752,8 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                         region_label_filtered = cell_region_H2layerFiltered[resolution]
                     if predictorPathSuffix == 'H3Predictors':
                         x_data = [m.T for m in pooledH3_for_spatial] #H3_per_cell_H2layerFiltered
-                        y_data = [standardized_CCF_Tau[layerIDX][[1,0],:].T for layerIDX in range(numLayers)]
-                        region_label_filtered = [np.array(pooled_region_label[layerIDX]).T for layerIDX in range(numLayers)]
+                        y_data = [standardized_CCF_Tau[layerIDX][[1,0],:] for layerIDX in range(numLayers)]
+                        region_label_filtered = [np.array(pooled_region_label[layerIDX]) for layerIDX in range(numLayers)]
 
                 # if ???:
                 #     y_data = tau_per_cell_H2layerFiltered_standard
@@ -862,15 +862,15 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                             for layerIDX0 in range(numLayers):
                                 for layerIDX1 in range(numLayers):
 
-                                    linearmodel.fit(mean_fold_coef_plot[layerIDX0][dim].reshape(-1,1),mean_fold_coef_plot[layerIDX1][dim].reshape(-1,1))
-                                    beta_pred = linearmodel.predict(mean_fold_coef_plot[layerIDX0][dim].reshape(-1,1))
-                                    L2L_r2 = r2_score(mean_fold_coef_plot[layerIDX1][dim].reshape(-1,1), beta_pred)
+                                    linearmodel.fit(mean_fold_coef_plot[layerIDX1][dim].reshape(-1,1),mean_fold_coef_plot[layerIDX0][dim].reshape(-1,1))
+                                    beta_pred = linearmodel.predict(mean_fold_coef_plot[layerIDX1][dim].reshape(-1,1))
+                                    L2L_r2 = r2_score(mean_fold_coef_plot[layerIDX0][dim].reshape(-1,1), beta_pred)
                                     
                                     axes[layerIDX0,layerIDX1].set_title(f'$R^2$={round(L2L_r2,3)}')
-                                    axes[layerIDX0,layerIDX1].scatter(mean_fold_coef_plot[layerIDX0][dim],mean_fold_coef_plot[layerIDX1][dim],color='black',s=0.15)
-                                    axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_plot[layerIDX0][dim],mean_fold_coef_plot[layerIDX1][dim], xerr=sd_fold_coef_plot[layerIDX0][dim], yerr=sd_fold_coef_plot[layerIDX1][dim], fmt="o", color='black', markersize=0.15, elinewidth=0.15)
+                                    axes[layerIDX0,layerIDX1].scatter(mean_fold_coef_plot[layerIDX1][dim],mean_fold_coef_plot[layerIDX0][dim],color='black',s=0.15)
+                                    axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_plot[layerIDX1][dim],mean_fold_coef_plot[layerIDX0][dim], xerr=sd_fold_coef_plot[layerIDX1][dim], yerr=sd_fold_coef_plot[layerIDX0][dim], fmt="o", color='black', markersize=0.15, elinewidth=0.15)
                                     for i, predictorText in enumerate(predictorNamesArray):
-                                        axes[layerIDX0,layerIDX1].annotate(predictorText, (mean_fold_coef_plot[layerIDX0][dim][i], mean_fold_coef_plot[layerIDX1][dim][i]), fontsize=3)
+                                        axes[layerIDX0,layerIDX1].annotate(predictorText, (mean_fold_coef_plot[layerIDX1][dim][i], mean_fold_coef_plot[layerIDX0][dim][i]), fontsize=3)
                                     if layerIDX1 == 0:
                                         axes[layerIDX0,layerIDX1].set_ylabel(f"{layerNames[layerIDX0]} {dimTitle}$\\beta$")
                                     if layerIDX0 == numLayers-1:
@@ -892,9 +892,9 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     for layerIDX0 in range(numLayers):
                         for layerIDX1 in range(numLayers):
 
-                            linearmodel.fit(mean_fold_coef_tau[layerIDX0][dim].reshape(-1,1),mean_fold_coef_spatial[layerIDX1][dim].reshape(-1,1))
-                            beta_pred = linearmodel.predict(mean_fold_coef_tau[layerIDX0][dim].reshape(-1,1))
-                            L2L_r2 = r2_score(mean_fold_coef_spatial[layerIDX1][dim].reshape(-1,1), beta_pred)
+                            linearmodel.fit(mean_fold_coef_tau[layerIDX1][dim].reshape(-1,1),mean_fold_coef_spatial[layerIDX0][dim].reshape(-1,1))
+                            beta_pred = linearmodel.predict(mean_fold_coef_tau[layerIDX1][dim].reshape(-1,1))
+                            L2L_r2 = r2_score(mean_fold_coef_spatial[layerIDX0][dim].reshape(-1,1), beta_pred)
 
                             tau_beta_L = np.percentile(mean_fold_coef_tau[layerIDX0][dim], tau_L_cutoff)
                             tau_beta_U = np.percentile(mean_fold_coef_tau[layerIDX0][dim], tau_U_cutoff)
@@ -916,10 +916,10 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                             colorArray[significantGenesIDXs] = (0,1,0)
                             
                             axes[layerIDX0,layerIDX1].set_title(f'$R^2$={round(L2L_r2,3)}')
-                            axes[layerIDX0,layerIDX1].scatter(mean_fold_coef_tau[layerIDX0][dim],mean_fold_coef_spatial[layerIDX1][dim],color=colorArray,s=0.15)
+                            axes[layerIDX0,layerIDX1].scatter(mean_fold_coef_tau[layerIDX1][dim],mean_fold_coef_spatial[layerIDX0][dim],color=colorArray,s=0.15)
                             for i, predictorText in enumerate(predictorNamesArray):
-                                axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_tau[layerIDX0][dim][i],mean_fold_coef_spatial[layerIDX1][dim][i], xerr=sd_fold_coef_tau[layerIDX0][dim][i], yerr=sd_fold_coef_spatial[layerIDX1][dim][i], fmt="o", color=colorArray[i], markersize=0.15, elinewidth=0.15)
-                                axes[layerIDX0,layerIDX1].annotate(predictorText, (mean_fold_coef_tau[layerIDX0][dim][i], mean_fold_coef_spatial[layerIDX1][dim][i]), color=colorArray[i], fontsize=3)
+                                axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_tau[layerIDX1][dim][i],mean_fold_coef_spatial[layerIDX0][dim][i], xerr=sd_fold_coef_tau[layerIDX1][dim][i], yerr=sd_fold_coef_spatial[layerIDX0][dim][i], fmt="o", color=colorArray[i], markersize=0.15, elinewidth=0.15)
+                                axes[layerIDX0,layerIDX1].annotate(predictorText, (mean_fold_coef_tau[layerIDX1][dim][i], mean_fold_coef_spatial[layerIDX0][dim][i]), color=colorArray[i], fontsize=3)
                             if layerIDX1 == 0:
                                 axes[layerIDX0,layerIDX1].set_ylabel(f"{layerNames[layerIDX0]} A-P $\\beta$")
                             if layerIDX0 == numLayers-1:
