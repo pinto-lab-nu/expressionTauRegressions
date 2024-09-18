@@ -805,7 +805,10 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                     dual_gap_history = dual_gap_history_spatial
                     predictor_condition_numbers = predictor_condition_numbers_spatial
                     plottingTitles = ["A-P CCF","M-L CCF"]
-                    titleAppend = f'Spatial Reconstruction from {datasetName} {predictorTitle} (pooling={tauPoolSize}mm, {resampTitle})'
+                    if predictorPathSuffix == 'H3Predictors':
+                        titleAppend = f'Spatial Reconstruction from {datasetName} {predictorTitle} (pooling={tauPoolSize}mm, {resampTitle})'
+                    else:
+                        titleAppend = f'Spatial Reconstruction from {datasetName} {predictorTitle} ({resampTitle})'
                     tauPredictions = tauPredictions_spatial
                     bestR2 = bestR2_spatial
                     mean_fold_coef = mean_fold_coef_spatial

@@ -20,7 +20,7 @@ for prePath in ['Spatial',lineSelection]:
 
         for predictionPath in ['H3Predictors','GenePredictors']: #include " '' " in array here, or below?
 
-            for datasetPath,layernames in zip(['Pilot','Merfish','Merfish-Imputed'],[pilotLayerNames,merfishLayerNames,merfishLayerNames]):
+            for datasetPath,layerNames in zip(['Pilot','Merfish','Merfish-Imputed'],[pilotLayerNames,merfishLayerNames,merfishLayerNames]):
 
                 if prePath == lineSelection:
                     currentPath = os.path.join(savePath,prePath,f'pooling{tauPoolSize}mm',predictionPath,datasetPath)
