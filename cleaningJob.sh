@@ -16,4 +16,4 @@ export PYTHONUNBUFFERED=1 #for log files
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate allenSDKenv
 
-python merger.py 1
+python merger.py "none" 1
