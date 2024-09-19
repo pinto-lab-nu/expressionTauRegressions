@@ -9,7 +9,7 @@ from packages.dataloading import *
 lineSelection = 'Cux2-Ai96'
 pilotLayerNames   = ['L2_3 IT',   'L4_5 IT',   'L5 IT',   'L6 IT',  'L5 ET']
 merfishLayerNames = ['L2_3 IT_ET','L4_5 IT_ET','L6 IT_ET']
-_, _, savePath = pathSetter(lineSelection)
+_, _, _, savePath, _ = pathSetter(lineSelection)
 
 
 
