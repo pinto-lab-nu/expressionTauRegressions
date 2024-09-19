@@ -20,7 +20,7 @@ for prePath in ['Spatial',lineSelection]:
 
         for predictionPath in ['H3Predictors','GenePredictors']: #include " '' " in array here, or below?
 
-            for datasetPath,layerNames in zip(['Pilot','Merfish','Merfish-Imputed'],[pilotLayerNames,merfishLayerNames,merfishLayerNames]):
+            for datasetPath,layerNames in zip(['Pilot','Merfish','Merfish-Imputed','',''],[pilotLayerNames,merfishLayerNames,merfishLayerNames,pilotLayerNames,merfishLayerNames]):
                 
                 if prePath == lineSelection:
                     currentPath = os.path.join(savePath,prePath,f'pooling{tauPoolSize}mm',predictionPath,datasetPath)
@@ -30,7 +30,10 @@ for prePath in ['Spatial',lineSelection]:
                 if os.path.exists(currentPath):
 
                     # Regex to capture portions before and after the variable part
-                    pattern = re.compile(r'^(.*?)(_L\d+.* [EI]T)(.*)$')
+                    if datasetPath == 'Pilot':
+                        pattern = re.compile(r'^(.*?)(_L\d+.* [EI]T)(.*)$')
+                    else:
+                        pattern = re.compile(r'^(.*?)(_L\d+.* IT_ET)(.*)$')
 
                     unique_file_names = set()
 
