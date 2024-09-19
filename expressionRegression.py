@@ -721,7 +721,10 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                 ax.set_ylabel(f'Mean {predictorTitle}')
                 ax.set_yscale('log')
                 ax.set_title(f'{layerNames[layerIDX]}, Num Excluded {namePredictors}:{meanPredictorCutoffIDX}, Mean {predictorTitle} Cutoff:{meanPredictionThresh}')
-                plt.savefig(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}',f'excluded{predictorPathSuffix}Thresh{meanPredictionThresh}_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
+                if predictorPathSuffix == 'H3Predictors':
+                    plt.savefig(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'excluded{predictorPathSuffix}Thresh{meanPredictionThresh}_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
+                else:
+                    plt.savefig(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}',f'excluded{predictorPathSuffix}Thresh{meanPredictionThresh}_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
                 plt.close()
 
             rename = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'excluded{predictorPathSuffix}Thresh{meanPredictionThresh}.pdf')
@@ -901,14 +904,14 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                             beta_pred = linearmodel.predict(mean_fold_coef_tau[layerIDX1][dim].reshape(-1,1))
                             L2L_r2 = r2_score(mean_fold_coef_spatial[layerIDX0][dim].reshape(-1,1), beta_pred)
 
-                            tau_beta_L = np.percentile(mean_fold_coef_tau[layerIDX0][dim], tau_L_cutoff)
-                            tau_beta_U = np.percentile(mean_fold_coef_tau[layerIDX0][dim], tau_U_cutoff)
-                            extreme_tau_betas = np.where((mean_fold_coef_tau[layerIDX0][dim] <= tau_beta_L) | (mean_fold_coef_tau[layerIDX0][dim] >= tau_beta_U))
+                            tau_beta_L = np.percentile(mean_fold_coef_tau[layerIDX1][dim], tau_L_cutoff)
+                            tau_beta_U = np.percentile(mean_fold_coef_tau[layerIDX1][dim], tau_U_cutoff)
+                            extreme_tau_betas = np.where((mean_fold_coef_tau[layerIDX1][dim] <= tau_beta_L) | (mean_fold_coef_tau[layerIDX1][dim] >= tau_beta_U))
                             extreme_tau_genes_set = set(predictorNamesArray[extreme_tau_betas[0]])
 
-                            spatial_beta_L = np.percentile(mean_fold_coef_spatial[layerIDX1][dim], spatial_L_cutoff)
-                            spatial_beta_U = np.percentile(mean_fold_coef_spatial[layerIDX1][dim], spatial_U_cutoff)
-                            center_spatial_betas = np.where((mean_fold_coef_spatial[layerIDX1][dim] >= spatial_beta_L) & (mean_fold_coef_spatial[layerIDX1][dim] <= spatial_beta_U))
+                            spatial_beta_L = np.percentile(mean_fold_coef_spatial[layerIDX0][dim], spatial_L_cutoff)
+                            spatial_beta_U = np.percentile(mean_fold_coef_spatial[layerIDX0][dim], spatial_U_cutoff)
+                            center_spatial_betas = np.where((mean_fold_coef_spatial[layerIDX0][dim] >= spatial_beta_L) & (mean_fold_coef_spatial[layerIDX0][dim] <= spatial_beta_U))
                             center_spatial_genes_set = set(predictorNamesArray[center_spatial_betas[0]])
 
                             significantTau_centeredSpatial_betas = list(extreme_tau_genes_set & center_spatial_genes_set)
@@ -1090,7 +1093,7 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                             #axes[1].axis('equal')
                             for axnum in range(2):
                                 axes[axnum].set_xlim(-2.5,2.5), axes[axnum].set_ylim(-2.5,2.5)
-                    plt.savefig(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}',f'{datasetName}{predictorPathSuffix}Thresh{meanPredictionThresh}_pooling{tauPoolSize}mm_spatialReconstruction_{layerName}.pdf'),dpi=600,bbox_inches='tight')
+                    plt.savefig(os.path.join(plottingDir,f'{datasetName}{predictorPathSuffix}Thresh{meanPredictionThresh}_pooling{tauPoolSize}mm_spatialReconstruction_{layerName}.pdf'),dpi=600,bbox_inches='tight')
                     plt.close()
                     #rename = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{predictorPathSuffix}Thresh{meanPredictionThresh}_spatialReconstruction.pdf')
                     #PDFmerger(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}'),f'{predictorPathSuffix}Thresh{meanPredictionThresh}_spatialReconstruction_',layerNames,'.pdf',rename)
