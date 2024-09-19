@@ -15,16 +15,16 @@ _, _, _, savePath, _ = pathSetter(lineSelection)
 
 for prePath in ['Spatial',lineSelection]:
 
-    for poolIDX,tauPoolSize in enumerate([2]): #[2,4]
+    for poolIDX,tauPoolSize in enumerate([2,4]): #[2,4]
         tauPoolSize *= 0.025
 
-        for predictionPath in ['H3Predictors','GenePredictors']: #include " '' " in array here, or below?
+        for predictionPath in ['H3Predictors','GenePredictors','']: #include " '' " in array here, or below?
 
             for datasetPath,layerNames in zip(['Pilot','Merfish','Merfish-Imputed','',''],[pilotLayerNames,merfishLayerNames,merfishLayerNames,pilotLayerNames,merfishLayerNames]):
                 
                 if prePath == lineSelection:
                     currentPath = os.path.join(savePath,prePath,f'pooling{tauPoolSize}mm',predictionPath,datasetPath)
-                if (prePath == 'Spatial') and (poolIDX == 0):
+                if prePath == 'Spatial': #(prePath == 'Spatial') and (poolIDX == 0):
                     currentPath = os.path.join(savePath,prePath,predictionPath,datasetPath)
                 
                 if os.path.exists(currentPath):
