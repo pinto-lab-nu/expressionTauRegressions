@@ -751,8 +751,8 @@ for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] fo
                         y_data = [np.hstack((apCCF_per_cell_H2layerFiltered_standard[layerIDX],mlCCF_per_cell_H2layerFiltered_standard[layerIDX])) for layerIDX in range(numLayers)]
                         region_label_filtered = cell_region_H2layerFiltered[resolution]
                     if predictorPathSuffix == 'H3Predictors':
-                        x_data = [m.T for m in pooledH3_for_spatial] #H3_per_cell_H2layerFiltered
-                        y_data = [standardized_CCF_Tau[layerIDX][[1,0],:] for layerIDX in range(numLayers)]
+                        x_data = pooledH3_for_spatial #[m.T for m in pooledH3_for_spatial] #H3_per_cell_H2layerFiltered
+                        y_data = [standardized_CCF_Tau[layerIDX][:,[1,0]] for layerIDX in range(numLayers)]
                         region_label_filtered = [np.array(pooled_region_label[layerIDX]) for layerIDX in range(numLayers)]
 
                 # if ???:
