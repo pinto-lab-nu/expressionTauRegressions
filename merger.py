@@ -30,7 +30,7 @@ for prePath in ['Spatial',lineSelection]:
                 if os.path.exists(currentPath):
 
                     # Regex to capture portions before and after the variable part
-                    if datasetPath == 'Pilot':
+                    if layerNames == pilotLayerNames:
                         pattern = re.compile(r'^(.*?)(_L\d+.* [EI]T)(.*)$')
                     else:
                         pattern = re.compile(r'^(.*?)(_L\d+.* IT_ET)(.*)$')
