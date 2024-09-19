@@ -15,7 +15,7 @@ _, _, savePath = pathSetter(lineSelection)
 
 for prePath in ['Spatial',lineSelection]:
 
-    for poolIDX,tauPoolSize in enumerate([2,4]):
+    for poolIDX,tauPoolSize in enumerate([2]): #[2,4]
         tauPoolSize *= 0.025
 
         for predictionPath in ['H3Predictors','GenePredictors']: #include " '' " in array here, or below?
