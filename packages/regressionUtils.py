@@ -141,11 +141,11 @@ def predictor_response_info(x_data,y_data):
     print(f'Predictors Info: [by layer]')
     print(f'rank: {[np.linalg.matrix_rank(x) for x in x_data]}')
     print(f'shape: {[x.shape for x in x_data]}')
-    print(f'dtype: {[x.dtype for x in x_data]}')
+    #print(f'dtype: {[x.dtype for x in x_data]}')
     print(f'condition number: {[round(np.linalg.cond(x),3) for x in x_data]}')
 
     print(f'Response Variable(s) Info: [by layer]')
     print(f'rank: {[np.linalg.matrix_rank(y) for y in y_data]}')
     print(f'shape: {[y.shape for y in y_data]}')
-    print(f'dtype: {[y.dtype for y in y_data]}')
+    #print(f'dtype: {[y.dtype for y in y_data]}')
     print(f'condition number: {[round(np.linalg.cond(y),3) for y in y_data]}')
