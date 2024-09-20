@@ -16,7 +16,7 @@ _, _, _, savePath, _ = pathSetter(lineSelection)
 for prePath in ['Spatial',lineSelection]:
 
     for poolIDX,tauPoolSize in enumerate([1,2,3,4,5]): #[2,4]
-        tauPoolSize *= 0.025
+        tauPoolSize = np.round(tauPoolSize * 0.025, 4)
 
         for predictionPath in ['H3Predictors','GenePredictors','']: #include " '' " in array here, or below?
 
@@ -31,7 +31,8 @@ for prePath in ['Spatial',lineSelection]:
 
                     # Regex to capture portions before and after the variable part
                     if layerNames == pilotLayerNames:
-                        pattern = re.compile(r'^(.*?)(_L\d+.* [EI]T)(.*)$')
+                        #pattern = re.compile(r'^(.*?)(_L\d+.* [EI]T)(.*)$')
+                        pattern = re.compile(r'^(.*?)(_L\d+.* [EI]T(?!_ET))(.*)$') #add negative lookahead assertion for merfish layer titles
                     else:
                         pattern = re.compile(r'^(.*?)(_L\d+.* IT_ET)(.*)$')
 
