@@ -1110,7 +1110,11 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
                                 #axes[1].axis('equal')
                                 for axnum in range(2):
                                     axes[axnum].set_xlim(-2.5,2.5), axes[axnum].set_ylim(-2.5,2.5)
-                        plt.savefig(os.path.join(plottingDir,f'{datasetName}{predictorPathSuffix}Thresh{meanPredictionThresh}_pooling{tauPoolSize}mm_spatialReconstruction_{layerName}.pdf'),dpi=600,bbox_inches='tight')
+                        if predictorPathSuffix == 'H3Predictors':
+                            H3SpatialReconstructionPool = f'_pooling{tauPoolSize}mm'
+                        else:
+                            H3SpatialReconstructionPool = ''
+                        plt.savefig(os.path.join(plottingDir,f'{datasetName}{predictorPathSuffix}Thresh{meanPredictionThresh}{H3SpatialReconstructionPool}_spatialReconstruction_{layerName}.pdf'),dpi=600,bbox_inches='tight')
                         plt.close()
                         #rename = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{predictorPathSuffix}Thresh{meanPredictionThresh}_spatialReconstruction.pdf')
                         #PDFmerger(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}'),f'{predictorPathSuffix}Thresh{meanPredictionThresh}_spatialReconstruction_',layerNames,'.pdf',rename)
