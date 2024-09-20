@@ -37,16 +37,18 @@ import re
 lineSelection = 'Cux2-Ai96' #'Rpb4-Ai96' #select the functional dataset for tau regressions
 geneLimit = -1 #for testing purposes only for loading merfish-imputed data, set to -1 to include all genes
 restrict_merfish_imputed_values = False #condition to restrict merfish-imputed dataset to non-imputed genes
-tauPoolSizeArrayFull = [2,3,4,5] #in 25um resolution CCF voxels, converted to mm later
+tauPoolSizeArrayFull = [1,2,3,4,5] #in 25um resolution CCF voxels, converted to mm later
 n_splits = 5 #number of splits for cross-validations in regressions
-alphaParams = [-6,-2,30] #Alpha Lower (10**x), Alpha Upper (10**x), Steps
+alphaParams = [-5,0,30] #Alpha Lower (10**x), Alpha Upper (10**x), Steps
 loadData = True
 plotting = True
 numPrecision, alphaPrecision = 3, 5 #just for display (in plotting and regression text files)
 verbose = True
-predictorOrder = [0] #select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
+predictorOrder     = [0]   #select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
+regressionsToStart = [0,1] #select response variables for regressions, and order [0:tau, 1:CCF]
 max_iter = 200
 variableManagement = True
+plottingConditions = [False,True]
 
 for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[0]]):
 
@@ -427,7 +429,7 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
         
         poolIndex = 0
         for tauPoolSize in tauPoolSizeArray:
-            tauPoolSize *= 0.025 #convert 25um resolution CCF functional-registered coordinates to mm
+            tauPoolSize = np.round(tauPoolSize * 0.025, 4) #convert 25um resolution CCF functional-registered coordinates to mm
             poolIndex += 1
             tauSortedPath = os.path.join(savePath,lineSelection,f'pooling{tauPoolSize}mm')
             if not os.path.exists(tauSortedPath):
@@ -640,13 +642,14 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
             #print(np.mean(resampledGenes_aligned_H2layerFiltered_standard[0][:,:],axis=0)) #just to see that the means are zero after standardizing
 
 
+            """ 
             if poolIndex == 1:
                 regressionsToStart = [0,1]
                 plottingConditions = [False,True] #plot spatial reconstruction?
             else:
                 regressionsToStart = [0,1] #[0] #used to be no need to run spatial regression multiple times across pooling sizes, just when the meanPredictionThresh changes, but this now matters for H3 profiles per pool
                 plottingConditions = [False]#[False] #no need to plot spatial regression plots across "..."
-
+            """
 
             for namePredictors,predictorTitle,predictorEncodeType,predictorPathSuffix in zip(['Gene Predictors', 'H3 Predictors'],
                                                                                             ['Gene Expression',  'H3 Level'],
