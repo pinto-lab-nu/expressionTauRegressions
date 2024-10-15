@@ -32,7 +32,7 @@ import itertools
 # Connects to database and creates virtual modules
 VM = connect_to_dj.get_virtual_modules()
 
-AIC = lambda n, LL, k: -(2*LL) + (2*k) + ((2*k*(k+1)) / (n - k - 1)) # this is actually not AIC but AICc, since n is small we want to correct, I think...., this is what the last term does,
+AIC = lambda n, LL, k: -(2*LL) + (2*k) + ((2*k*(k+1)) / (n - k - 1)) # this is actually not AIC but AICc, since n is small we want to correct, this is what the last term does,
                                                                      # should converge on true AIC if the length of our timeseries becomes arbitrarily long,
                                                                      # k is the number of parameters, *including* intercept
 BIC = lambda n, LL, k: -(2*LL) + (k*np.log(n))

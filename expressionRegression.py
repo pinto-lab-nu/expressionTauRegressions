@@ -910,7 +910,7 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
                             for layerIDX0 in range(numLayers):
                                 for layerIDX1 in range(numLayers):
 
-                                    linearmodel.fit(mean_fold_coef_tau[layerIDX1][dim].reshape(-1,1),mean_fold_coef_spatial[layerIDX0][dim].reshape(-1,1))
+                                    linearmodel.fit(mean_fold_coef_tau[layerIDX1][dim].reshape(-1,1), mean_fold_coef_spatial[layerIDX0][dim].reshape(-1,1))
                                     beta_pred = linearmodel.predict(mean_fold_coef_tau[layerIDX1][dim].reshape(-1,1))
                                     L2L_r2 = r2_score(mean_fold_coef_spatial[layerIDX0][dim].reshape(-1,1), beta_pred)
 
@@ -940,11 +940,16 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
                                     colorArray[significantGenesIDXs] = interestGeneColor
                                     
                                     axes[layerIDX0,layerIDX1].set_title(f'$R^2$={round(L2L_r2,3)}')
-                                    axes[layerIDX0,layerIDX1].scatter(mean_fold_coef_tau[layerIDX1][dim],mean_fold_coef_spatial[layerIDX0][dim],color=colorArray,edgecolors=colorArray,s=0.15)
+                                    axes[layerIDX0,layerIDX1].scatter(mean_fold_coef_tau[layerIDX1][dim], mean_fold_coef_spatial[layerIDX0][dim],
+                                                                      color=colorArray, edgecolors=colorArray, s=0.15)
                                     for i, predictorText in enumerate(predictorNamesArray):
-                                        axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_tau[layerIDX1][dim][i],mean_fold_coef_spatial[layerIDX0][dim][i], xerr=sd_fold_coef_tau[layerIDX1][dim][i], yerr=sd_fold_coef_spatial[layerIDX0][dim][i], fmt="o", color=colorArray[i], markersize=0.15, elinewidth=0.15)
+                                        axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_tau[layerIDX1][dim][i], mean_fold_coef_spatial[layerIDX0][dim][i],
+                                                                           xerr=sd_fold_coef_tau[layerIDX1][dim][i], yerr=sd_fold_coef_spatial[layerIDX0][dim][i],
+                                                                           fmt="o", color=colorArray[i], markersize=0.15, elinewidth=0.15)
                                         if ((fileType == '.svg') and (np.where(predictorNamesArray[significantGenesIDXs] == predictorText)[0].shape[0] > 0)) or (fileType == '.pdf'):
-                                            axes[layerIDX0,layerIDX1].annotate(predictorText, (mean_fold_coef_tau[layerIDX1][dim][i], mean_fold_coef_spatial[layerIDX0][dim][i]), color=colorArray[i], fontsize=3)
+                                            axes[layerIDX0,layerIDX1].annotate(predictorText,
+                                                                               (mean_fold_coef_tau[layerIDX1][dim][i], mean_fold_coef_spatial[layerIDX0][dim][i]),
+                                                                               color=colorArray[i], fontsize=3)
                                     if layerIDX1 == 0:
                                         axes[layerIDX0,layerIDX1].set_ylabel(f"{layerNames[layerIDX0]} A-P $\\beta$")
                                     if layerIDX0 == numLayers-1:
@@ -952,7 +957,7 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
                             plt.savefig(os.path.join(savePath,'Spatial',f'crossLayer_{datasetName}_{typeTitle}_beta_Correlations_pooling{tauPoolSize}mm{fileType}'),dpi=600,bbox_inches='tight')
                             plt.close()
 
-
+                    
                     with open(os.path.join(plottingDir,f'regression_{titleAppend}.txt'), "w") as file:
                         file.write(f'{titleAppend}\n\n')
 
