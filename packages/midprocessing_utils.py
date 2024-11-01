@@ -234,7 +234,8 @@ def LL(y_true, y_pred, sigma):
     return (-n/2) * np.log(2 * np.pi * var) - (RSS/(2 * var))
 
 
-def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_window:int=30, maxfev:int=16000, p0_dual=[1,0.04,1,4,0], p0_mono=[1,1,0], bounds_dual=([-10,0,-10,0.05,-5],[10,0.05,10,30,5]), bounds_mono=([-10,0,-5],[10,30,5])):
+def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_window:int=30, maxfev:int=16000,
+                  p0_dual=[1,0.04,1,4,0], p0_mono=[1,1,0], bounds_dual=([-10,0,-10,0.05,-5],[10,0.05,10,30,5]), bounds_mono=([-10,0,-5],[10,30,5])):
     '''
     Calculate the characteristic decay constant (tau) from the full signal, using mono- and bi-exponential fits.
 
@@ -291,7 +292,12 @@ def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_w
         monoLL       :
         monoAICc     :
         monoBIC      :
-
+    
+    Auxiliary Functions
+    -------------------
+    decay_func_dual : definition of the dual curve with provided parameters
+    decay_func_mono : definition of the mono curve with provided parameters
+    LL              : likelihood estimator that fit decay curve points come from the true autocorrelation
     '''
     
     AICC = lambda n, LL, k: -(2*LL) + (2*k) + ((2*k*(k+1)) / (n - k - 1)) # Since n is small we want to correct AIC->AICc, this is what the last term does,
