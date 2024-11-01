@@ -41,7 +41,7 @@ BIC = lambda n, LL, k: -(2*LL) + (k*np.log(n))
 ##########
 ### Params
 #SNRthresh = 200 #threshold for SNR mask
-lineSelection  = ['Rpb4-Ai96','Cux2-Ai96','C57BL6/J','PV-Ai96'][0]
+lineSelection  = ['Rpb4-Ai96','Cux2-Ai96','C57BL6/J','PV-Ai96'][1]
 task = 'IntoTheVoid' #'DelayedMatchToEvidence'
 SNRbutterworthThresh = 6
 printTauMap = False
@@ -174,18 +174,18 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
     areaLabelsSet = list(set(areaLabels))
     preprocessingOutputs['areaLabels'] = areaLabels
     preprocessingOutputs['areaLabelsSet'] = np.array(areaLabelsSet)
-    VascMask = pd.DataFrame((VM['widefield'].VascMask & key).fetch('mask_binned'))
+    vasc_mask = pd.DataFrame((VM['widefield'].VascMask & key).fetch('mask_binned'))
     voidSync = (VM['widefield'].BehavSync & key)
     voidSync_VelXY = pd.DataFrame(voidSync.fetch('velocity_by_im_frame'))
     #voidSync_Time = pd.DataFrame(voidSync.fetch('im_frame_timestamps'))[0][0][0]
 
-    metaFilterCondition = (voidSync_VelXY.shape[0]>0) and (VascMask.shape[0]>0) and (len(areaLabelsSet)>0)
+    metaFilterCondition = (voidSync_VelXY.shape[0]>0) and (vasc_mask.shape[0]>0) and (len(areaLabelsSet)>0)
 
     if metaFilterCondition and loadDFF:
-        VascMask = np.invert(VascMask[0][0].reshape(-1))
-        VascMask = VascMask.reshape(128,128)
-        VascMask = VascMask.T
-        VascMask = VascMask.reshape(-1)
+        #VascMask = np.invert(VascMask[0][0].reshape(-1))
+        anti_vasc_mask = np.invert(vasc_mask[0][0].reshape(128,128).T.reshape(-1))
+        #VascMask = VascMask.T
+        #VascMask = VascMask.reshape(-1)
 
         void_session_DFF = pd.DataFrame((VM['behavior'].BehavioralSession * VM['widefield'].WFsession * VM['widefield'].Dff & key).fetch('dff'))
 
@@ -216,7 +216,7 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
             trialLength = DFF_only[0].shape[0]
             preprocessingOutputs['trialLength'] = trialLength
             
-            pixelMaskIDX = np.arange(0,numPixels,1)[VascMask]
+            pixelMaskIDX = np.arange(0,numPixels,1)[anti_vasc_mask]
             preprocessingOutputs['pixelMaskIDX'] = pixelMaskIDX
 
 
@@ -267,7 +267,7 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
                 startTime = datetime.now()
                 for pixelIDX in np.arange(firstPixel,pixelMaskIDX.shape[0],1):
                     pixel = pixelMaskIDX[pixelIDX]
-                    if VascMask[pixel]:
+                    if anti_vasc_mask[pixel]:
                         if Verbose:
                             #print('Currently on pixel '+str(pixel), end='\r')
                             with open(os.path.join(projectPath,f'{fileNameSession}_pixelGLMprogress_{version}.txt'), "w") as file:
@@ -358,12 +358,9 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
 
 
     if metaFilterCondition and calcTau:
-        VascMask = np.invert(VascMask[0][0].reshape(-1))
-        VascMask = VascMask.reshape(128,128)
-        VascMask = VascMask.T
-        VascMask = VascMask.reshape(-1)
+        anti_vasc_mask = np.invert(vasc_mask[0][0].reshape(128,128).T.reshape(-1))
 
-        vascIDX = np.where(VascMask)[0]
+        anti_vascIDX = np.where(anti_vasc_mask)[0]
 
         with open(os.path.join(projectPath,fileNameSession+'_preprocessingOutputs.pickle'), 'rb') as handle:
             preprocessingOutputs = pickle.load(handle)
@@ -381,11 +378,11 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
 
         if not justPlot:
             #tau_save = [[] for _ in range(len(areaLabelsSet))]
-            tauMatrix = np.zeros((vascIDX.shape[0],16))
+            tauMatrix = np.zeros((anti_vascIDX.shape[0],16))
             # for SNRidx,SNR in enumerate(SNR_mask):
             #     if SNR:
             startTime = datetime.now()
-            for pixelIDX,pixelID in enumerate(vascIDX):
+            for pixelIDX,pixelID in enumerate(anti_vascIDX):
                 dFF_snip = pixelGLMresiduals[pixelID,:].reshape(-1)
                 if not(sum(dFF_snip) == 0.0):
                     dFF_snip_a = (dFF_snip - np.mean(dFF_snip)) / (np.std(dFF_snip) * len(dFF_snip))
@@ -393,16 +390,16 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
                     ACF = np.correlate(dFF_snip_a, dFF_snip_v, 'full')
                     ACF_split = ACF[dFF_snip.shape[0]-1:dFF_snip.shape[0]-1+(correlationWindow*Fs)]
 
-                    popt, pcov = curve_fit(decay_func_2, corr_t, ACF_split, p0_dual, bounds=bounds_2, maxfev=maxfev)
+                    popt, pcov = curve_fit(decay_func_dual, corr_t, ACF_split, p0_dual, bounds=bounds_2, maxfev=maxfev)
                     np.linalg.cond(pcov)
                     A_fit_0, tau_fit_0, A_fit_1, tau_fit_1, offset_fit = popt
 
-                    popt, pcov = curve_fit(decay_func_1, corr_t, ACF_split, p0_mono, bounds=bounds_1, maxfev=maxfev)
+                    popt, pcov = curve_fit(decay_func_mono, corr_t, ACF_split, p0_mono, bounds=bounds_1, maxfev=maxfev)
                     np.linalg.cond(pcov)
                     A_fit_mono, tau_fit_mono, offset_fit_mono = popt
                     #tauMatrix[simNum,2,SNR_IDX] = tau_fit_mono
 
-                    decayFitPointsDual = decay_func_2(corr_t,A_fit_0,tau_fit_0,A_fit_1,tau_fit_1,offset_fit)
+                    decayFitPointsDual = decay_func_dual(corr_t,A_fit_0,tau_fit_0,A_fit_1,tau_fit_1,offset_fit)
                     R2_Fit_Dual = r2_score(ACF_split, decayFitPointsDual)
                     dualRSS = np.sum((ACF_split-decayFitPointsDual)**2)
                     dualSigmaHat = np.sqrt(dualRSS/ACF_split.shape[0]) #np.std(ACF_split-decayFitPointsMono)
@@ -410,7 +407,7 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
                     dualAIC = AIC(ACF_split.shape[0], dualLL, 5)
                     dualBIC = BIC(ACF_split.shape[0], dualLL, 5)
 
-                    decayFitPointsMono = decay_func_1(corr_t,A_fit_mono,tau_fit_mono,offset_fit_mono)
+                    decayFitPointsMono = decay_func_mono(corr_t,A_fit_mono,tau_fit_mono,offset_fit_mono)
                     R2_Fit_Mono = r2_score(ACF_split, decayFitPointsMono)
                     monoRSS = np.sum((ACF_split-decayFitPointsMono)**2)
                     monoSigmaHat = np.sqrt(monoRSS/ACF_split.shape[0]) #np.std(ACF_split-decayFitPointsMono)
@@ -428,8 +425,8 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
                     tauMatrix[pixelIDX,:] = np.array([bestTau,tau_fit_0,tau_fit_1,R2_Fit_Dual,dualRSS,dualSigmaHat,dualLL,dualAIC,dualBIC,tau_fit_mono,R2_Fit_Mono,monoRSS,monoSigmaHat,monoLL,monoAIC,monoBIC])
                     ########tau_save[areaIDX].append(tau_fit) #tau_save[areaIDX][SNRidx,samp]=tau_fit
 
-                if (pixelIDX%int((vascIDX.shape[0]/20)) == 0) and (pixelIDX != 0):
-                    fractionComplete = pixelIDX/vascIDX.shape[0]
+                if (pixelIDX%int((anti_vascIDX.shape[0]/20)) == 0) and (pixelIDX != 0):
+                    fractionComplete = pixelIDX/anti_vascIDX.shape[0]
                     timeLeft = (startTime-datetime.now()) * ((1-fractionComplete) / fractionComplete)
                     timeDone = startTime + timeLeft
                     print(f'{int(fractionComplete*100)}\u0025 Complete, Time Complete Estimate: {timeDone.hour}:{timeDone.minute} on {timeDone.day}.{timeDone.month}.{timeDone.year}') #% is u0025
@@ -455,7 +452,7 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
                     ax = axes[(filterValIDX*2),SNRthreshIDX]
                     passingSNR = np.where(noiseFeaturesRaw[:,3] > SNRthresh)[0]
                     outputsMap = np.zeros(numPixels) * np.nan
-                    outputsMap[vascIDX[passingSNR]] = filteredTau[passingSNR]
+                    outputsMap[anti_vascIDX[passingSNR]] = filteredTau[passingSNR]
                     img = ax.imshow(outputsMap.reshape(128,128))
                     ax.axis('off')
                     ax.set_title(f'{title},\nSNR Threshold:{SNRthresh}')
@@ -477,7 +474,7 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
             for plotIDX,(deltaModel,title) in enumerate(zip([deltaBIC,deltaAIC,deltaBIC-deltaAIC],['delta BIC (dual-mono)','delta AICc (dual-mono)','delta (delta BIC, delta AICc)'])):
                 ax = axes[plotIDX]
                 outputsMap = np.zeros(numPixels) * np.nan
-                outputsMap[vascIDX] = deltaModel #np.exp(-0.5 * deltaBIC) / (1 + np.exp(-0.5 * deltaBIC))
+                outputsMap[anti_vascIDX] = deltaModel #np.exp(-0.5 * deltaBIC) / (1 + np.exp(-0.5 * deltaBIC))
                 img = ax.imshow(outputsMap.reshape(128,128))
                 ax.axis('off')
                 cbar = plt.colorbar(img,ax=ax)
@@ -492,12 +489,9 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
         
         
     if metaFilterCondition and processTau:
-        VascMask = np.invert(VascMask[0][0].reshape(-1))
-        VascMask = VascMask.reshape(128,128)
-        VascMask = VascMask.T
-        VascMask = VascMask.reshape(-1)
+        anti_vasc_mask = np.invert(vasc_mask[0][0].reshape(128,128).T.reshape(-1))
 
-        vascIDX = np.where(VascMask)[0]
+        anti_vascIDX = np.where(anti_vasc_mask)[0]
         
         # tau_array = np.array([np.array(tau_save_i) for tau_save_i in tau_save])
         tau_save = np.load(os.path.join(projectPath,f'{fileNameSession}_tau_save_{version}.npy'))
@@ -522,7 +516,7 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
         
         noiseFeaturesRaw = preprocessingOutputs['noiseFeaturesRaw']
         newSNRthresh = 3
-        pixelsPassingSNR = vascIDX[np.array(np.where(noiseFeaturesRaw[:,3] > newSNRthresh))[0]]
+        pixelsPassingSNR = anti_vascIDX[np.array(np.where(noiseFeaturesRaw[:,3] > newSNRthresh))[0]]
 
         q = (VM['widefield'].ReferenceIm & key)
         tform_allen2mouse = q.fetch('tform_allen2mouse')[0]
@@ -540,7 +534,7 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
         global_min = 0
         global_max = 30
         norm = matplotlib.colors.Normalize(global_min, global_max)
-        maskedIDXpassingIDXs = np.asarray([np.where(vascIDX == i)[0][0] for i in pixelsPassingSNR])
+        maskedIDXpassingIDXs = np.asarray([np.where(anti_vascIDX == i)[0][0] for i in pixelsPassingSNR])
         tau_colors = cmap(norm(tau_save[maskedIDXpassingIDXs,0]))
         
         currentMeanMLcoord = np.mean([Tallen_bregma[0],Tallen_lambda[0]])
@@ -567,7 +561,7 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
 
 
 
-        maskedAreaLabels = preprocessingOutputs['areaLabels'][vascIDX]
+        maskedAreaLabels = preprocessingOutputs['areaLabels'][anti_vascIDX]
         
         print(f'{fileNameSession}')
         for areaIDX,area in enumerate(structureDefinitions):
@@ -580,7 +574,7 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
             passingAreaIDXs = np.array(list(set(pixelsPassingSNR).intersection(set(areaIDXs))))
             areaPassingPixelCounts = []
             if passingAreaIDXs.shape[0] > 5:
-                maskedIDXpassingAreaIDXs = [np.where(vascIDX == i)[0][0] for i in passingAreaIDXs]
+                maskedIDXpassingAreaIDXs = [np.where(anti_vascIDX == i)[0][0] for i in passingAreaIDXs]
                 currentTaus = tau_save[maskedIDXpassingAreaIDXs,0]
                 filteredCurrentTaus = currentTaus[list(set(np.where(currentTaus<longestToleratedTau-0.25)[0]).intersection(set(np.where(currentTaus>0.5)[0])))]
                 
@@ -639,7 +633,7 @@ for currentPassingSession in passingSessions[initialPassingIDX:endPassingIDX]:
 
 
 
-    if (voidSync_VelXY.shape[0]>0) and (VascMask.shape[0]>0) and (len(areaLabelsSet)>0) and summarizeLineTau:
+    if (voidSync_VelXY.shape[0]>0) and (anti_vasc_mask.shape[0]>0) and (len(areaLabelsSet)>0) and summarizeLineTau:
         tau_area_processed = np.load(os.path.join(projectPath,f'{fileNameSession}_tau_area_processed_{version}.npy'))
 
         for region in range(tau_area_processed.shape[0]):
