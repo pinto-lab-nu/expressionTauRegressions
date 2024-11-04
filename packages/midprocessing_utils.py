@@ -311,13 +311,13 @@ def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_w
 
     signal_array = np.atleast_2d(signal_array)
     if signal_array.shape[1] == 1:
-        signal_array = signal_array.T    
+        signal_array = signal_array.T
     n_rows, T = signal_array.shape[0], signal_array.shape[1]
 
     column_names = ['bestTau','akaike_w','dualParams','R2_Fit_Dual','dualRSS','dualSigmaHat','dualLL','dualAICc','dualBIC','monoParams','R2_Fit_Mono','monoRSS','monoSigmaHat','monoLL','monoAICc','monoBIC']
     
     if autocorrelation_in:
-        correlation_window = T // Fs
+        correlation_window = T / Fs
 
     corr_t = np.arange(0, correlation_window, 1/Fs)
 
@@ -499,7 +499,6 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
         glm_predicted_signal_sorted = glm_predicted_signal_allFolds[sorted_indices]
 
         glm_residuals_array[row,:] = np.transpose(row_signal - glm_predicted_signal_sorted)
-
         glm_split_coef_array[row] = glm_split_coef
     
     return glm_residuals_array, glm_split_coef_array
