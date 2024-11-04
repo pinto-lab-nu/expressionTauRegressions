@@ -237,7 +237,7 @@ def LL(y_true, y_pred, sigma):
 def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_window:int=30, maxfev:int=16000,
                   p0_dual=[1,0.04,1,4,0], p0_mono=[1,1,0], bounds_dual=([-10,0,-10,0.05,-5],[10,0.05,10,30,5]), bounds_mono=([-10,0,-5],[10,30,5])):
     '''
-    Calculate the characteristic decay constant (tau) from the full signal, using mono- and bi-exponential fits.
+    Calculate the characteristic decay constant (tau) from the full signal, using mono- and dual-exponential fits.
 
     Parameters
     ----------
@@ -250,25 +250,29 @@ def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_w
     Fs : float
         Sampling frequency, in Hz.
         
-    correlation_window : int
+    correlation_window : int, optional
         Window length (in timesteps) used for computing the autocorrelation, if applicable.
         
     maxfev : int, optional
         Maximum number of itterations for curve fitting (default is 16000).
         
     p0_dual : list, optional
-        Initial parameter estimates for the dual-exponential fit. Default is [scalar_0:1, tau_0:0.04, scalar_1:1, tau_1:4, offset:0] -> (param:seconds).
+        Initial parameter estimates for the dual-exponential fit.
+        Default is... [scalar_0:1, tau_0:0.04, scalar_1:1, tau_1:4, offset:0] -> (param:seconds)
         
     p0_mono : list, optional
-        Initial parameter estimates for the mono-exponential fit. Default is [scalar:1, tau:1, offset:0] -> (param:seconds).
+        Initial parameter estimates for the mono-exponential fit.
+        Default is... [scalar:1, tau:1, offset:0] -> (param:seconds)
         
     bounds_dual : tuple, optional
-        Bounds on parameters for the dual-exponential fit, default is...
-        ([scalar_0:-10, tau_0:0, scalar_1:-10, tau_1:0.05, offset:-5], [scalar_0:10, tau_0:0.05, scalar_1:10, tau_1:30, offset:5]) -> ([lower_bound:seconds], [upper_bound:seconds]).
+        Bounds on parameters for the dual-exponential fit.
+        Default is... ([scalar_0:-10, tau_0:0, scalar_1:-10, tau_1:0.05, offset:-5], [scalar_0:10, tau_0:0.05, scalar_1:10, tau_1:30, offset:5])
+        -> ([lower_bound:seconds], [upper_bound:seconds])
         
     bounds_mono : tuple, optional
-        Bounds on parameters for the mono-exponential fit, default is... 
-        ([scalar:-10, tau:0, offset:-5], [scalar:10, tau:30, ofset:5]) -> ([lower_bounds:seconds], [upper_bounds:seconds])
+        Bounds on parameters for the mono-exponential fit.
+        Default is... ([scalar:-10, tau:0, offset:-5], [scalar:10, tau:30, ofset:5])
+        -> ([lower_bounds:seconds], [upper_bounds:seconds])
 
     Returns
     -------
@@ -283,11 +287,11 @@ def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_w
         dualRSS      : dual model residual sum of squares
         dualSigmaHat : dual model predicted sigma, passed to likelihood function
         dualLL       : dual model log likelihood
-        dualAICc     :
-        dualBIC      :
-        tau_fit_mono :
-        R2_Fit_Mono  :
-        monoRSS      :
+        dualAICc     : 
+        dualBIC      : 
+        tau_fit_mono : 
+        R2_Fit_Mono  : 
+        monoRSS      : 
         monoSigmaHat :
         monoLL       :
         monoAICc     :
@@ -297,7 +301,7 @@ def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_w
     -------------------
     decay_func_dual : definition of the dual curve with provided parameters
     decay_func_mono : definition of the mono curve with provided parameters
-    LL              : likelihood estimator that fit decay curve points come from the true autocorrelation
+    LL              : log likelihood estimator that fit decay curve points come from the true autocorrelation
     '''
     
     AICC = lambda n, LL, k: -(2*LL) + (2*k) + ((2*k*(k+1)) / (n - k - 1)) # Since n is small we want to correct AIC->AICc, this is what the last term does,
@@ -305,6 +309,8 @@ def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_w
                                                                      # k is the number of parameters, *including* intercept
     BIC = lambda n, LL, k: -(2*LL) + (k*np.log(n))
 
+    signal_array = np.asarray(signal_array)
+    signal_array = signal_array if signal_array.shape[1] != 0 else signal_array.reshape(1, -1)
     n_rows, T = signal_array.shape[0], signal_array.shape[1]
 
     if autocorrelation_in:
