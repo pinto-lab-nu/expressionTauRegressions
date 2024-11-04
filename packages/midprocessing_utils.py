@@ -309,8 +309,9 @@ def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_w
                                                                      # k is the number of parameters, *including* intercept
     BIC = lambda n, LL, k: -(2*LL) + (k*np.log(n))
 
-    signal_array = np.asarray(signal_array)
-    signal_array = signal_array if signal_array.shape[1] != 0 else signal_array.reshape(1, -1)
+    signal_array = np.atleast_2d(signal_array)
+    if signal_array.shape[1] == 1:
+        signal_array = signal_array.T    
     n_rows, T = signal_array.shape[0], signal_array.shape[1]
 
     column_names = ['bestTau','akaike_w','dualParams','R2_Fit_Dual','dualRSS','dualSigmaHat','dualLL','dualAICc','dualBIC','monoParams','R2_Fit_Mono','monoRSS','monoSigmaHat','monoLL','monoAICc','monoBIC']
@@ -419,20 +420,30 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
     -------
     glm_residuals_array : np.ndarray
         Array of residual signals from the original signal_array that are not explained by the behavioral_signal (as defined by the ridge regression)
+    
+    glm_split_coef_array : np.ndarray
+        Array of lists for each row signal, containing n_splits dictionaries indicating the best fit GLM coefficients and test-training indices 
     '''
 
-    n_rows = signal_array.shape[0]
-    T = signal_array.shape[1]
+    signal_array = np.atleast_2d(signal_array)
+    if signal_array.shape[1] == 1:
+        signal_array = signal_array.T    
+    n_rows, T = signal_array.shape[0], signal_array.shape[1]
 
+    behavioral_signal = np.atleast_2d(behavioral_signal)
+    if behavioral_signal.shape[1] == 1:
+        behavioral_signal = behavioral_signal.T
+    
     glm_residuals_array = np.zeros((n_rows, T-(2*behavioral_lag)))
+    glm_split_coef_array = np.array([0] * n_rows, dtype=object)
 
-    for row in np.arange(0, n_rows,1):
+    for row in np.arange(0, n_rows, 1):
 
         row_signal = signal_array[row,:]
         row_signal = np.array(np.reshape(row_signal,-1))
 
         lags_vec = np.arange(-behavioral_lag, behavioral_lag+1, 1)
-        behavior_signal_lag = np.zeros((len(behavioral_signal), lags_vec.shape[0]))
+        behavior_signal_lag = np.zeros((behavioral_signal.shape[1], lags_vec.shape[0]))
         for i,lag in enumerate(lags_vec):
             behavior_signal_lag[:, i] = np.roll(behavioral_signal, lag)
         behavior_signal_lag = behavior_signal_lag[behavioral_lag:behavior_signal_lag.shape[0]-behavioral_lag, :]
@@ -445,7 +456,8 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
         ### Construct a GLM for determining signal residuals ###
         glm_predicted_signal = []
         glm_predicted_IDX = []
-        for train_index, test_index in kfold.split(row_signal):
+        glm_split_coef = []
+        for split_idx, (train_index, test_index) in enumerate(kfold.split(row_signal)):
             training_behavior = behavior_signal_lag[train_index]
             testing_behavior = behavior_signal_lag[test_index]
             training_signal = row_signal[train_index]
@@ -472,6 +484,14 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
             glm_predicted_signal.append(ridge.predict(testing_behavior))
             glm_predicted_IDX.append(test_index)
 
+            coef_dict = {
+                'split'    : split_idx,
+                'coef'     : ridge.coef_,
+                'training' : train_index,
+                'testing'  : test_index
+            }
+            glm_split_coef.append(coef_dict)
+
         glm_predicted_signal_allFolds = np.concatenate(glm_predicted_signal)
         glm_predicted_IDX_allFolds = np.concatenate(glm_predicted_IDX)
 
@@ -479,8 +499,10 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
         glm_predicted_signal_sorted = glm_predicted_signal_allFolds[sorted_indices]
 
         glm_residuals_array[row,:] = np.transpose(row_signal - glm_predicted_signal_sorted)
+
+        glm_split_coef_array[row] = glm_split_coef
     
-    return glm_residuals_array
+    return glm_residuals_array, glm_split_coef_array
 
 
 
