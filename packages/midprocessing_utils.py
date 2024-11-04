@@ -251,7 +251,7 @@ def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_w
         Sampling frequency, in Hz.
         
     correlation_window : int, optional
-        Window length (in timesteps) used for computing the autocorrelation, if applicable.
+        Window length (in seconds) used for computing the autocorrelation, if applicable.
         
     maxfev : int, optional
         Maximum number of itterations for curve fitting (default is 16000).
@@ -313,14 +313,15 @@ def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_w
     signal_array = signal_array if signal_array.shape[1] != 0 else signal_array.reshape(1, -1)
     n_rows, T = signal_array.shape[0], signal_array.shape[1]
 
+    column_names = ['bestTau','akaike_w','dualParams','R2_Fit_Dual','dualRSS','dualSigmaHat','dualLL','dualAICc','dualBIC','monoParams','R2_Fit_Mono','monoRSS','monoSigmaHat','monoLL','monoAICc','monoBIC']
+    
     if autocorrelation_in:
-        correlation_window = T
+        correlation_window = T // Fs
 
-    column_names = ['bestTau','akaike_w','tau_fit_0','tau_fit_1','R2_Fit_Dual','dualRSS','dualSigmaHat','dualLL','dualAICc','dualBIC','tau_fit_mono','R2_Fit_Mono','monoRSS','monoSigmaHat','monoLL','monoAICc','monoBIC']
-    
     corr_t = np.arange(0, correlation_window, 1/Fs)
-    tau_DF = pd.DataFrame(np.zeros((n_rows,len(column_names))))
-    
+
+    tau_DF = pd.DataFrame([[0] * len(column_names)] * n_rows, columns=column_names, dtype=object)
+
     for row in range(0, n_rows, 1):
         row_signal = signal_array[row,:].reshape(-1)
 
@@ -335,14 +336,14 @@ def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_w
 
             popt, pcov = curve_fit(decay_func_dual, corr_t, acf_split, p0_dual, bounds=bounds_dual, maxfev=maxfev)
             np.linalg.cond(pcov)
-            A_fit_0, tau_fit_0, A_fit_1, tau_fit_1, offset_fit = popt
+            A_fit_0, tau_fit_0, A_fit_1, tau_fit_1, offset_fit_dual = popt
 
             popt, pcov = curve_fit(decay_func_mono, corr_t, acf_split, p0_mono, bounds=bounds_mono, maxfev=maxfev)
             np.linalg.cond(pcov)
             A_fit_mono, tau_fit_mono, offset_fit_mono = popt
             #tauMatrix[simNum,2,SNR_IDX] = tau_fit_mono
 
-            decayFitPointsDual = decay_func_dual(corr_t,A_fit_0,tau_fit_0,A_fit_1,tau_fit_1,offset_fit)
+            decayFitPointsDual = decay_func_dual(corr_t,A_fit_0,tau_fit_0,A_fit_1,tau_fit_1,offset_fit_dual)
             R2_Fit_Dual = r2_score(acf_split, decayFitPointsDual)
             dualRSS = np.sum((acf_split-decayFitPointsDual)**2)
             dualSigmaHat = np.sqrt(dualRSS/acf_split.shape[0]) #np.std(acf_split-decayFitPointsMono)
@@ -365,16 +366,31 @@ def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_w
                 bestTau = tau_fit_1
             else:
                 bestTau = tau_fit_mono
-            
-            tau_DF.iloc[row,:] = np.array([bestTau,akaike_w,tau_fit_0,tau_fit_1,R2_Fit_Dual,dualRSS,dualSigmaHat,dualLL,dualAICc,dualBIC,tau_fit_mono,R2_Fit_Mono,monoRSS,monoSigmaHat,monoLL,monoAICc,monoBIC])
 
-    tau_DF.columns = column_names
+            dualParams = {
+                'A_fit_0'         : A_fit_0, 
+                'tau_fit_0'       : tau_fit_0,
+                'A_fit_1'         : A_fit_1,
+                'tau_fit_1'       : tau_fit_1,
+                'offset_fit_dual' : offset_fit_dual
+            }
+
+            monoParams = {
+                'A_fit_mono'      : A_fit_mono,
+                'tau_fit_mono'    : tau_fit_mono,
+                'offset_fit_mono' : offset_fit_mono
+            }
+            
+            variable_list = [bestTau,akaike_w,dualParams,R2_Fit_Dual,dualRSS,dualSigmaHat,dualLL,dualAICc,dualBIC,monoParams,R2_Fit_Mono,monoRSS,monoSigmaHat,monoLL,monoAICc,monoBIC]
+            
+            for current_var, current_column_name in zip(variable_list, column_names):
+                tau_DF.at[row, current_column_name] = current_var
 
     return tau_DF
 
 
 
-def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_splits:int, random_state:int=1):
+def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_splits:int=5, random_state:int=1):
     ''' 
     Calculate residual signals independently for each row of a signal array, using a behavioral metric (behavioral_signal) at various lags
     as a predictor.
@@ -394,10 +410,10 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
         Array of alpha values for ridge regression.
 
     n_splits : int
-        Number of splits for K-fold cross validation.
+        Number of splits for K-fold cross validation (default is 5).
 
     random_state : int, optional
-        Random state seed for the K-fold split.
+        Random state seed for the K-fold split (default is 1).
 
     Returns
     -------
