@@ -421,8 +421,11 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
     glm_residuals_array : np.ndarray
         Array of residual signals from the original signal_array that are not explained by the behavioral_signal (as defined by the ridge regression)
     
-    glm_split_coef_array : np.ndarray
-        Array of lists for each row signal, containing n_splits dictionaries indicating the best fit GLM coefficients and test-training indices 
+    glm_coef_array : np.ndarray
+        Array with a dictionary for each row signal, containing...
+        {coef : (ndarray) coefficients of the GLM, 
+        r2    : (float) R squared of the fit model, 
+        alpha : (float) model alpha used}
     '''
 
     signal_array = np.atleast_2d(signal_array)
@@ -435,7 +438,7 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
         behavioral_signal = behavioral_signal.T
     
     glm_residuals_array = np.zeros((n_rows, T-(2*behavioral_lag)))
-    glm_split_coef_array = np.array([0] * n_rows, dtype=object)
+    glm_coef_array = np.array([0] * n_rows, dtype=object)
 
     for row in np.arange(0, n_rows, 1):
 
@@ -454,10 +457,12 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
 
         ########################################################
         ### Construct a GLM for determining signal residuals ###
-        glm_predicted_signal = []
-        glm_predicted_IDX = []
-        glm_split_coef = []
-        for split_idx, (train_index, test_index) in enumerate(kfold.split(row_signal)):
+        glm_predicted_row_signal = []
+
+        split_best_alpha = []
+        split_best_r2 = []
+
+        for train_index, test_index in kfold.split(row_signal):
             training_behavior = behavior_signal_lag[train_index]
             testing_behavior = behavior_signal_lag[test_index]
             training_signal = row_signal[train_index]
@@ -475,33 +480,28 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
                 ridge_weight.append(ridge.coef_)
                 alpha_r2.append(r2_glm_l2)
         
-            best_alpha = alphas[np.where(np.array(alpha_r2) == np.max(np.array(alpha_r2)))[0][0]]
-            #GLM_R2 = np.max(np.array(alpha_R2)) # R2 of the alpha being selected for the model
+            split_best_alpha.append(alphas[np.where(np.array(alpha_r2) == np.max(np.array(alpha_r2)))[0][0]])
+            split_best_r2.append(np.max(np.array(alpha_r2))) # R squared of the alpha being selected for this split
+        
+        best_cross_split_alpha = split_best_alpha[np.where(np.array(split_best_r2) == np.max(np.array(split_best_r2)))[0][0]]
 
-            # Now predict test fold using the best alpha
-            ridge = Ridge(alpha=best_alpha) # Choose the best alpha
-            ridge.fit(training_behavior, training_signal)
-            glm_predicted_signal.append(ridge.predict(testing_behavior))
-            glm_predicted_IDX.append(test_index)
+        # Now predict entire row signal using the best cross-fold alpha
+        ridge = Ridge(alpha=best_cross_split_alpha)
+        ridge.fit(behavior_signal_lag, row_signal)
+        
+        glm_predicted_row_signal = ridge.predict(behavior_signal_lag)
+        row_signal_r2 = r2_score(row_signal,glm_predicted_row_signal)
 
-            coef_dict = {
-                'split'    : split_idx,
-                'coef'     : ridge.coef_,
-                'training' : train_index,
-                'testing'  : test_index
-            }
-            glm_split_coef.append(coef_dict)
+        glm_dict = {
+            'coef'  : ridge.coef_,
+            'r2'    : row_signal_r2,
+            'alpha' : best_cross_split_alpha
+        }
 
-        glm_predicted_signal_allFolds = np.concatenate(glm_predicted_signal)
-        glm_predicted_IDX_allFolds = np.concatenate(glm_predicted_IDX)
-
-        sorted_indices = np.argsort(glm_predicted_IDX_allFolds)
-        glm_predicted_signal_sorted = glm_predicted_signal_allFolds[sorted_indices]
-
-        glm_residuals_array[row,:] = np.transpose(row_signal - glm_predicted_signal_sorted)
-        glm_split_coef_array[row] = glm_split_coef
+        glm_residuals_array[row,:] = (row_signal - glm_predicted_row_signal)
+        glm_coef_array[row] = glm_dict
     
-    return glm_residuals_array, glm_split_coef_array
+    return glm_residuals_array, glm_coef_array
 
 
 
