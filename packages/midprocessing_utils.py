@@ -427,7 +427,6 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
         r2    : (float) R squared of the fit model, 
         alpha : (float) model alpha used}
     '''
-
     signal_array = np.atleast_2d(signal_array)
     if signal_array.shape[1] == 1:
         signal_array = signal_array.T    
@@ -457,10 +456,7 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
 
         ########################################################
         ### Construct a GLM for determining signal residuals ###
-        glm_predicted_row_signal = []
-
-        split_best_alpha = []
-        split_best_r2 = []
+        cross_split_all_alphas_r2 = []
 
         for train_index, test_index in kfold.split(row_signal):
             training_behavior = behavior_signal_lag[train_index]
@@ -470,23 +466,24 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
 
             # GLM (Basic, Identity Linker) with L2 Regularization
             ridge_weight = []
-            alpha_r2 = []
+            all_alphas_r2 = []
             for alpha in alphas:
                 ridge = Ridge(alpha=alpha)
                 ridge.fit(training_behavior, training_signal)
-                pred_DFF = ridge.predict(testing_behavior)
-                r2_glm_l2 = r2_score(testing_signal,pred_DFF)
+                
+                pred_testing_signal = ridge.predict(testing_behavior)
+                r2_glm_l2 = r2_score(testing_signal,pred_testing_signal)
 
                 ridge_weight.append(ridge.coef_)
-                alpha_r2.append(r2_glm_l2)
+                all_alphas_r2.append(r2_glm_l2)
         
-            split_best_alpha.append(alphas[np.where(np.array(alpha_r2) == np.max(np.array(alpha_r2)))[0][0]])
-            split_best_r2.append(np.max(np.array(alpha_r2))) # R squared of the alpha being selected for this split
+            cross_split_all_alphas_r2.append(all_alphas_r2)
         
-        best_cross_split_alpha = split_best_alpha[np.where(np.array(split_best_r2) == np.max(np.array(split_best_r2)))[0][0]]
+        mean_r2_per_alpha = np.mean(cross_split_all_alphas_r2, axis=0)
+        best_alpha = alphas[np.argmax(mean_r2_per_alpha)]
 
         # Now predict entire row signal using the best cross-fold alpha
-        ridge = Ridge(alpha=best_cross_split_alpha)
+        ridge = Ridge(alpha=best_alpha)
         ridge.fit(behavior_signal_lag, row_signal)
         
         glm_predicted_row_signal = ridge.predict(behavior_signal_lag)
@@ -495,7 +492,7 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
         glm_dict = {
             'coef'  : ridge.coef_,
             'r2'    : row_signal_r2,
-            'alpha' : best_cross_split_alpha
+            'alpha' : best_alpha
         }
 
         glm_residuals_array[row,:] = (row_signal - glm_predicted_row_signal)
