@@ -9,6 +9,7 @@ import scipy.io
 from datetime import datetime
 from sklearn.model_selection import KFold
 from sklearn.linear_model import Ridge
+from sklearn.linear_model import PoissonRegressor
 from sklearn.metrics import r2_score
 from scipy.optimize import curve_fit
 
@@ -391,7 +392,7 @@ def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_w
 
 
 
-def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_splits:int=5, random_state:int=1):
+def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_splits:int=5, random_state:int=1, do_poisson:bool=False):
     ''' 
     Calculate residual signals independently for each row of a signal array, using a behavioral metric (behavioral_signal) at various lags
     as a predictor.
@@ -415,6 +416,9 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
 
     random_state : int, optional
         Random state seed for the K-fold split (default is 1).
+        
+    do_poisson : bool, optional
+        Boolean flag to use a Poisson GLM instead of regular regression (default is False).
 
     Returns
     -------
@@ -468,7 +472,11 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
             ridge_weight = []
             all_alphas_r2 = []
             for alpha in alphas:
-                ridge = Ridge(alpha=alpha)
+                if do_poisson:
+                    ridge = PoissonRegressor(alpha=alpha)
+                else:
+                    ridge = Ridge(alpha=alpha)
+                    
                 ridge.fit(training_behavior, training_signal)
                 
                 pred_testing_signal = ridge.predict(testing_behavior)
@@ -483,7 +491,11 @@ def behaviorGLM(signal_array, behavioral_signal, behavioral_lag:int, alphas, n_s
         best_alpha = alphas[np.argmax(mean_r2_per_alpha)]
 
         # Now predict entire row signal using the best cross-fold alpha
-        ridge = Ridge(alpha=best_alpha)
+        if do_poisson:
+            ridge = PoissonRegressor(alpha=best_alpha)
+        else:
+            ridge = Ridge(alpha=best_alpha)
+            
         ridge.fit(behavior_signal_lag, row_signal)
         
         glm_predicted_row_signal = ridge.predict(behavior_signal_lag)
