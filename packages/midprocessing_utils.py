@@ -236,7 +236,8 @@ def LL(y_true, y_pred, sigma):
 
 
 def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_window:int=30, maxfev:int=16000,
-                  p0_dual=[1,0.04,1,4,0], p0_mono=[1,1,0], bounds_dual=([-10,0,-10,0.05,-5],[10,0.05,10,30,5]), bounds_mono=([-10,0,-5],[10,30,5])):
+                  p0_dual=[1,0.04,1,4,0], p0_mono=[1,1,0], bounds_dual=([-10,0,-10,0.05,-5],[10,0.05,10,30,5]), 
+                  bounds_mono=([-10,0,-5],[10,30,5]), time_axis=None):
     '''
     Calculate the characteristic decay constant (tau) from the full signal, using mono- and dual-exponential fits.
 
@@ -274,6 +275,10 @@ def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_w
         Bounds on parameters for the mono-exponential fit.
         Default is... ([scalar:-10, tau:0, offset:-5], [scalar:10, tau:30, ofset:5])
         -> ([lower_bounds:seconds], [upper_bounds:seconds])
+        
+    time_axis : np.ndarray, optional
+        Axis of autocorrelation lags
+        Default is to compute it inside the function
 
     Returns
     -------
@@ -320,7 +325,10 @@ def fullSignalTau(signal_array, autocorrelation_in:bool, Fs:float, correlation_w
     if autocorrelation_in:
         correlation_window = T / Fs
 
-    corr_t = np.arange(0, correlation_window, 1/Fs)
+    if time_axis is None:
+        corr_t = np.arange(0, correlation_window, 1/Fs)
+    else:
+        corr_t = time_axis
 
     tau_DF = pd.DataFrame([[0] * len(column_names)] * n_rows, columns=column_names, dtype=object)
 
