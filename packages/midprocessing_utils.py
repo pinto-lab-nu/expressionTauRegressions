@@ -92,7 +92,7 @@ def constructPassingPixels(noiseFeaturesRaw,SNRbutterworthThresh,pixelMaskIDX):
     return passing#passingPixSpace
 
 
-def CCFfromKey(key,VM,projectPath,verbose):
+def CCFfromKey(key, VM, projectPath=None, verbose=False):
     q = (VM['widefield'].ReferenceIm & key)
     tform_allen2mouse = q.fetch('tform_allen2mouse')[0]
     ####print(tform_allen2mouse)
@@ -217,6 +217,46 @@ def passingCensus(projectPath,task,initialLineFilterIDX,endLineFilterIDX,lineFil
         file.write(f'\nFraction of Passing Sessions with VascMask:{round(vascCount/passedCount,3)}')
     
     return passingSessions, mouse2allenList
+
+
+def passing_census(initialLineFilterIDX,endLineFilterIDX,lineFilter,VM):
+    passedCount = 0
+    vascCount = 0
+
+    passingSessions = []
+    to_preproc = pd.DataFrame(columns=['subject_fullname', 'session_date', 'session_number'])
+    
+    for lineFilterIDX in np.arange(initialLineFilterIDX,endLineFilterIDX,1):
+        currentSubject = lineFilter['subject_fullname'][lineFilterIDX]
+        currentDate = lineFilter['session_date'][lineFilterIDX]
+        currentSession = lineFilter['session_number'][lineFilterIDX]
+
+        key = {'subject_fullname': str(currentSubject)
+            ,'session_date': str(currentDate)
+            ,'session_number': currentSession
+        }
+
+        QCtesting = pd.DataFrame((VM['widefield'].WFQualityControl & key).fetch())
+
+        if QCtesting.shape[0] > 0:
+            passed = max(QCtesting['passed_all'])
+            if passed == 1:
+                passedCount += 1
+                passingSessions.append(np.array([currentSubject,currentDate,currentSession]))
+
+                VascMask = pd.DataFrame((VM['widefield'].VascMask & key).fetch('mask_binned'))
+                
+                
+                if VascMask[0].shape[0] == 1:
+                    vascCount += 1
+
+                else:
+                    new_session = pd.DataFrame({'subject_fullname': [str(currentSubject)], 'session_date': [str(currentDate)], 'session_number': [currentSession]})
+                    to_preproc = pd.concat([to_preproc, new_session], ignore_index=True)
+    
+    sessions_to_preproc = {col: to_preproc[col].values for col in to_preproc.columns}
+    
+    return passingSessions
 
 
 

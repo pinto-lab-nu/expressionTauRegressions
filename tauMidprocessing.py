@@ -145,7 +145,7 @@ Tallen_lambda_list =   [[[493.93767265],[998.28975898]],
 bregma_lambda_distance_avg = 4.1 #in mm, approximation from github.com/petersaj/neuropixels_trajectory_explorer
 bregma_lambda_dist_CCF = bregma_lambda_distance_avg * 1000 / resolution
 CCF_bregma = [228, 216] #25um bregma in CCF: (216, 18, 228) -> (AP, DV, ML)
-CCF_lambda = [228, 380] #based on above, CCF lambda: (380, 18, 228)
+CCF_lambda = [228, int(CCF_bregma[1] + bregma_lambda_dist_CCF)] #based on above, CCF lambda: (380, 18, 228)
 Tallen_bregma_avg = np.mean(Tallen_bregma_list,axis=0)
 Tallen_lambda_avg = np.mean(Tallen_lambda_list,axis=0)
 trueCenterML = np.mean([Tallen_bregma_avg[0],Tallen_lambda_avg[0]])
