@@ -813,7 +813,7 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
                 meta_dict['model_vals'] = model_vals
                 meta_dict['plotting_data'] = plotting_data
 
-                with open(os.path.join(tauSortedPath,f'plotting_dict.pickle'), 'wb') as handle:
+                with open(os.path.join(tauSortedPath,f'plotting_data.pickle'), 'wb') as handle:
                     pickle.dump(meta_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
                 plot_regressions(lineSelection, structList, areaColors, plottingConditions, params, paths, titles, model_vals, plotting_data)
