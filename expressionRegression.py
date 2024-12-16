@@ -28,7 +28,7 @@ import re
 lineSelection = 'Cux2-Ai96' #'Rpb4-Ai96' #select the functional dataset for tau regressions
 geneLimit = -1 #for testing purposes only for loading merfish-imputed data, set to -1 to include all genes
 restrict_merfish_imputed_values = False #condition to restrict merfish-imputed dataset to non-imputed genes
-tauPoolSizeArrayFull = [1,2,3,4,5] #in 25um resolution CCF voxels, converted to mm later
+tauPoolSizeArrayFull = [4.1] #[1,2,3,4,5] #in 25um resolution CCF voxels, converted to mm later
 n_splits = 5 #number of splits for cross-validations in regressions
 alphaParams = [-5,0,30] #Alpha Lower (10**x), Alpha Upper (10**x), Steps
 loadData = True
