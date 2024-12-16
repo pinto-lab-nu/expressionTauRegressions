@@ -44,7 +44,6 @@ def color_gradient(values, start_hex, end_hex, L_percentile=2.5, U_percentile=97
 def plot_regressions(lineSelection, structList, areaColors, plottingConditions, params, paths, titles, model_vals, plotting_data):
 
     params = {}
-    params['n_splits'] = n_splits
     n_splits = params['n_splits']
     tauPoolSize = params['tauPoolSize']
     numLayers = params['numLayers']
