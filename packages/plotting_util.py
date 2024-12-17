@@ -6,6 +6,12 @@ from sklearn.metrics import r2_score
 from sklearn.linear_model import LinearRegression
 from scipy.stats import gaussian_kde
 
+# Define color constants
+BACKGROUND_GENE_COLOR_PDF = (0, 0, 0)
+INTEREST_GENE_COLOR_PDF = (1, 0, 1)
+BACKGROUND_GENE_COLOR_EPS = (0.6, 0.6, 0.6)
+INTEREST_GENE_COLOR_EPS = (0.5, 0, 0.5)
+
 def hex_to_rgb(hex_color):
     """Convert a hex color to an RGB tuple."""
     hex_color = hex_color.lstrip("#")
@@ -69,7 +75,7 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
     loss_history_test_spatial = plotting_data['loss_history_test_spatial']
     loss_history_test_tau = plotting_data['loss_history_test_tau']
     loss_history_train_spatial = plotting_data['loss_history_train_spatial']
-    loss_history_train_tau = plotting['loss_history_train_tau']
+    loss_history_train_tau = plotting_data['loss_history_train_tau']
     dual_gap_history_spatial = plotting_data['dual_gap_history_spatial']
     dual_gap_history_tau = plotting_data['dual_gap_history_tau']
     predictor_condition_numbers_spatial = plotting_data['predictor_condition_numbers_spatial']
@@ -217,11 +223,11 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                             significantTau_centeredSpatial_betas_list.append(significantTau_centeredSpatial_betas)
 
                         if fileType == '.pdf':
-                            backgroundGeneColor = (0,0,0)
-                            interestGeneColor = (1,0,1)
+                            backgroundGeneColor = BACKGROUND_GENE_COLOR_PDF
+                            interestGeneColor = INTEREST_GENE_COLOR_PDF
                         else:
-                            backgroundGeneColor = (0.6,0.6,0.6)
-                            interestGeneColor = (0.5,0,0.5)
+                            backgroundGeneColor = BACKGROUND_GENE_COLOR_EPS
+                            interestGeneColor = INTEREST_GENE_COLOR_EPS
                         colorArray = np.array([backgroundGeneColor for _ in predictorNamesArray])
                         colorArray[significantGenesIDXs] = interestGeneColor
                         
