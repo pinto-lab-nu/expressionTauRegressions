@@ -5,6 +5,8 @@ import pickle
 from sklearn.metrics import r2_score
 from sklearn.linear_model import LinearRegression
 from scipy.stats import gaussian_kde
+import platform
+from scipy.ndimage import gaussian_filter
 
 # Define color constants
 BACKGROUND_GENE_COLOR_PDF = (0, 0, 0)
@@ -49,6 +51,8 @@ def color_gradient(values, start_hex, end_hex, L_percentile=2.5, U_percentile=97
 
 def plot_regressions(lineSelection, structList, areaColors, plottingConditions, params, paths, titles, model_vals, plotting_data):
 
+    my_os = platform.system()
+
     n_splits = params['n_splits']
     tauPoolSize = params['tauPoolSize']
     numLayers = params['numLayers']
@@ -59,9 +63,9 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
     alphaPrecision = params['alphaPrecision']
     structNum = params['structNum']
 
-    savePath = paths['savePath']
+    savePath = paths['savePath'][my_os == 'Windows']
     predictorPathSuffix = paths['predictorPathSuffix']
-    tauSortedPath = paths['tauSortedPath']
+    tauSortedPath = paths['tauSortedPath'][my_os == 'Windows']
 
     predictorTitle = titles['predictorTitle']
     datasetName = titles['datasetName']
@@ -98,12 +102,14 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
 
     plotting = True
     linearmodel = LinearRegression()
-    
+
     ###################################################################
     ################### Regression Outputs Plotting ###################
     resampTitle = f'predThresh={meanPredictionThresh}'
     for spatialReconstruction in plottingConditions: #[True,False]
         if spatialReconstruction:
+            recon_type = 'Spatial'
+            save_name = 'spatial'
             loss_history_test = loss_history_test_spatial
             loss_history_train = loss_history_train_spatial
             dual_gap_history = dual_gap_history_spatial
@@ -125,6 +131,8 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                 titleAppend = f'Spatial Reconstruction from {datasetName} {predictorTitle} ({resampTitle})'
                 plottingDir = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}')
         else:
+            recon_type = '$\\tau$'
+            save_name = 'tau'
             loss_history_test = loss_history_test_tau
             loss_history_train = loss_history_train_tau
             dual_gap_history = dual_gap_history_tau
@@ -144,6 +152,17 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
         
         if not os.path.exists(plottingDir):
             os.makedirs(plottingDir)
+
+
+        layer_R2_mean, layer_R2_SD = np.mean(bestR2, axis=1), np.std(bestR2, axis=1)
+        plt.figure(figsize=(5,5))
+        plt.bar(np.arange(numLayers), layer_R2_mean, yerr=layer_R2_SD, capsize=5, color='gray', edgecolor='black')
+        plt.xticks(np.arange(numLayers), layerNames)
+        plt.ylabel(f'{recon_type} Reconstructuon $R^2$ ($\pm$ {n_splits}-fold SD)')
+        plt.title(f'{recon_type} Reconstruction $R^2$ by Layer ({predictorPathSuffix}, {datasetName})')
+        plt.savefig(os.path.join(plottingDir, f'{save_name}_R2_by_layer.pdf'), dpi=600, bbox_inches='tight')
+        plt.close()
+
 
 
         beta_dict = {}
@@ -225,9 +244,11 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                         if fileType == '.pdf':
                             backgroundGeneColor = BACKGROUND_GENE_COLOR_PDF
                             interestGeneColor = INTEREST_GENE_COLOR_PDF
+                            linewidth = 1
                         else:
                             backgroundGeneColor = BACKGROUND_GENE_COLOR_EPS
                             interestGeneColor = INTEREST_GENE_COLOR_EPS
+                            linewidth = 0.3
                         colorArray = np.array([backgroundGeneColor for _ in predictorNamesArray])
                         colorArray[significantGenesIDXs] = interestGeneColor
                         
@@ -235,19 +256,34 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                         axes[layerIDX0,layerIDX1].scatter(mean_fold_coef_tau[layerIDX1][dim], mean_fold_coef_spatial[layerIDX0][dim],
                                                             color=colorArray, edgecolors=colorArray, s=0.15)
 
-                        # Calculate the point density
-                        xy = np.vstack([mean_fold_coef_tau[layerIDX1][dim], mean_fold_coef_spatial[layerIDX0][dim]])
-                        z = gaussian_kde(xy)(xy)
+                        # Calculate the point density over a grid
+                        x_vals = mean_fold_coef_tau[layerIDX1][dim]
+                        y_vals = mean_fold_coef_spatial[layerIDX0][dim]
 
-                        # Sort the points by density, so the densest points are plotted last
-                        idx = z.argsort()
-                        x, y, z = mean_fold_coef_tau[layerIDX1][dim][idx], mean_fold_coef_spatial[layerIDX0][dim][idx], z[idx]
+                        # Define grid
+                        X, Y = np.mgrid[x_vals.min():x_vals.max():100j, y_vals.min():y_vals.max():100j]
+                        positions = np.vstack([X.ravel(), Y.ravel()])
+                        values = np.vstack([x_vals, y_vals])
+                        kernel = gaussian_kde(values)
+                        Z = np.reshape(kernel(positions).T, X.shape)
 
                         # Plot the contours
-                        levels = [0.25, 0.5, 0.75]
-                        for level in levels:
-                            contour = np.percentile(z, level * 100)
-                            axes[layerIDX0,layerIDX1].contour(x, y, z, levels=[contour], colors='blue', alpha=0.5)
+                        levels = np.linspace(0.5, 0.9, 5)
+                        contour_levels = np.percentile(Z, levels * 100)
+                        level_color = color_gradient(levels, '#809fff', '#001a66', 0, 100)
+                        contour_labels = [f'{int(level * 100)}th density percentile' for level in levels]
+
+                        # Create proxy artists for the legend (only once)
+                        if layerIDX0 == 0 and layerIDX1 == 0:
+                            proxy_artists = [plt.Line2D([0], [0], color=level_color[i], linewidth=linewidth) for i in range(len(levels))]
+
+                        axes[layerIDX0, layerIDX1].contour(
+                            X, Y, Z, levels=contour_levels, colors=level_color, alpha=0.9, linewidths=linewidth
+                        )
+
+                        # Add the legend to the first subplot
+                        if layerIDX0 == 0 and layerIDX1 == 0:
+                            axes[layerIDX0, layerIDX1].legend(proxy_artists, contour_labels, loc='upper right')
                             
                         for i, predictorText in enumerate(predictorNamesArray):
                             axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_tau[layerIDX1][dim][i], mean_fold_coef_spatial[layerIDX0][dim][i],

@@ -91,7 +91,9 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
             print(f'{structList[structIDX]}:{regionalCounts[structIDX]}')
 
 
-    lineSelection, my_os, tauPath, savePath, download_base = pathSetter(lineSelection)
+    lineSelection, my_os, savePath_OSs, download_base = pathSetter(lineSelection) # Line selection is modified if the script is run on Linux
+
+    savePath = savePath_OSs[my_os == 'Windows']
 
     time_start = datetime.datetime.now()
 
@@ -400,6 +402,7 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
             tauPoolSize = np.round(tauPoolSize * 0.025, 4) #convert 25um resolution CCF functional-registered coordinates to mm
             poolIndex += 1
             tauSortedPath = os.path.join(savePath,lineSelection,f'pooling{tauPoolSize}mm')
+            tauSortedPath_OSs = [os.path.join(savePath_OSs[0],lineSelection,f'pooling{tauPoolSize}mm'), os.path.join(savePath_OSs[1],lineSelection,f'pooling{tauPoolSize}mm')]
             if not os.path.exists(tauSortedPath):
                 os.makedirs(tauSortedPath)
             
@@ -762,9 +765,9 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
                 params['structNum'] = structNum
 
                 paths = {}
-                paths['savePath'] = savePath
+                paths['savePath'] = savePath_OSs
                 paths['predictorPathSuffix'] = predictorPathSuffix
-                paths['tauSortedPath'] = tauSortedPath
+                paths['tauSortedPath'] = tauSortedPath_OSs
 
                 titles = {}
                 titles['predictorTitle'] = predictorTitle
@@ -813,8 +816,21 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
                 meta_dict['model_vals'] = model_vals
                 meta_dict['plotting_data'] = plotting_data
 
-                with open(os.path.join(tauSortedPath,f'plotting_data.pickle'), 'wb') as handle:
+                with open(os.path.join(tauSortedPath, f'{predictorPathSuffix}', f'{datasetName}' f'plotting_data.pickle'), 'wb') as handle:
                     pickle.dump(meta_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+                # temp_path = 'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3\Cux2-Ai96\pooling0.1025mm'
+                # meta_dict = pickle.load(open(os.path.join(temp_path,f'plotting_data.pickle'), 'rb'))
+
+                # lineSelection = meta_dict['lineSelection']
+                # structList = meta_dict['structList']
+                # areaColors = meta_dict['areaColors']
+                # plottingConditions = meta_dict['plottingConditions']
+                # params = meta_dict['params']
+                # paths = meta_dict['paths']
+                # titles = meta_dict['titles']
+                # model_vals = meta_dict['model_vals']
+                # plotting_data = meta_dict['plotting_data']
 
                 plot_regressions(lineSelection, structList, areaColors, plottingConditions, params, paths, titles, model_vals, plotting_data)
 

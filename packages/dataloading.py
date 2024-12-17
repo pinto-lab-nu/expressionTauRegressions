@@ -152,18 +152,19 @@ def pathSetter(lineSelection):
     if my_os == 'Linux':
         lineSelection  = ['Rpb4-Ai96','Cux2-Ai96','C57BL6/J','PV-Ai96'][int(sys.argv[2])]
 
-    projectFolder = "lineFilter" + lineSelection
+    linux_prepend = r'/mnt/fsmresfiles/Tau_Processing/'
+    windows_prepend = r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing'
+
+    savePath_linux = os.path.join(linux_prepend, 'H3/')
+    savePath_windows = os.path.join(windows_prepend, 'H3')
+    savePath = [savePath_linux, savePath_windows]
 
     if my_os == 'Linux':
-        tauPath = os.path.join(r'/mnt/fsmresfiles/Tau_Processing/',projectFolder+'/')
-        savePath = os.path.join(r'/mnt/fsmresfiles/Tau_Processing/H3/')
-        download_base = Path(r'/mnt/fsmresfiles/Tau_Processing/Seq/')
+        download_base = Path(os.path.join(linux_prepend, 'Seq/'))
     if my_os == 'Windows':
-        tauPath = os.path.join(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing',projectFolder)
-        savePath = os.path.join(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3')
-        download_base = Path(r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\Seq')
+        download_base = Path(os.path.join(windows_prepend, 'Seq'))
     
     print(f'merfish download_base: {download_base}')
     print(f'download_base contents: {os.listdir(download_base)}')
 
-    return lineSelection, my_os, tauPath, savePath, download_base
+    return lineSelection, my_os, savePath, download_base
