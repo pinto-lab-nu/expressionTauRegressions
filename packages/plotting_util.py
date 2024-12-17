@@ -4,7 +4,7 @@ import os
 import pickle
 from sklearn.metrics import r2_score
 from sklearn.linear_model import LinearRegression
-
+from scipy.stats import gaussian_kde
 
 def hex_to_rgb(hex_color):
     """Convert a hex color to an RGB tuple."""
@@ -43,7 +43,6 @@ def color_gradient(values, start_hex, end_hex, L_percentile=2.5, U_percentile=97
 
 def plot_regressions(lineSelection, structList, areaColors, plottingConditions, params, paths, titles, model_vals, plotting_data):
 
-    params = {}
     n_splits = params['n_splits']
     tauPoolSize = params['tauPoolSize']
     numLayers = params['numLayers']
@@ -229,6 +228,21 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                         axes[layerIDX0,layerIDX1].set_title(f'$R^2$={round(L2L_r2,3)}')
                         axes[layerIDX0,layerIDX1].scatter(mean_fold_coef_tau[layerIDX1][dim], mean_fold_coef_spatial[layerIDX0][dim],
                                                             color=colorArray, edgecolors=colorArray, s=0.15)
+
+                        # Calculate the point density
+                        xy = np.vstack([mean_fold_coef_tau[layerIDX1][dim], mean_fold_coef_spatial[layerIDX0][dim]])
+                        z = gaussian_kde(xy)(xy)
+
+                        # Sort the points by density, so the densest points are plotted last
+                        idx = z.argsort()
+                        x, y, z = mean_fold_coef_tau[layerIDX1][dim][idx], mean_fold_coef_spatial[layerIDX0][dim][idx], z[idx]
+
+                        # Plot the contours
+                        levels = [0.25, 0.5, 0.75]
+                        for level in levels:
+                            contour = np.percentile(z, level * 100)
+                            axes[layerIDX0,layerIDX1].contour(x, y, z, levels=[contour], colors='blue', alpha=0.5)
+                            
                         for i, predictorText in enumerate(predictorNamesArray):
                             axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_tau[layerIDX1][dim][i], mean_fold_coef_spatial[layerIDX0][dim][i],
                                                                 xerr=sd_fold_coef_tau[layerIDX1][dim][i], yerr=sd_fold_coef_spatial[layerIDX0][dim][i],
