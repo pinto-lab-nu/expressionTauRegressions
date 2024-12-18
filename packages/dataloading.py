@@ -83,6 +83,13 @@ def merfishLoader(savePath,download_base,pilotGeneNames,restrict_merfish_imputed
             file.write(geneIDX_Text+'\n')
             if (pilot2merfishIDX.shape[0] > 0) and (np.where(np.array(enriched_gene_names_merfish_imputed)==currentGene)[0].shape[0] < 1):
                 unrepresentedPilotGenes.append(currentGene)
+                
+    unique_enriched_genes = set(enriched_gene_names_merfish_imputed) - set(pilotGeneNames)
+    with open(os.path.join(savePath, 'unique_enriched_genes.txt'), "w") as file:
+        file.write('Genes in enriched_gene_names_merfish_imputed but not in pilotGeneNames:\n\n')
+        for gene in unique_enriched_genes:
+            file.write(f'{gene}\n')
+    print(f'Number of unique enriched genes: {len(unique_enriched_genes)}')
 
 
     ensured_gene_list = ['Cux2'] #make sure to include these genes, regardless of whether they are imputed or not
