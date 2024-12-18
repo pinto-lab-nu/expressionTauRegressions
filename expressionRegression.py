@@ -816,7 +816,9 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
                 meta_dict['model_vals'] = model_vals
                 meta_dict['plotting_data'] = plotting_data
 
-                with open(os.path.join(tauSortedPath, f'{predictorPathSuffix}', f'{datasetName}' f'plotting_data.pickle'), 'wb') as handle:
+                output_dir = os.path.join(tauSortedPath, f'{predictorPathSuffix}', f'{datasetName}')
+                os.makedirs(output_dir, exist_ok=True)
+                with open(os.path.join(output_dir, 'plotting_data.pickle'), 'wb') as handle:
                     pickle.dump(meta_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
                 # temp_path = 'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3\Cux2-Ai96\pooling0.1025mm'
