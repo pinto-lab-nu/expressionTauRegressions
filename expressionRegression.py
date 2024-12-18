@@ -834,11 +834,17 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
                 # model_vals = meta_dict['model_vals']
                 # plotting_data = meta_dict['plotting_data']
 
-                plot_regressions(lineSelection, structList, areaColors, plottingConditions, params, paths, titles, model_vals, plotting_data)
+                try:
+                    plot_regressions(lineSelection, structList, areaColors, plottingConditions, params, paths, titles, model_vals, plotting_data)
+                except Exception as e:
+                    print(f"An error occurred while plotting regressions: {e}")
 
     ##############################################
     ### Layer-specific expression correlations ###
-    plot_expression_correlations()
+    try:
+        plot_expression_correlations(layerNames, structList, areaColors, mean_expression_standard, savePath)
+    except Exception as e:
+        print(f"An error occurred while plotting expression correlations: {e}")
 
     time_end = datetime.datetime.now()
     print(f'Time to run analysis: {time_end - time_load_data}')
