@@ -11,8 +11,8 @@ from scipy.ndimage import gaussian_filter
 # Define color constants
 BACKGROUND_GENE_COLOR_PDF = (0, 0, 0)
 INTEREST_GENE_COLOR_PDF = (1, 0, 1)
-BACKGROUND_GENE_COLOR_EPS = (0.6, 0.6, 0.6)
-INTEREST_GENE_COLOR_EPS = (0.5, 0, 0.5)
+BACKGROUND_GENE_COLOR_SVG = (0.6, 0.6, 0.6)
+INTEREST_GENE_COLOR_SVG = (0.5, 0, 0.5)
 
 def hex_to_rgb(hex_color):
     """Convert a hex color to an RGB tuple."""
@@ -213,11 +213,12 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
             spatial_U_cutoff = 100 - spatial_L_cutoff
             typeTitle = 'A-P vs Tau'
             dim = 0
-            for fileType in ['.pdf','.eps']:
+            paper_font = 'Arial'
+            for fileType in ['.pdf','.svg']:
                 significantTau_centeredSpatial_betas_list = []
                 fig, axes = plt.subplots(numLayers,numLayers,figsize=(15,15))
                 axes = np.atleast_1d(axes)
-                plt.suptitle(f'Cross-Layer {typeTitle} $\\beta$ Correlations, {datasetName} Genes\n(purple labels: marginal {tau_L_cutoff*2}% of Tau $\\beta$s AND central {spatial_U_cutoff-spatial_L_cutoff}% of Spatial $\\beta$s)')
+                plt.suptitle(f'Cross-Layer {typeTitle} $\\beta$ Correlations, {datasetName} Genes\n(purple labels: marginal {tau_L_cutoff*2}% of Tau $\\beta$s AND central {spatial_U_cutoff-spatial_L_cutoff}% of Spatial $\\beta$s)', fontname=paper_font)
                 for layerIDX0 in range(numLayers):
                     for layerIDX1 in range(numLayers):
 
@@ -245,14 +246,17 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                             backgroundGeneColor = BACKGROUND_GENE_COLOR_PDF
                             interestGeneColor = INTEREST_GENE_COLOR_PDF
                             linewidth = 1
-                        else:
-                            backgroundGeneColor = BACKGROUND_GENE_COLOR_EPS
-                            interestGeneColor = INTEREST_GENE_COLOR_EPS
+                            plt.rcParams['pdf.fonttype'] = 42
+                        elif fileType == '.svg':
+                            backgroundGeneColor = BACKGROUND_GENE_COLOR_SVG
+                            interestGeneColor = INTEREST_GENE_COLOR_SVG
                             linewidth = 0.3
+                            plt.rcParams['svg.fonttype'] = 'none'
+                        
                         colorArray = np.array([backgroundGeneColor for _ in predictorNamesArray])
                         colorArray[significantGenesIDXs] = interestGeneColor
                         
-                        axes[layerIDX0,layerIDX1].set_title(f'$R^2$={round(L2L_r2,3)}')
+                        axes[layerIDX0,layerIDX1].set_title(f'$R^2$={round(L2L_r2,3)}', fontname=paper_font)
                         axes[layerIDX0,layerIDX1].scatter(mean_fold_coef_tau[layerIDX1][dim], mean_fold_coef_spatial[layerIDX0][dim],
                                                             color=colorArray, edgecolors=colorArray, s=0.15)
 
@@ -283,7 +287,7 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
 
                         # Add the legend to the first subplot
                         if layerIDX0 == 0 and layerIDX1 == 0:
-                            axes[layerIDX0, layerIDX1].legend(proxy_artists, contour_labels, loc='upper right')
+                            axes[layerIDX0, layerIDX1].legend(proxy_artists, contour_labels, loc='upper right', prop={'family': paper_font})
                             
                         for i, predictorText in enumerate(predictorNamesArray):
                             axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_tau[layerIDX1][dim][i], mean_fold_coef_spatial[layerIDX0][dim][i],
@@ -292,11 +296,11 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                             if ((fileType == '.eps') and (np.where(predictorNamesArray[significantGenesIDXs] == predictorText)[0].shape[0] > 0)) or (fileType == '.pdf'):
                                 axes[layerIDX0,layerIDX1].annotate(predictorText,
                                                                     (mean_fold_coef_tau[layerIDX1][dim][i], mean_fold_coef_spatial[layerIDX0][dim][i]),
-                                                                    color=colorArray[i], fontsize=3)
+                                                                    color=colorArray[i], fontsize=3, fontname=paper_font)
                         if layerIDX1 == 0:
-                            axes[layerIDX0,layerIDX1].set_ylabel(f"{layerNames[layerIDX0]} A-P $\\beta$")
+                            axes[layerIDX0,layerIDX1].set_ylabel(f"{layerNames[layerIDX0]} A-P $\\beta$", fontname=paper_font)
                         if layerIDX0 == numLayers-1:
-                            axes[layerIDX0,layerIDX1].set_xlabel(f"{layerNames[layerIDX1]} Tau $\\beta$")
+                            axes[layerIDX0,layerIDX1].set_xlabel(f"{layerNames[layerIDX1]} Tau $\\beta$", fontname=paper_font)
                 plt.savefig(os.path.join(savePath,'Spatial',f'crossLayer_{datasetName}_{typeTitle}_beta_Correlations_pooling{tauPoolSize}mm{fileType}'), format=fileType[1:], dpi=600, bbox_inches='tight')
                 plt.close()
 
