@@ -89,6 +89,7 @@ def merfishLoader(savePath,download_base,pilotGeneNames,restrict_merfish_imputed
         file.write('Genes in enriched_gene_names_merfish_imputed but not in pilotGeneNames:\n\n')
         for gene in unique_enriched_genes:
             file.write(f'{gene}\n')
+        file.write(f'\nNumber of unique enriched genes: {len(unique_enriched_genes)}\n')
     print(f'Number of unique enriched genes: {len(unique_enriched_genes)}')
 
 
