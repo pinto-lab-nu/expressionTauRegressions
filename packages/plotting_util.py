@@ -14,6 +14,9 @@ INTEREST_GENE_COLOR_PDF = (1, 0, 1)
 BACKGROUND_GENE_COLOR_SVG = (0.6, 0.6, 0.6)
 INTEREST_GENE_COLOR_SVG = (0.5, 0, 0.5)
 
+plt.rcParams['pdf.fonttype'] = 42
+plt.rcParams['svg.fonttype'] = 'none'
+
 def hex_to_rgb(hex_color):
     """Convert a hex color to an RGB tuple."""
     hex_color = hex_color.lstrip("#")
@@ -207,12 +210,22 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                     plt.close()
             
         if spatialReconstruction and (predictorPathSuffix == 'GenePredictors') and (meanExpressionThresh == 0):
-            tau_L_cutoff = 10
-            spatial_L_cutoff = 10
+            tau_L_cutoff = 10 #Lower percentile cuttoff for Tau coefficients (used for marginal gene selection)
+            spatial_L_cutoff = 10 #Lower percentile cuttoff for Spatial coefficients (used for central gene selection)
+            plotting_percentile_offset = 5 #Percentile offset for selection criteria (just for visualization)
+            
             tau_U_cutoff = 100 - tau_L_cutoff
             spatial_U_cutoff = 100 - spatial_L_cutoff
             typeTitle = 'A-P vs Tau'
             dim = 0
+            tau_L_cutoff_plot = [tau_L_cutoff-plotting_percentile_offset, tau_L_cutoff, tau_L_cutoff+plotting_percentile_offset]
+            spatial_L_cutoff_plot = [spatial_L_cutoff-plotting_percentile_offset, spatial_L_cutoff, spatial_L_cutoff+plotting_percentile_offset]
+            tau_U_cutoff_plot = 100 - np.array(tau_L_cutoff_plot)
+            spatial_U_cutoff_plot = 100 - np.array(spatial_L_cutoff_plot)
+
+            tau_percentile_colors = color_gradient(tau_L_cutoff_plot, '#9999ff', '#0000cc', 0, 100) #Blues (light to dark)
+            spatial_percentile_colors = color_gradient(spatial_L_cutoff_plot, '#ff9999', '#cc0000', 0, 100) #Reds (light to dark)
+
             paper_font = 'Arial'
             for fileType in ['.pdf','.svg']:
                 significantTau_centeredSpatial_betas_list = []
@@ -245,13 +258,11 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                         if fileType == '.pdf':
                             backgroundGeneColor = BACKGROUND_GENE_COLOR_PDF
                             interestGeneColor = INTEREST_GENE_COLOR_PDF
-                            linewidth = 1
-                            plt.rcParams['pdf.fonttype'] = 42
+                            linewidth = 0.5
                         elif fileType == '.svg':
                             backgroundGeneColor = BACKGROUND_GENE_COLOR_SVG
                             interestGeneColor = INTEREST_GENE_COLOR_SVG
                             linewidth = 0.3
-                            plt.rcParams['svg.fonttype'] = 'none'
                         
                         colorArray = np.array([backgroundGeneColor for _ in predictorNamesArray])
                         colorArray[significantGenesIDXs] = interestGeneColor
@@ -259,35 +270,52 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                         axes[layerIDX0,layerIDX1].set_title(f'$R^2$={round(L2L_r2,3)}', fontname=paper_font)
                         axes[layerIDX0,layerIDX1].scatter(mean_fold_coef_tau[layerIDX1][dim], mean_fold_coef_spatial[layerIDX0][dim],
                                                             color=colorArray, edgecolors=colorArray, s=0.15)
+                        
+                        tau_beta_L_percentiles = np.percentile(mean_fold_coef_tau[layerIDX1][dim], tau_L_cutoff_plot)
+                        tau_beta_U_percentiles = np.percentile(mean_fold_coef_tau[layerIDX1][dim], tau_U_cutoff_plot)
+                        spatial_beta_L_percentiles = np.percentile(mean_fold_coef_spatial[layerIDX0][dim], spatial_L_cutoff_plot)
+                        spatial_beta_U_percentiles = np.percentile(mean_fold_coef_spatial[layerIDX0][dim], spatial_U_cutoff_plot)
+                        tau_coef_min = np.min(np.array(mean_fold_coef_tau))
+                        tau_coef_max = np.max(np.array(mean_fold_coef_tau))
+                        spatial_coef_min = np.min(np.array(mean_fold_coef_spatial))
+                        spatial_coef_max = np.max(np.array(mean_fold_coef_spatial))
+                        for cutoff_IDX in range(len(tau_L_cutoff_plot)):
+                            axes[layerIDX0,layerIDX1].vlines(tau_beta_L_percentiles[cutoff_IDX], spatial_coef_min, spatial_coef_max, colors=tau_percentile_colors[cutoff_IDX], linewidth=linewidth, label=f'{tau_L_cutoff_plot[cutoff_IDX]}-{tau_U_cutoff_plot[cutoff_IDX]}th ' + r'$\tau$ $\beta$ percentiles')
+                            axes[layerIDX0,layerIDX1].vlines(tau_beta_U_percentiles[cutoff_IDX], spatial_coef_min, spatial_coef_max, colors=tau_percentile_colors[cutoff_IDX], linewidth=linewidth)
+                            axes[layerIDX0,layerIDX1].hlines(spatial_beta_L_percentiles[cutoff_IDX], tau_coef_min, tau_coef_max, colors=spatial_percentile_colors[cutoff_IDX], linewidth=linewidth, label=f'{spatial_L_cutoff_plot[cutoff_IDX]}-{spatial_U_cutoff_plot[cutoff_IDX]}th ' + r'spatial $\beta$ percentiles')
+                            axes[layerIDX0,layerIDX1].hlines(spatial_beta_U_percentiles[cutoff_IDX], tau_coef_min, tau_coef_max, colors=spatial_percentile_colors[cutoff_IDX], linewidth=linewidth)
+                        
+                        if layerIDX0 == 0 and layerIDX1 == len(layerNames)-1:
+                            axes[layerIDX0, layerIDX1].legend(loc='upper right', prop={'family': paper_font, 'size': 5})
 
-                        # Calculate the point density over a grid
-                        x_vals = mean_fold_coef_tau[layerIDX1][dim]
-                        y_vals = mean_fold_coef_spatial[layerIDX0][dim]
+                        # # Calculate the point density over a grid
+                        # x_vals = mean_fold_coef_tau[layerIDX1][dim]
+                        # y_vals = mean_fold_coef_spatial[layerIDX0][dim]
 
-                        # Define grid
-                        X, Y = np.mgrid[x_vals.min():x_vals.max():100j, y_vals.min():y_vals.max():100j]
-                        positions = np.vstack([X.ravel(), Y.ravel()])
-                        values = np.vstack([x_vals, y_vals])
-                        kernel = gaussian_kde(values)
-                        Z = np.reshape(kernel(positions).T, X.shape)
+                        # # Define grid
+                        # X, Y = np.mgrid[x_vals.min():x_vals.max():100j, y_vals.min():y_vals.max():100j]
+                        # positions = np.vstack([X.ravel(), Y.ravel()])
+                        # values = np.vstack([x_vals, y_vals])
+                        # kernel = gaussian_kde(values)
+                        # Z = np.reshape(kernel(positions).T, X.shape)
 
-                        # Plot the contours
-                        levels = np.linspace(0.5, 0.9, 5)
-                        contour_levels = np.percentile(Z, levels * 100)
-                        level_color = color_gradient(levels, '#809fff', '#001a66', 0, 100)
-                        contour_labels = [f'{int(level * 100)}th density percentile' for level in levels]
+                        # # Plot the contours
+                        # levels = np.linspace(0.5, 0.9, 5)
+                        # contour_levels = np.percentile(Z, levels * 100)
+                        # level_color = color_gradient(levels, '#809fff', '#001a66', 0, 100)
+                        # contour_labels = [f'{int(level * 100)}th density percentile' for level in levels]
 
-                        # Create proxy artists for the legend (only once)
-                        if layerIDX0 == 0 and layerIDX1 == 0:
-                            proxy_artists = [plt.Line2D([0], [0], color=level_color[i], linewidth=linewidth) for i in range(len(levels))]
+                        # # Create proxy artists for the legend (only once)
+                        # if layerIDX0 == 0 and layerIDX1 == 0:
+                        #     proxy_artists = [plt.Line2D([0], [0], color=level_color[i], linewidth=linewidth) for i in range(len(levels))]
 
-                        axes[layerIDX0, layerIDX1].contour(
-                            X, Y, Z, levels=contour_levels, colors=level_color, alpha=0.9, linewidths=linewidth
-                        )
+                        # axes[layerIDX0, layerIDX1].contour(
+                        #     X, Y, Z, levels=contour_levels, colors=level_color, alpha=0.9, linewidths=linewidth
+                        # )
 
-                        # Add the legend to the first subplot
-                        if layerIDX0 == 0 and layerIDX1 == 0:
-                            axes[layerIDX0, layerIDX1].legend(proxy_artists, contour_labels, loc='upper right', prop={'family': paper_font})
+                        # # Add the legend to the first subplot
+                        # if layerIDX0 == 0 and layerIDX1 == 0:
+                        #     axes[layerIDX0, layerIDX1].legend(proxy_artists, contour_labels, loc='upper right', prop={'family': paper_font})
                             
                         for i, predictorText in enumerate(predictorNamesArray):
                             axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_tau[layerIDX1][dim][i], mean_fold_coef_spatial[layerIDX0][dim][i],

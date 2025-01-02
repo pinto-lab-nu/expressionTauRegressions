@@ -26,6 +26,8 @@ CCF25_lambda = [228, int(CCF25_bregma[1] + bregma_lambda_dist_CCF)] #based on ab
 
 def load_tau_CCF(line_selection, task):
 
+    print(f'\nLoading Functional Dataset...')
+
     line_filter = pd.DataFrame((VM['subject'].Subject * VM['session'].Session * VM['behavior'].BehavioralSession & 'experiment_type="widefield"' & 'task="'+task+'"' & 'line="'+line_selection+'"').fetch())
     passing_sessions = passing_census(0, line_filter.shape[0], line_filter, VM)
 

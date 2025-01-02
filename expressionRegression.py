@@ -41,6 +41,34 @@ max_iter = 200 # For layer regressions
 variableManagement = True
 plottingConditions = [False,True]
 
+def string_sanitizer(input_string):
+        sanitized_string = re.sub(r'\/','_',input_string)
+        return sanitized_string
+
+def plot_mask(structureOfInterest,structure_mask,savePath,resolution):
+    plt.figure()
+    plt.title(f'{structureOfInterest}')
+    plt.imshow(np.mean(structure_mask[:,:,:],axis=1)) #restrict to ~40 voxels along axis 1 to get dorsal cortex (for 25 rez), this is just for viz
+    plt.savefig(os.path.join(savePath,'Masks',f'{structureOfInterest}_{resolution}.pdf'),dpi=600,bbox_inches='tight')
+    plt.close()
+
+def cell_region_function(cell_region,cell_layer,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX,layerIDX):
+    for cell in range(cell_region[resolution].shape[0]):
+        currentMask = structure_mask[round(CCFvalues[cell,CCFindexOrder[0]]*CCFmultiplier),round(CCFvalues[cell,CCFindexOrder[1]]*CCFmultiplier),round(CCFvalues[cell,CCFindexOrder[2]]*CCFmultiplier)]
+        if currentMask > 0:
+            cell_region[resolution][cell] = structIDX
+            if resolution == '10':
+                cell_layer[resolution][cell] = layerIDX
+
+    return cell_region,cell_layer
+
+def region_count_printer(cell_region,resolution,datasetName,structList):
+    regionalCounts = Counter(cell_region[resolution])
+    print(f'Regional Cell Counts, {datasetName}:')
+    for structIDX in range(len(structList)):
+        print(f'{structList[structIDX]}:{regionalCounts[structIDX]}')
+
+
 for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[0]]):
 
     structList = np.array(['MOp','MOs','VISa','VISp','VISam','VISpm','SS','RSP'])
@@ -62,33 +90,6 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
 
     #if applyLayerSpecificityFilter:
     #    structList = [x+layerAppend for x in structList]
-
-    def string_sanitizer(input_string):
-        sanitized_string = re.sub(r'\/','_',input_string)
-        return sanitized_string
-
-    def plot_mask(structureOfInterest,structure_mask,savePath,resolution):
-        plt.figure()
-        plt.title(f'{structureOfInterest}')
-        plt.imshow(np.mean(structure_mask[:,:,:],axis=1)) #restrict to ~40 voxels along axis 1 to get dorsal cortex (for 25 rez), this is just for viz
-        plt.savefig(os.path.join(savePath,'Masks',f'{structureOfInterest}_{resolution}.pdf'),dpi=600,bbox_inches='tight')
-        plt.close()
-
-    def cell_region_function(cell_region,cell_layer,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX,layerIDX):
-        for cell in range(cell_region[resolution].shape[0]):
-            currentMask = structure_mask[round(CCFvalues[cell,CCFindexOrder[0]]*CCFmultiplier),round(CCFvalues[cell,CCFindexOrder[1]]*CCFmultiplier),round(CCFvalues[cell,CCFindexOrder[2]]*CCFmultiplier)]
-            if currentMask > 0:
-                cell_region[resolution][cell] = structIDX
-                if resolution == '10':
-                    cell_layer[resolution][cell] = layerIDX
-
-        return cell_region,cell_layer
-
-    def region_count_printer(cell_region,resolution,datasetName,structList):
-        regionalCounts = Counter(cell_region[resolution])
-        print(f'Regional Cell Counts, {datasetName}:')
-        for structIDX in range(len(structList)):
-            print(f'{structList[structIDX]}:{regionalCounts[structIDX]}')
 
 
     lineSelection, my_os, savePath_OSs, download_base = pathSetter(lineSelection) # Line selection is modified if the script is run on Linux
@@ -542,6 +543,8 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
 
 
             standardized_CCF_Tau = [standard_scaler.fit_transform(pooledTauCCF_coords[layerIDX]) for layerIDX in range(numLayers)]
+            for layerIDX in range(numLayers):
+                standardized_CCF_Tau[layerIDX][:,1] *= -1 #invert AP CCF for regressions
             linearmodel = LinearRegression()
             for layerIDX in range(numLayers):
                 
@@ -586,7 +589,7 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
                 gene_data_dense_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(gene_data_dense_H2layerFiltered[resolution][layerIDX][:,:]))
                 # CCF #
                 mlCCF_per_cell_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(mlCCF_per_cell_H2layerFiltered[resolution][layerIDX][:,:]))
-                apCCF_per_cell_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(apCCF_per_cell_H2layerFiltered[resolution][layerIDX][:,:]))
+                apCCF_per_cell_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(apCCF_per_cell_H2layerFiltered[resolution][layerIDX][:,:])) * -1 #Standardized AP CCF is inverted for regressions
                     
             #print(np.mean(resampledGenes_aligned_H2layerFiltered_standard[0][:,:],axis=0)) #just to see that the means are zero after standardizing
 
@@ -821,7 +824,7 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
                 with open(os.path.join(output_dir, 'plotting_data.pickle'), 'wb') as handle:
                     pickle.dump(meta_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-                # temp_path = 'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3\Cux2-Ai96\pooling0.1025mm'
+                # temp_path = 'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3\Cux2-Ai96\pooling0.1025mm\GenePredictors\Merfish'
                 # meta_dict = pickle.load(open(os.path.join(temp_path,f'plotting_data.pickle'), 'rb'))
 
                 # lineSelection = meta_dict['lineSelection']
@@ -847,6 +850,6 @@ for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[
         print(f"An error occurred while plotting expression correlations: {e}")
 
     time_end = datetime.datetime.now()
-    print(f'Time to run analysis: {time_end - time_load_data}')
+    print(f'Time to run: {time_end - time_load_data}')
 
 

@@ -15,7 +15,7 @@ import anndata
 
 def merfishLoader(savePath,download_base,pilotGeneNames,restrict_merfish_imputed_values,geneLimit=-1):
 
-    print(f'Loading Merfish-Imputed Dataset...')
+    print(f'\nLoading Merfish-Imputed Dataset...')
 
     ##############################################################################################################
     ### Code modified from: alleninstitute.github.io/abc_atlas_access/notebooks/merfish_imputed_genes_example.html
@@ -127,7 +127,7 @@ def merfishLoader(savePath,download_base,pilotGeneNames,restrict_merfish_imputed
 
 def pilotLoader(savePath):
 
-    print(f'Loading Pilot Dataset...')
+    print(f'\nLoading Pilot Dataset...')
 
     #projectPath = r'c:\Users\lai7370\OneDrive - Northwestern University\PilotData'
     #PilotData = h5py.File(os.path.join(projectPath,'filt_neurons_fixedbent_CCF.mat'))
