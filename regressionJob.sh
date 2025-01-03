@@ -54,7 +54,7 @@ predictorOrder=${predictorOrder:-0}
 regressionsToStart=${regressionsToStart:-0,1}
 max_iter=${max_iter:-200}
 variableManagement=${variableManagement:-true}
-plottingConditions=${plottingConditions:-false,true}
+plottingConditions=${plottingConditions:-0,1} # converted to bool in python script
 arg_parse_test=${arg_parse_test:-false}
 
 python expressionRegression.py \
