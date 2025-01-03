@@ -58,19 +58,19 @@ def main():
     parser.add_argument("--lineSelection", choices=["Cux2-Ai96", "Rpb4-Ai96"], default="Cux2-Ai96") #select the functional dataset for tau regressions
     parser.add_argument("--geneLimit", type=int, default=-1) #for testing purposes to load a subset of merfish-imputed data, set to -1 to include all genes
     parser.add_argument("--restrict_merfish_imputed_values", type=bool, default=False) #condition to restrict merfish-imputed dataset to non-imputed genes
-    parser.add_argument("--tauPoolSizeArrayFull", default=[4.1]) #[1,2,3,4,5] #in 25um resolution CCF voxels, converted to mm later
+    parser.add_argument("--tauPoolSizeArrayFull", type=lambda s: [float(item) for item in s.split(',')], default="4.1") #[1,2,3,4,5] #in 25um resolution CCF voxels, converted to mm later
     parser.add_argument("--n_splits", type=int, default=5) #number of splits for cross-validations in regressions
-    parser.add_argument("--alphaParams", default=[-5, 0, 30]) # [Alpha Lower (10**x), Alpha Upper (10**x), Steps]... alpha values for Lasso regressions
+    parser.add_argument("--alphaParams", type=lambda s: [float(item) for item in s.split(',')], default="-5,0,30") # [Alpha Lower (10**x), Alpha Upper (10**x), Steps]... alpha values for Lasso regressions
     parser.add_argument("--loadData", type=bool, default=True)
     parser.add_argument("--plotting", type=bool, default=True)
     parser.add_argument("--numPrecision", type=int, default=3)   # Just for display (in plotting and regression text files)
     parser.add_argument("--alphaPrecision", type=int, default=5) # Just for display (in plotting and regression text files)
     parser.add_argument("--verbose", type=bool, default=True)    # For print statements
-    parser.add_argument("--predictorOrder", default=[0])           # Select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
-    parser.add_argument("--regressionsToStart", default=[0, 1])    # Select response variables for regressions, and order [0:tau, 1:CCF]
+    parser.add_argument("--predictorOrder", type=lambda s: [int(item) for item in s.split(',')], default="0")           # Select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
+    parser.add_argument("--regressionsToStart", type=lambda s: [int(item) for item in s.split(',')], default="0,1")    # Select response variables for regressions, and order [0:tau, 1:CCF]
     parser.add_argument("--max_iter", type=int, default=200) # For layer regressions
-    parser.add_argument("--variableManagement", type=bool, default=True) # Removes large variables from memory after use (needs to be expamnded to include more variables)
-    parser.add_argument("--plottingConditions", default=[False, True]) # For plotting spatial reconstructions
+    parser.add_argument("--variableManagement", type=bool, default=True) # Removes large variables from memory after use (needs to be expanded to include more variables)
+    parser.add_argument("--plottingConditions", type=lambda s: [bool(int(item)) for item in s.split(',')], default="0,1") # For plotting spatial reconstructions
     parser.add_argument("--arg_parse_test", type=bool, default=False) # For testing the bash argument parser
     parser.add_argument("--job_task_id", type=int, default=0) # For parallel processing
     args = parser.parse_args()
@@ -78,19 +78,19 @@ def main():
     lineSelection = args.lineSelection
     geneLimit = args.geneLimit
     restrict_merfish_imputed_values = args.restrict_merfish_imputed_values
-    tauPoolSizeArrayFull = list(args.tauPoolSizeArrayFull)
+    tauPoolSizeArrayFull = args.tauPoolSizeArrayFull
     n_splits = args.n_splits
-    alphaParams = list(args.alphaParams)
+    alphaParams = args.alphaParams
     loadData = args.loadData
     plotting = args.plotting
     numPrecision = args.numPrecision
     alphaPrecision = args.alphaPrecision
     verbose = args.verbose
-    predictorOrder = list(args.predictorOrder)
-    regressionsToStart = list(args.regressionsToStart)
+    predictorOrder = args.predictorOrder
+    regressionsToStart = args.regressionsToStart
     max_iter = args.max_iter
     variableManagement = args.variableManagement
-    plottingConditions = list(args.plottingConditions)
+    plottingConditions = args.plottingConditions
     arg_parse_test = args.arg_parse_test
     job_task_id = args.job_task_id
 
