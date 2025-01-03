@@ -23,7 +23,6 @@ while [[ "$#" -gt 0 ]]; do
         -t|--tau_pool_size_array_full) tau_pool_size_array_full="$2"; shift 2 ;;
         -n|--n_splits) n_splits="$2"; shift 2 ;;
         -a|--alpha_params) alpha_params="$2"; shift 2 ;;
-        -d|--load_data) load_data="$2"; shift 2 ;;
         -p|--plotting) plotting="$2"; shift 2 ;;
         -u|--num_precision) num_precision="$2"; shift 2 ;;
         -e|--alpha_precision) alpha_precision="$2"; shift 2 ;;
@@ -34,6 +33,28 @@ while [[ "$#" -gt 0 ]]; do
         -c|--variable_management) variable_management="$2"; shift 2 ;;
         -k|--plotting_conditions) plotting_conditions="$2"; shift 2 ;;
         -x|--arg_parse_test) arg_parse_test="$2"; shift 2 ;;
+        -h|--help) 
+            echo "Usage: $0 [options]"
+            echo "Options:"
+            echo "  -g, --gene_limit <gene_limit>"
+            echo "  -l, --line_selection <line_selection>"
+            echo "  -r, --restrict_merfish_imputed_values <restrict_merfish_imputed_values>"
+            echo "  -t, --tau_pool_size_array_full <tau_pool_size_array_full>"
+            echo "  -n, --n_splits <n_splits>"
+            echo "  -a, --alpha_params <alpha_params>"
+            echo "  -p, --plotting <plotting>"
+            echo "  -u, --num_precision <num_precision>"
+            echo "  -e, --alpha_precision <alpha_precision>"
+            echo "  -v, --verbose <verbose>"
+            echo "  -o, --predictor_order <predictor_order>"
+            echo "  -s, --regressions_to_start <regressions_to_start>"
+            echo "  -m, --max_iter <max_iter>"
+            echo "  -c, --variable_management <variable_management>"
+            echo "  -k, --plotting_conditions <plotting_conditions>"
+            echo "  -x, --arg_parse_test <arg_parse_test>"
+            echo "  -h, --help"
+            exit 0
+            ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
 done
@@ -45,7 +66,6 @@ restrict_merfish_imputed_values=${restrict_merfish_imputed_values:-false}
 tau_pool_size_array_full=${tau_pool_size_array_full:-4.1}
 n_splits=${n_splits:-5}
 alpha_params=${alpha_params:--5,0,30}
-load_data=${load_data:-true}
 plotting=${plotting:-true}
 num_precision=${num_precision:-3}
 alpha_precision=${alpha_precision:-5}
@@ -64,7 +84,6 @@ python expressionRegression.py \
     --tau_pool_size_array_full=$tau_pool_size_array_full \
     --n_splits=$n_splits \
     --alpha_params=$alpha_params \
-    --load_data=$load_data \
     --plotting=$plotting \
     --num_precision=$num_precision \
     --alpha_precision=$alpha_precision \

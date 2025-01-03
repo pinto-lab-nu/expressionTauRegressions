@@ -61,7 +61,6 @@ def main():
     parser.add_argument("--tau_pool_size_array_full", type=lambda s: [float(item) for item in s.split(',')], default="4.1") #[1,2,3,4,5] #in 25um resolution CCF voxels, converted to mm later
     parser.add_argument("--n_splits", type=int, default=5) #number of splits for cross-validations in regressions
     parser.add_argument("--alpha_params", type=lambda s: [float(item) for item in s.split(',')], default="-5,0,30") # [Alpha Lower (10**x), Alpha Upper (10**x), Steps]... alpha values for Lasso regressions
-    parser.add_argument("--load_data", type=bool, default=True)
     parser.add_argument("--plotting", type=bool, default=True)
     parser.add_argument("--num_precision", type=int, default=3)   # Just for display (in plotting and regression text files)
     parser.add_argument("--alpha_precision", type=int, default=5) # Just for display (in plotting and regression text files)
@@ -81,7 +80,6 @@ def main():
     tau_pool_size_array_full = args.tau_pool_size_array_full
     n_splits = args.n_splits
     alpha_params = args.alpha_params
-    load_data = args.load_data
     plotting = args.plotting
     num_precision = args.num_precision
     alpha_precision = args.alpha_precision
@@ -100,7 +98,6 @@ def main():
     print(f"tau_pool_size_array_full: {tau_pool_size_array_full}")
     print(f"n_splits: {n_splits}")
     print(f"alpha_params: {alpha_params}")
-    print(f"load_data: {load_data}")
     print(f"plotting: {plotting}")
     print(f"num_precision: {num_precision}")
     print(f"alpha_precision: {alpha_precision}")
@@ -140,7 +137,6 @@ def main():
 
 
         line_selection, my_os, save_path_OSs, download_base = pathSetter(line_selection) # Line selection is modified if the script is run on Linux
-
         save_path = save_path_OSs[my_os == 'Windows']
 
         time_start = datetime.datetime.now()
@@ -150,7 +146,7 @@ def main():
 
         ################################
         ### CCF Reference Space Creation
-        #see link for CCF example scripts from the allen: allensdk.readthedocs.io/en/latest/_static/examples/nb/reference_space.html
+        ### See link for CCF example scripts from the allen: allensdk.readthedocs.io/en/latest/_static/examples/nb/reference_space.html
         tree = {}
         rsp = {}
         for resolution in [10,25,100]:
@@ -165,11 +161,11 @@ def main():
             os.listdir(Path(output_dir) / reference_space_key)
             rsp[f'{resolution}'] = rspc.get_reference_space()
 
-
-        if load_data:
-            gene_data_dense, pilot_gene_names, fn_clustid, fn_CCF = pilotLoader(save_path)
-            merfish_CCF_Genes, all_merfish_gene_names = merfishLoader(save_path,download_base,pilot_gene_names,restrict_merfish_imputed_values,gene_limit)
-            all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line_selection, 'IntoTheVoid')
+        #################
+        ### Load data ###
+        gene_data_dense, pilot_gene_names, fn_clustid, fn_CCF = pilotLoader(save_path)
+        merfish_CCF_Genes, all_merfish_gene_names = merfishLoader(save_path,download_base,pilot_gene_names,restrict_merfish_imputed_values,gene_limit)
+        all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line_selection, 'IntoTheVoid')
 
         time_load_data = datetime.datetime.now()
         print(f'Time to load data: {time_load_data - time_start}')
