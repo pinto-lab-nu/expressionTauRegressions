@@ -11,8 +11,6 @@
 
 export PYTHONUNBUFFERED=1 #for real-time log files
 
-#['Rpb4-Ai96','Cux2-Ai96','C57BL6/J'] #just here for the convenience of line selection indexing (handled in expressionRegression.py)
-
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate allenSDKenv
 

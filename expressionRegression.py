@@ -71,6 +71,7 @@ def main():
     parser.add_argument("--max_iter", type=int, default=200) # For layer regressions
     parser.add_argument("--variableManagement", type=bool, default=True) # Removes large variables from memory after use (needs to be expamnded to include more variables)
     parser.add_argument("--plottingConditions", type=bool, nargs='+', default=[False, True]) # For plotting spatial reconstructions
+    parser.add_argument("--job_task_id", type=int, default=0) # For parallel processing
     args = parser.parse_args()
 
     lineSelection = args.lineSelection
@@ -89,6 +90,7 @@ def main():
     max_iter = args.max_iter
     variableManagement = args.variableManagement
     plottingConditions = args.plottingConditions
+    job_task_id = args.job_task_id
 
     print(f"lineSelection: {lineSelection}")
     print(f"geneLimit: {geneLimit}")
@@ -106,6 +108,7 @@ def main():
     print(f"max_iter: {max_iter}")
     print(f"variableManagement: {variableManagement}")
     print(f"plottingConditions: {plottingConditions}")
+    print(f"job_task_id: {job_task_id}")
 
     for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[0]]):
 
@@ -419,7 +422,7 @@ def main():
         if my_os == 'Linux':
             #meanExpressionThreshArray = [meanExpressionThreshArrayFull[int(sys.argv[1])]] #batch job will distribute parameter instances among jobs run in parallel
             #meanH3ThreshArray = [meanH3ThreshArrayFull[int(sys.argv[1])]]                 #same for these regressions, just with a different parameter range
-            tauPoolSizeArray = [tauPoolSizeArrayFull[int(sys.argv[1])]]
+            tauPoolSizeArray = [tauPoolSizeArrayFull[int(job_task_id)]]
         if my_os == 'Windows':
             #meanExpressionThreshArray = meanExpressionThreshArrayFull
             #meanH3ThreshArray = meanH3ThreshArrayFull
