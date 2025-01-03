@@ -28,11 +28,11 @@ def string_sanitizer(input_string):
         sanitized_string = re.sub(r'\/','_',input_string)
         return sanitized_string
 
-def plot_mask(structureOfInterest,structure_mask,savePath,resolution):
+def plot_mask(structureOfInterest,structure_mask,save_path,resolution):
     plt.figure()
     plt.title(f'{structureOfInterest}')
     plt.imshow(np.mean(structure_mask[:,:,:],axis=1)) #restrict to ~40 voxels along axis 1 to get dorsal cortex (for 25 rez), this is just for viz
-    plt.savefig(os.path.join(savePath,'Masks',f'{structureOfInterest}_{resolution}.pdf'),dpi=600,bbox_inches='tight')
+    plt.savefig(os.path.join(save_path,'Masks',f'{structureOfInterest}_{resolution}.pdf'),dpi=600,bbox_inches='tight')
     plt.close()
 
 def cell_region_function(cell_region,cell_layer,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX,layerIDX):
@@ -45,88 +45,88 @@ def cell_region_function(cell_region,cell_layer,resolution,structure_mask,CCFval
 
     return cell_region,cell_layer
 
-def region_count_printer(cell_region,resolution,datasetName,structList):
+def region_count_printer(cell_region,resolution,datasetName,struct_list):
     regionalCounts = Counter(cell_region[resolution])
     print(f'Regional Cell Counts, {datasetName}:')
-    for structIDX in range(len(structList)):
-        print(f'{structList[structIDX]}:{regionalCounts[structIDX]}')
+    for structIDX in range(len(struct_list)):
+        print(f'{struct_list[structIDX]}:{regionalCounts[structIDX]}')
 
 
 def main():
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--lineSelection", choices=["Cux2-Ai96", "Rpb4-Ai96"], default="Cux2-Ai96") #select the functional dataset for tau regressions
-    parser.add_argument("--geneLimit", type=int, default=-1) #for testing purposes to load a subset of merfish-imputed data, set to -1 to include all genes
+    parser.add_argument("--line_selection", choices=["Cux2-Ai96", "Rpb4-Ai96"], default="Cux2-Ai96") #select the functional dataset for tau regressions
+    parser.add_argument("--gene_limit", type=int, default=-1) #for testing purposes to load a subset of merfish-imputed data, set to -1 to include all genes
     parser.add_argument("--restrict_merfish_imputed_values", type=bool, default=False) #condition to restrict merfish-imputed dataset to non-imputed genes
-    parser.add_argument("--tauPoolSizeArrayFull", type=lambda s: [float(item) for item in s.split(',')], default="4.1") #[1,2,3,4,5] #in 25um resolution CCF voxels, converted to mm later
+    parser.add_argument("--tau_pool_size_array_full", type=lambda s: [float(item) for item in s.split(',')], default="4.1") #[1,2,3,4,5] #in 25um resolution CCF voxels, converted to mm later
     parser.add_argument("--n_splits", type=int, default=5) #number of splits for cross-validations in regressions
-    parser.add_argument("--alphaParams", type=lambda s: [float(item) for item in s.split(',')], default="-5,0,30") # [Alpha Lower (10**x), Alpha Upper (10**x), Steps]... alpha values for Lasso regressions
-    parser.add_argument("--loadData", type=bool, default=True)
+    parser.add_argument("--alpha_params", type=lambda s: [float(item) for item in s.split(',')], default="-5,0,30") # [Alpha Lower (10**x), Alpha Upper (10**x), Steps]... alpha values for Lasso regressions
+    parser.add_argument("--load_data", type=bool, default=True)
     parser.add_argument("--plotting", type=bool, default=True)
-    parser.add_argument("--numPrecision", type=int, default=3)   # Just for display (in plotting and regression text files)
-    parser.add_argument("--alphaPrecision", type=int, default=5) # Just for display (in plotting and regression text files)
+    parser.add_argument("--num_precision", type=int, default=3)   # Just for display (in plotting and regression text files)
+    parser.add_argument("--alpha_precision", type=int, default=5) # Just for display (in plotting and regression text files)
     parser.add_argument("--verbose", type=bool, default=True)    # For print statements
-    parser.add_argument("--predictorOrder", type=lambda s: [int(item) for item in s.split(',')], default="0")           # Select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
-    parser.add_argument("--regressionsToStart", type=lambda s: [int(item) for item in s.split(',')], default="0,1")    # Select response variables for regressions, and order [0:tau, 1:CCF]
+    parser.add_argument("--predictor_order", type=lambda s: [int(item) for item in s.split(',')], default="0")           # Select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
+    parser.add_argument("--regressions_to_start", type=lambda s: [int(item) for item in s.split(',')], default="0,1")    # Select response variables for regressions, and order [0:tau, 1:CCF]
     parser.add_argument("--max_iter", type=int, default=200) # For layer regressions
-    parser.add_argument("--variableManagement", type=bool, default=True) # Removes large variables from memory after use (needs to be expanded to include more variables)
-    parser.add_argument("--plottingConditions", type=lambda s: [bool(int(item)) for item in s.split(',')], default="0,1") # For plotting spatial reconstructions
+    parser.add_argument("--variable_management", type=bool, default=True) # Removes large variables from memory after use (needs to be expanded to include more variables)
+    parser.add_argument("--plotting_conditions", type=lambda s: [bool(int(item)) for item in s.split(',')], default="0,1") # For plotting spatial reconstructions
     parser.add_argument("--arg_parse_test", type=bool, default=False) # For testing the bash argument parser
     parser.add_argument("--job_task_id", type=int, default=0) # For parallel processing
     args = parser.parse_args()
 
-    lineSelection = args.lineSelection
-    geneLimit = args.geneLimit
+    line_selection = args.line_selection
+    gene_limit = args.gene_limit
     restrict_merfish_imputed_values = args.restrict_merfish_imputed_values
-    tauPoolSizeArrayFull = args.tauPoolSizeArrayFull
+    tau_pool_size_array_full = args.tau_pool_size_array_full
     n_splits = args.n_splits
-    alphaParams = args.alphaParams
-    loadData = args.loadData
+    alpha_params = args.alpha_params
+    load_data = args.load_data
     plotting = args.plotting
-    numPrecision = args.numPrecision
-    alphaPrecision = args.alphaPrecision
+    num_precision = args.num_precision
+    alpha_precision = args.alpha_precision
     verbose = args.verbose
-    predictorOrder = args.predictorOrder
-    regressionsToStart = args.regressionsToStart
+    predictor_order = args.predictor_order
+    regressions_to_start = args.regressions_to_start
     max_iter = args.max_iter
-    variableManagement = args.variableManagement
-    plottingConditions = args.plottingConditions
+    variable_management = args.variable_management
+    plotting_conditions = args.plotting_conditions
     arg_parse_test = args.arg_parse_test
     job_task_id = args.job_task_id
 
-    print(f"lineSelection: {lineSelection}")
-    print(f"geneLimit: {geneLimit}")
+    print(f"line_selection: {line_selection}")
+    print(f"gene_limit: {gene_limit}")
     print(f"restrict_merfish_imputed_values: {restrict_merfish_imputed_values}")
-    print(f"tauPoolSizeArrayFull: {tauPoolSizeArrayFull}")
+    print(f"tau_pool_size_array_full: {tau_pool_size_array_full}")
     print(f"n_splits: {n_splits}")
-    print(f"alphaParams: {alphaParams}")
-    print(f"loadData: {loadData}")
+    print(f"alpha_params: {alpha_params}")
+    print(f"load_data: {load_data}")
     print(f"plotting: {plotting}")
-    print(f"numPrecision: {numPrecision}")
-    print(f"alphaPrecision: {alphaPrecision}")
+    print(f"num_precision: {num_precision}")
+    print(f"alpha_precision: {alpha_precision}")
     print(f"verbose: {verbose}")
-    print(f"predictorOrder: {predictorOrder}")
-    print(f"regressionsToStart: {regressionsToStart}")
+    print(f"predictor_order: {predictor_order}")
+    print(f"regressions_to_start: {regressions_to_start}")
     print(f"max_iter: {max_iter}")
-    print(f"variableManagement: {variableManagement}")
-    print(f"plottingConditions: {plottingConditions}")
+    print(f"variable_management: {variable_management}")
+    print(f"plotting_conditions: {plotting_conditions}")
     print(f"arg_parse_test: {arg_parse_test}")
     print(f"job_task_id: {job_task_id}")
 
     if arg_parse_test:
         return
 
-    for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[0]]):
+    for restrict_merfish_imputed_values, predictor_order in zip([True,False],[[0,1],[0]]):
 
-        structList = np.array(['MOp','MOs','VISa','VISp','VISam','VISpm','SS','RSP'])
+        struct_list = np.array(['MOp','MOs','VISa','VISp','VISam','VISpm','SS','RSP'])
 
-        areaColors = ['#ff0000','#ff704d',                      #MO, reds
+        area_colors = ['#ff0000','#ff704d',                      #MO, reds
                     '#4dd2ff','#0066ff','#003cb3','#00ffff',    #VIS, blues
                     '#33cc33',                                  #SSp, greens
                     '#a366ff']                                  #RSP, purples
 
 
-        structNum = structList.shape[0]
+        structNum = struct_list.shape[0]
         #applyLayerSpecificityFilter = False #ensure that CCM coordinates are contained within a layer specified in layerAppend
         #layerAppend = '2/3'
         #groupSelector = 12  #12 -> IT_7  -> L2/3 IT
@@ -136,12 +136,12 @@ def main():
 
 
         #if applyLayerSpecificityFilter:
-        #    structList = [x+layerAppend for x in structList]
+        #    struct_list = [x+layerAppend for x in struct_list]
 
 
-        lineSelection, my_os, savePath_OSs, download_base = pathSetter(lineSelection) # Line selection is modified if the script is run on Linux
+        line_selection, my_os, save_path_OSs, download_base = pathSetter(line_selection) # Line selection is modified if the script is run on Linux
 
-        savePath = savePath_OSs[my_os == 'Windows']
+        save_path = save_path_OSs[my_os == 'Windows']
 
         time_start = datetime.datetime.now()
 
@@ -154,7 +154,7 @@ def main():
         tree = {}
         rsp = {}
         for resolution in [10,25,100]:
-            output_dir = os.path.join(savePath,'Data',f'nrrd{resolution}')
+            output_dir = os.path.join(save_path,'Data',f'nrrd{resolution}')
             reference_space_key = os.path.join('annotation','ccf_2017')
             rspc = ReferenceSpaceCache(resolution, 'annotation/ccf_2017', manifest=Path(output_dir) / 'manifest.json') #reference_space_key replaced by 'annotation/ccf_2017'
             # ID 1 is the adult mouse structure graph
@@ -166,10 +166,10 @@ def main():
             rsp[f'{resolution}'] = rspc.get_reference_space()
 
 
-        if loadData:
-            gene_data_dense, pilotGeneNames, fn_clustid, fn_CCF = pilotLoader(savePath)
-            merfish_CCF_Genes, allMerfishGeneNames = merfishLoader(savePath,download_base,pilotGeneNames,restrict_merfish_imputed_values,geneLimit)
-            allTauCCF_Coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(lineSelection, 'IntoTheVoid')
+        if load_data:
+            gene_data_dense, pilot_gene_names, fn_clustid, fn_CCF = pilotLoader(save_path)
+            merfish_CCF_Genes, all_merfish_gene_names = merfishLoader(save_path,download_base,pilot_gene_names,restrict_merfish_imputed_values,gene_limit)
+            all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line_selection, 'IntoTheVoid')
 
         time_load_data = datetime.datetime.now()
         print(f'Time to load data: {time_load_data - time_start}')
@@ -179,11 +179,11 @@ def main():
             fig, ax = plt.subplots(1, 1, figsize=(7,5))
             #hex_0 = '#00ffff'
             #hex_1 = '#ff33cc'
-            #value_0 = np.percentile(allTauCCF_Coords[2,:], 0)
-            #value_1 = np.percentile(allTauCCF_Coords[2,:], 97.5)
-            #all_tau_colors = color_gradient(allTauCCF_Coords[2,:], hex_0, hex_1, 0, 97.5)
+            #value_0 = np.percentile(all_tau_CCF_coords[2,:], 0)
+            #value_1 = np.percentile(all_tau_CCF_coords[2,:], 97.5)
+            #all_tau_colors = color_gradient(all_tau_CCF_coords[2,:], hex_0, hex_1, 0, 97.5)
             
-            img = ax.scatter(allTauCCF_Coords[0,:], allTauCCF_Coords[1,:], s=0.1, c=allTauCCF_Coords[2,:], cmap='cool')
+            img = ax.scatter(all_tau_CCF_coords[0,:], all_tau_CCF_coords[1,:], s=0.1, c=all_tau_CCF_coords[2,:], cmap='cool')
             ax.scatter(CCF25_bregma[0], CCF25_bregma[1], color='blue', label='bregma')
             ax.scatter(CCF25_lambda[0], CCF25_lambda[1], color='purple', label='lambda')
             ax.set_xlabel(r'$L \leftarrow M \rightarrow L$ CCF')
@@ -196,7 +196,7 @@ def main():
         #standardMerfish_CCF_Genes = standard_scaler.fit_transform(merfish_CCF_Genes)
         #standardMerfish_CCF_Genes = pd.DataFrame(standardMerfish_CCF_Genes, columns=merfish_CCF_Genes.columns)
 
-        enrichedGeneNames = list(merfish_CCF_Genes.drop(columns=['x_ccf','y_ccf','z_ccf']).columns)
+        enriched_gene_names = list(merfish_CCF_Genes.drop(columns=['x_ccf','y_ccf','z_ccf']).columns)
         total_genes = gene_data_dense.shape[1]
 
         raw_merfish_genes = np.array(merfish_CCF_Genes.drop(columns=['x_ccf','y_ccf','z_ccf']))
@@ -209,11 +209,11 @@ def main():
 
 
 
-        # with open(os.path.join(savePath,f'Chen_merfishImputed_geneOverlap.txt'), "w") as file:
+        # with open(os.path.join(save_path,f'Chen_merfishImputed_geneOverlap.txt'), "w") as file:
         #     file.write('Gene Overlap (Chen & Merfish-Imputed Datasets):\n\n')
 
-        #     for currentGene in pilotGeneNames:
-        #         geneIDX_Text = f'Merfish Imputed IDX of {currentGene}: {np.where(np.array(allMerfishGeneNames)==currentGene)[0]}'
+        #     for currentGene in pilot_gene_names:
+        #         geneIDX_Text = f'Merfish Imputed IDX of {currentGene}: {np.where(np.array(all_merfish_gene_names)==currentGene)[0]}'
         #         print(geneIDX_Text)
         #         file.write(geneIDX_Text+'\n')
 
@@ -232,7 +232,7 @@ def main():
         grouping = sorted(list(set(H2_names)))
 
         #For layers, it's important that the first layer indexed is L2/3, since a Cux2 expression filter is applied later
-        merfishLayerNames = ['L2_3 IT_ET','L4_5 IT_ET','L6 IT_ET'] # 'L4_5 IT_ET', 'L5 IT_ET', 'L6 IT_ET'] #['CTX IT, ET']
+        merfish_layer_names = ['L2_3 IT_ET','L4_5 IT_ET','L6 IT_ET'] # 'L4_5 IT_ET', 'L5 IT_ET', 'L6 IT_ET'] #['CTX IT, ET']
         #merfish_layers = ['2/3','4/5','6']
         merfish_subLayers = [['2/3'],['4','5'],['6a','6b']]
 
@@ -242,14 +242,14 @@ def main():
 
 
         # ### Testing ###
-        # for structIDX,structureOfInterest in enumerate(structList):
+        # for structIDX,structureOfInterest in enumerate(struct_list):
         #     if structIDX > -1:
         #         structureOfInterestAppend = structureOfInterest + 'agl6a'
         #         print(tree.get_structures_by_acronym([structureOfInterestAppend]))
 
 
-        if not os.path.exists(os.path.join(savePath,'Masks')):
-            os.makedirs(os.path.join(savePath,'Masks'))
+        if not os.path.exists(os.path.join(save_path,'Masks')):
+            os.makedirs(os.path.join(save_path,'Masks'))
 
         cell_region = {}
         cell_region['10'] = (np.ones(numMerfishCells)*-1).astype(int)
@@ -279,15 +279,15 @@ def main():
             for ccfIDX,axes in enumerate(ax):
                 axes.hist(CCFvalues[:,ccfIDX], color='black', bins=500)
             plt.suptitle(f'CCF Distributions (resolution={resolution})')
-            plt.savefig(os.path.join(savePath,'Masks',f'CCFdistributions_resolution{resolution}.pdf'), dpi=600, bbox_inches='tight')
+            plt.savefig(os.path.join(save_path,'Masks',f'CCFdistributions_resolution{resolution}.pdf'), dpi=600, bbox_inches='tight')
             plt.close()
 
             #fig, ax = plt.subplots(1,1,figsize=(8,8))
             if resolution == '10':
-                for layerIDX,layerAppend in enumerate(merfishLayerNames):
+                for layerIDX,layerAppend in enumerate(merfish_layer_names):
                     print('\n')
 
-                    for structIDX,structureOfInterest in enumerate(structList):
+                    for structIDX,structureOfInterest in enumerate(struct_list):
                         print(f'Making {layerAppend} {structureOfInterest} CCF mask (resolution={resolution})...')
                         
                         if structureOfInterest == 'RSP':
@@ -315,13 +315,13 @@ def main():
                                     structureID = structureTree[0]['id']
                                     structure_mask += rsp[f'{resolution}'].make_structure_mask([structureID])
 
-                        plot_mask(f'{structureOfInterest} {string_sanitizer(layerAppend)}',structure_mask,savePath,resolution)
+                        plot_mask(f'{structureOfInterest} {string_sanitizer(layerAppend)}',structure_mask,save_path,resolution)
                         cell_region,cell_layer = cell_region_function(cell_region,cell_layer,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX,layerIDX)
-                    region_count_printer(cell_region,resolution,f'{datasetName} {string_sanitizer(layerAppend)}',structList)
+                    region_count_printer(cell_region,resolution,f'{datasetName} {string_sanitizer(layerAppend)}',struct_list)
             
             if resolution == '25':
                 print(f'\n(no layer masking required, as it is already present in dataset)')
-                for structIDX,structureOfInterest in enumerate(structList):
+                for structIDX,structureOfInterest in enumerate(struct_list):
                     print(f'Making {structureOfInterest} CCF mask (resolution={resolution})...')
 
                     structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest])
@@ -329,16 +329,16 @@ def main():
                     structureID = structureTree[0]['id']
                     structure_mask = rsp[f'{resolution}'].make_structure_mask([structureID])
 
-                    plot_mask(structureOfInterest,structure_mask,savePath,resolution)
+                    plot_mask(structureOfInterest,structure_mask,save_path,resolution)
                     cell_region,cell_layer = cell_region_function(cell_region,cell_layer,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX,layerIDX)
-                region_count_printer(cell_region,resolution,datasetName,structList)
+                region_count_printer(cell_region,resolution,datasetName,struct_list)
 
 
 
         regionalResample = False #resample each cortical region such that it's represented equally, in practice this tends to over-represent smaller regions
         regional_resampling = 3000
         cell_region_H2layerFiltered, gene_data_dense_H2layerFiltered, mlCCF_per_cell_H2layerFiltered, apCCF_per_cell_H2layerFiltered, H3_per_cell_H2layerFiltered, mean_expression = {},{},{},{},{},{}
-        for layerNames,numLayers,resolution in zip([pilotLayerNames,merfishLayerNames],[len(pilotLayerNames),len(merfishLayerNames)],['25','10']):
+        for layerNames,numLayers,resolution in zip([pilotLayerNames,merfish_layer_names],[len(pilotLayerNames),len(merfish_layer_names)],['25','10']):
             if resolution == '10':
                 CCFvalues = raw_merfish_CCF
                 gene_data = raw_merfish_genes
@@ -353,8 +353,8 @@ def main():
             mlCCF_per_cell_H2layerFiltered[resolution] = [np.empty((0,1)) for _ in range(numLayers)]
             apCCF_per_cell_H2layerFiltered[resolution] = [np.empty((0,1)) for _ in range(numLayers)]
             H3_per_cell_H2layerFiltered[resolution] = [np.empty((0,1)) for _ in range(numLayers)]
-            mean_expression[resolution] = np.zeros((numLayers,len(structList),gene_data.shape[1]))
-            #sigma_expression = np.zeros((numLayers,len(structList),gene_data_dense.shape[1]))
+            mean_expression[resolution] = np.zeros((numLayers,len(struct_list),gene_data.shape[1]))
+            #sigma_expression = np.zeros((numLayers,len(struct_list),gene_data_dense.shape[1]))
 
             for layerIDX, (layer, layerName) in enumerate(zip(layerIDs, layerNames)):
 
@@ -365,18 +365,18 @@ def main():
                 
                 if layerIDX == 0:
                     if resolution == '25':
-                        cux2columnIDX = np.where(np.array(pilotGeneNames)=='Cux2')[0][0]
+                        cux2columnIDX = np.where(np.array(pilot_gene_names)=='Cux2')[0][0]
                     if resolution == '10':
-                        if geneLimit == -1:
-                            cux2columnIDX = np.where(np.array(enrichedGeneNames)=='Cux2')[0][0]
-                    if geneLimit == -1:
+                        if gene_limit == -1:
+                            cux2columnIDX = np.where(np.array(enriched_gene_names)=='Cux2')[0][0]
+                    if gene_limit == -1:
                         cux2IDXs = set(np.where(gene_data[:,cux2columnIDX]>0)[0]) #for layer 2/3 filter out cells not expressing Cux2 (helps to align population to the functional dataset)
 
-                for structIDX,structureOfInterest in enumerate(structList):
+                for structIDX,structureOfInterest in enumerate(struct_list):
                     regionIDXs = set(np.where(cell_region[resolution] == structIDX)[0])
                     
                     H2layerFilter = layerIDXs & regionIDXs
-                    if (layerIDX == 0) and (geneLimit == -1):
+                    if (layerIDX == 0) and (gene_limit == -1):
                         H2layerFilter = H2layerFilter & cux2IDXs
                     H2layerFilter = list(H2layerFilter)
                 
@@ -413,14 +413,14 @@ def main():
             apCCF_per_cell_H2layerFiltered['25'][layerIDX] = apCCF_per_cell_H2layerFiltered['25'][layerIDX] * 0.025
             mlCCF_per_cell_H2layerFiltered['25'][layerIDX] = mlCCF_per_cell_H2layerFiltered['25'][layerIDX] * 0.025
 
-        for layerIDX,_ in enumerate(merfishLayerNames):
+        for layerIDX,_ in enumerate(merfish_layer_names):
             mlCCF_per_cell_H2layerFiltered['10'][layerIDX] = -1 * np.abs(mlCCF_per_cell_H2layerFiltered['10'][layerIDX] - CCF_ML_Center_mm) + CCF_ML_Center_mm #must collapse resolution 10um CCF across midline since it is a bilateral coordinate system
 
         #############################################################################################
         ### visualization of and calculation of high expression genes are combined here, separate ###
-        #allTauCCF_Coords = np.load(os.path.join(tauPath,f'{lineSelection}_tauCCF.npy'))
-        allTauCCF_Coords[0,:] *= 0.025 #convert 25um resolution functional-registered coordinates to mm
-        allTauCCF_Coords[1,:] *= 0.025 #convert "..."
+        #all_tau_CCF_coords = np.load(os.path.join(tauPath,f'{line_selection}_tauCCF.npy'))
+        all_tau_CCF_coords[0,:] *= 0.025 #convert 25um resolution functional-registered coordinates to mm
+        all_tau_CCF_coords[1,:] *= 0.025 #convert "..."
 
         #meanExpressionThreshArrayFull = [0] #[0.4,0.2,0.1,0]
         #meanH3ThreshArrayFull = [0] #[0.1,0.05,0.025,0]
@@ -428,34 +428,34 @@ def main():
         if my_os == 'Linux':
             #meanExpressionThreshArray = [meanExpressionThreshArrayFull[int(sys.argv[1])]] #batch job will distribute parameter instances among jobs run in parallel
             #meanH3ThreshArray = [meanH3ThreshArrayFull[int(sys.argv[1])]]                 #same for these regressions, just with a different parameter range
-            tauPoolSizeArray = [tauPoolSizeArrayFull[int(job_task_id)]]
+            tau_pool_size_array = [tau_pool_size_array_full[int(job_task_id)]]
         if my_os == 'Windows':
             #meanExpressionThreshArray = meanExpressionThreshArrayFull
             #meanH3ThreshArray = meanH3ThreshArrayFull
-            tauPoolSizeArray = tauPoolSizeArrayFull
+            tau_pool_size_array = tau_pool_size_array_full
 
         meanExpressionThresh,meanH3Thresh = 0,0
 
-        layerNamesList  = [merfishLayerNames,pilotLayerNames]
-        numLayersList   = [len(merfishLayerNames),len(pilotLayerNames)]
-        resolutionList  = ['10','25']
-        datasetNameList = ['Merfish'+merfish_datasetName_append,'Pilot']
+        layer_names_list  = [merfish_layer_names,pilotLayerNames]
+        num_layers_list   = [len(merfish_layer_names),len(pilotLayerNames)]
+        resolution_list  = ['10','25']
+        dataset_name_list = ['Merfish'+merfish_datasetName_append,'Pilot']
 
-        for layerNames,numLayers,resolution,datasetName in zip([layerNamesList[order] for order in predictorOrder],[numLayersList[order] for order in predictorOrder],[resolutionList[order] for order in predictorOrder],[datasetNameList[order] for order in predictorOrder]):
+        for layerNames,numLayers,resolution,datasetName in zip([layer_names_list[order] for order in predictor_order],[num_layers_list[order] for order in predictor_order],[resolution_list[order] for order in predictor_order],[dataset_name_list[order] for order in predictor_order]):
 
             #for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3ThreshArray):
             
             poolIndex = 0
-            for tauPoolSize in tauPoolSizeArray:
+            for tauPoolSize in tau_pool_size_array:
                 tauPoolSize = np.round(tauPoolSize * 0.025, 4) #convert 25um resolution CCF functional-registered coordinates to mm
                 poolIndex += 1
-                tauSortedPath = os.path.join(savePath,lineSelection,f'pooling{tauPoolSize}mm')
-                tauSortedPath_OSs = [os.path.join(savePath_OSs[0],lineSelection,f'pooling{tauPoolSize}mm'), os.path.join(savePath_OSs[1],lineSelection,f'pooling{tauPoolSize}mm')]
+                tauSortedPath = os.path.join(save_path,line_selection,f'pooling{tauPoolSize}mm')
+                tauSortedPath_OSs = [os.path.join(save_path_OSs[0],line_selection,f'pooling{tauPoolSize}mm'), os.path.join(save_path_OSs[1],line_selection,f'pooling{tauPoolSize}mm')]
                 if not os.path.exists(tauSortedPath):
                     os.makedirs(tauSortedPath)
                 
                 ### pool tau into a grid for bootstrapping the regression ###
-                minML_CCF, maxML_CCF, minAP_CCF, maxAP_CCF = np.min(allTauCCF_Coords[0,:]), np.max(allTauCCF_Coords[0,:]), np.min(allTauCCF_Coords[1,:]), np.max(allTauCCF_Coords[1,:])
+                minML_CCF, maxML_CCF, minAP_CCF, maxAP_CCF = np.min(all_tau_CCF_coords[0,:]), np.max(all_tau_CCF_coords[0,:]), np.min(all_tau_CCF_coords[1,:]), np.max(all_tau_CCF_coords[1,:])
                 pooledTauCCF_coords = [np.empty((0,4)) for _ in range(numLayers)]
                 pooledTauCCF_coords_noGene = [np.empty((0,4)) for _ in range(numLayers)]
                 pooledPixelCount_v_CellCount = [np.empty((0,2)) for _ in range(numLayers)]
@@ -478,7 +478,7 @@ def main():
                     possiblePoolsCount = 0
                     print(f'Tau-Gene Alignment Pooling ({datasetName}, size {tauPoolSize}mm): {layerNames[layerIDX]}')
                     for current_tau_ML_pool in np.arange(minML_CCF,CCF_ML_Center_mm,tauPoolSize):
-                        current_ML_tau_pooling_IDXs = np.where(np.abs(np.abs(allTauCCF_Coords[0,:]-CCF_ML_Center_mm)-np.abs(current_tau_ML_pool-CCF_ML_Center_mm))<(tauPoolSize/2))[0] #our pixel space extents bilaterally, but CCF is unilateral, so 'CCF' coordinates from pixel space need to reflected over the ML center axis (CCF_ML_center)
+                        current_ML_tau_pooling_IDXs = np.where(np.abs(np.abs(all_tau_CCF_coords[0,:]-CCF_ML_Center_mm)-np.abs(current_tau_ML_pool-CCF_ML_Center_mm))<(tauPoolSize/2))[0] #our pixel space extents bilaterally, but CCF is unilateral, so 'CCF' coordinates from pixel space need to reflected over the ML center axis (CCF_ML_center)
                         
                         # if resolution == '25':
                         #     cellwise_ML_CCF_25 = mlCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1)
@@ -487,7 +487,7 @@ def main():
 
                         current_ML_cell_pooling_IDXs = np.where(np.abs(mlCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1)-current_tau_ML_pool)<(tauPoolSize/2))[0]
                         for current_tau_AP_pool in np.arange(minAP_CCF,maxAP_CCF,tauPoolSize):
-                            current_tau_pooling_IDXs = np.where(np.abs(allTauCCF_Coords[1,current_ML_tau_pooling_IDXs]-current_tau_AP_pool)<(tauPoolSize/2))
+                            current_tau_pooling_IDXs = np.where(np.abs(all_tau_CCF_coords[1,current_ML_tau_pooling_IDXs]-current_tau_AP_pool)<(tauPoolSize/2))
 
                             # if resolution == '25':
                             #     cellwise_AP_CCF_25 = apCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1)
@@ -495,7 +495,7 @@ def main():
                             #     cellwise_AP_CCF_25 = apCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1) * ((10/25)*100)
 
                             current_cell_pooling_IDXs = np.where(np.abs(apCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1)[current_ML_cell_pooling_IDXs]-current_tau_AP_pool)<(tauPoolSize/2))[0]
-                            pooledTaus = allTauCCF_Coords[2,current_ML_tau_pooling_IDXs[current_tau_pooling_IDXs]].reshape(-1,1)
+                            pooledTaus = all_tau_CCF_coords[2,current_ML_tau_pooling_IDXs[current_tau_pooling_IDXs]].reshape(-1,1)
                             if pooledTaus.shape[0] > 0:
                                 #print(mlCCF_per_cell_H2layerFiltered[layerIDX][current_ML_cell_pooling_IDXs])
                                 possiblePoolsCount += 1
@@ -555,15 +555,15 @@ def main():
                     #     H3_per_cell_H2layerFiltered_OneHot.append(hotencoder.fit_transform(H3_per_cell_H2layerFiltered[resolution][layerIDX]))
 
                 for layerIDX in range(numLayers):
-                    plt.figure(), plt.title(f'CCF Pooling:{tauPoolSize}mm, Fraction of Tau Pooled Points with at least one Gene Profile:{round(genePoolSaturation[layerIDX],3)}\n{lineSelection}, {layerNames[layerIDX]}')
+                    plt.figure(), plt.title(f'CCF Pooling:{tauPoolSize}mm, Fraction of Tau Pooled Points with at least one Gene Profile:{round(genePoolSaturation[layerIDX],3)}\n{line_selection}, {layerNames[layerIDX]}')
                     plt.scatter(pooledTauCCF_coords_noGene[layerIDX][:,1],pooledTauCCF_coords_noGene[layerIDX][:,0],color='red',s=0.5)
                     plt.scatter(pooledTauCCF_coords[layerIDX][:,1],pooledTauCCF_coords[layerIDX][:,0],color='green',s=0.5)
                     plt.xlabel(r'A$\leftrightarrow$P (mm)'), plt.ylabel(r'L$\leftrightarrow$M (mm)'), plt.axis('equal')
-                    plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{lineSelection}_tauExpressionPooling{tauPoolSize}mm_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
+                    plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{line_selection}_tauExpressionPooling{tauPoolSize}mm_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
                     plt.close()
 
                     fig, ax = plt.subplots(1,1,figsize=(8,8))
-                    plt.suptitle(f'{lineSelection} Tau, CCF Pooling:{tauPoolSize}mm\n{lineSelection}, {layerNames[layerIDX]}')
+                    plt.suptitle(f'{line_selection} Tau, CCF Pooling:{tauPoolSize}mm\n{line_selection}, {layerNames[layerIDX]}')
                     cmap = plt.get_cmap('cool')
                     global_min,global_max = np.log10(1),np.log10(30)
                     norm = matplotlib.colors.Normalize(global_min, global_max)
@@ -577,14 +577,14 @@ def main():
                     cbar.set_ticks(cbar_ticks)
                     cbar.set_ticklabels(10**(cbar_ticks),fontsize=6,rotation=45)
                     cbar.set_label('Tau', rotation=0)
-                    plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{lineSelection}_tauPooling{tauPoolSize}mm_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
+                    plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{line_selection}_tauPooling{tauPoolSize}mm_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
                     plt.close()
 
                     plt.figure(), plt.xlabel('Pool Pixel Count'), plt.ylabel('Pool Cell Count')
-                    plt.title(f'Pool Size:{tauPoolSize}mm, Pixel & Cell Counts by CCF Pool\n{layerNames[layerIDX]}\n{lineSelection}, {layerNames[layerIDX]}')
+                    plt.title(f'Pool Size:{tauPoolSize}mm, Pixel & Cell Counts by CCF Pool\n{layerNames[layerIDX]}\n{line_selection}, {layerNames[layerIDX]}')
                     plt.scatter(pooledPixelCount_v_CellCount[layerIDX][:,0],pooledPixelCount_v_CellCount[layerIDX][:,1],color='black',s=1)
                     #plt.axis('equal')
-                    plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{lineSelection}_pooling{tauPoolSize}mm_CellPixelCounts_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
+                    plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{line_selection}_pooling{tauPoolSize}mm_CellPixelCounts_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
                     plt.close()
 
 
@@ -607,8 +607,8 @@ def main():
                     ax[0].set_title(f'$R^2$={round(r_squared_regression[0],3)}'), ax[1].set_title(f'$R^2$={round(r_squared_regression[1],3)}')
                     ax[0].set_xlabel('Standardized ML CCF'), ax[1].set_xlabel('Standardized AP CCF')
                     ax[0].set_ylabel('Standardized Tau'), ax[1].set_ylabel('Standardized Tau')
-                    plt.suptitle(f'Pooling={tauPoolSize}mm, Standardized {lineSelection} Tau & AP, ML CCF Correlation\n{layerNames[layerIDX]}')
-                    plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{lineSelection}_pooling{tauPoolSize}mm_TauCCFcorr_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
+                    plt.suptitle(f'Pooling={tauPoolSize}mm, Standardized {line_selection} Tau & AP, ML CCF Correlation\n{layerNames[layerIDX]}')
+                    plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{line_selection}_pooling{tauPoolSize}mm_TauCCFcorr_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
                     plt.close()
 
 
@@ -643,11 +643,11 @@ def main():
 
                 """ 
                 if poolIndex == 1:
-                    regressionsToStart = [0,1]
-                    plottingConditions = [False,True] #plot spatial reconstruction?
+                    regressions_to_start = [0,1]
+                    plotting_conditions = [False,True] #plot spatial reconstruction?
                 else:
-                    regressionsToStart = [0,1] #[0] #used to be no need to run spatial regression multiple times across pooling sizes, just when the meanPredictionThresh changes, but this now matters for H3 profiles per pool
-                    plottingConditions = [False]#[False] #no need to plot spatial regression plots across "..."
+                    regressions_to_start = [0,1] #[0] #used to be no need to run spatial regression multiple times across pooling sizes, just when the meanPredictionThresh changes, but this now matters for H3 profiles per pool
+                    plotting_conditions = [False]#[False] #no need to plot spatial regression plots across "..."
                 """
 
                 for namePredictors,predictorTitle,predictorEncodeType,predictorPathSuffix in zip(['Gene Predictors', 'H3 Predictors'],
@@ -659,8 +659,8 @@ def main():
                         print(f'\nAborting H3 Predictor regressions for Merfish{merfish_datasetName_append} dataset...')
                         break
                     
-                    if not os.path.exists(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}')):
-                        os.makedirs(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}'))
+                    if not os.path.exists(os.path.join(save_path,'Spatial',f'{predictorPathSuffix}',f'{datasetName}')):
+                        os.makedirs(os.path.join(save_path,'Spatial',f'{predictorPathSuffix}',f'{datasetName}'))
 
                     if predictorPathSuffix == 'GenePredictors':
                         predictorDataRaw = gene_data_dense_H2layerFiltered[resolution]
@@ -668,15 +668,15 @@ def main():
                         if resolution == '25':
                             #predictorDataRaw = gene_data_dense_H2layerFiltered[resolution]
                             #meanPredictionThresh = meanExpressionThresh
-                            predictorNamesArray = np.array(pilotGeneNames)
+                            predictorNamesArray = np.array(pilot_gene_names)
                             #numLayers = len(pilotLayerNames)
                             #layerNames = pilotLayerNames
                         if resolution == '10':
                             #predictorDataRaw = [raw_merfish_genes]
                             #meanPredictionThresh = meanExpressionThresh
-                            predictorNamesArray = np.array(enrichedGeneNames)
-                            #numLayers = len(merfishLayerNames)
-                            #layerNames = merfishLayerNames
+                            predictorNamesArray = np.array(enriched_gene_names)
+                            #numLayers = len(merfish_layer_names)
+                            #layerNames = merfish_layer_names
 
                     if predictorPathSuffix == 'H3Predictors':
                         predictorDataRaw = resampledH3_aligned_H2layerFiltered#[m.T for m in resampledH3_aligned_H2layerFiltered] #H3_per_cell_H2layerFiltered
@@ -688,9 +688,9 @@ def main():
                     # if predictorPathSuffix == 'merfishImputedGenePredictors':
                     #     predictorDataRaw = [raw_merfish_genes]
                     #     meanPredictionThresh = 0.1
-                    #     predictorNamesArray = np.array(enrichedGeneNames)
+                    #     predictorNamesArray = np.array(enriched_gene_names)
                     #     numLayers = 1
-                    #     layerNames = merfishLayerNames
+                    #     layerNames = merfish_layer_names
 
                     if predictorPathSuffix == 'merfishImputedGenePredictors':
                         figWidth = 23
@@ -729,19 +729,19 @@ def main():
                         ax.set_yscale('log')
                         ax.set_title(f'{layerNames[layerIDX]}, Num Excluded {namePredictors}:{meanPredictorCutoffIDX}, Mean {datasetName} {predictorTitle} Cutoff:{meanPredictionThresh}')
                         if predictorPathSuffix == 'H3Predictors':
-                            plt.savefig(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'excluded{predictorPathSuffix}Thresh{meanPredictionThresh}_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
+                            plt.savefig(os.path.join(save_path,'Spatial',f'{predictorPathSuffix}',f'excluded{predictorPathSuffix}Thresh{meanPredictionThresh}_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
                         else:
-                            plt.savefig(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}',f'excluded{datasetName}{predictorPathSuffix}Thresh{meanPredictionThresh}_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
+                            plt.savefig(os.path.join(save_path,'Spatial',f'{predictorPathSuffix}',f'{datasetName}',f'excluded{datasetName}{predictorPathSuffix}Thresh{meanPredictionThresh}_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
                         plt.close()
 
-                    rename = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'excluded{predictorPathSuffix}Thresh{meanPredictionThresh}.pdf')
-                    #PDFmerger(os.path.join(savePath,'Spatial',f'{predictorPathSuffix}'),f'excluded{predictorPathSuffix}Thresh{meanPredictionThresh}_',layerNames,'.pdf',rename)
+                    rename = os.path.join(save_path,'Spatial',f'{predictorPathSuffix}',f'excluded{predictorPathSuffix}Thresh{meanPredictionThresh}.pdf')
+                    #PDFmerger(os.path.join(save_path,'Spatial',f'{predictorPathSuffix}'),f'excluded{predictorPathSuffix}Thresh{meanPredictionThresh}_',layerNames,'.pdf',rename)
 
-                    if variableManagement:
+                    if variable_management:
                         del predictorDataRaw
 
 
-                    for regressionType in regressionsToStart:
+                    for regressionType in regressions_to_start:
                         if regressionType == 0: # geneX, H3 -> Tau
                             spatialReconstruction = False
                             tauRegression = True
@@ -775,13 +775,13 @@ def main():
 
                         print(f'\nStarting Regressions, Type {regressionType}:')
                         if (regressionType == 0):
-                            print(f'{datasetName} {predictorTitle} -> {lineSelection} Tau (CCF Pooling={tauPoolSize}mm, predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
+                            print(f'{datasetName} {predictorTitle} -> {line_selection} Tau (CCF Pooling={tauPoolSize}mm, predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
                             if verbose:
                                 predictor_response_info(x_data,y_data)
                             if y_data[0].shape[0] != x_data[0].shape[0]:
                                 print(f'Aborting regression, number of predictor and response matrix observations do not agree...')
                                 break
-                            best_coef_tau,lasso_weight_tau,bestAlpha_tau,alphas_tau,tauPredictions_tau,bestR2_tau,loss_history_test_tau,loss_history_train_tau,dual_gap_history_tau = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alphaParams,max_iter)
+                            best_coef_tau,lasso_weight_tau,bestAlpha_tau,alphas_tau,tauPredictions_tau,bestR2_tau,loss_history_test_tau,loss_history_train_tau,dual_gap_history_tau = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alpha_params,max_iter)
                             predictor_condition_numbers_tau = [np.linalg.cond(x) for x in x_data]
 
                         if (regressionType == 1):
@@ -791,7 +791,7 @@ def main():
                             if y_data[0].shape[0] != x_data[0].shape[0]:
                                 print(f'Aborting regression, number of predictor and response matrix observations do not agree...')
                                 break
-                            best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial,loss_history_test_spatial,loss_history_train_spatial,dual_gap_history_spatial = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alphaParams,max_iter)
+                            best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial,loss_history_test_spatial,loss_history_train_spatial,dual_gap_history_spatial = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alpha_params,max_iter)
                             predictor_condition_numbers_spatial = [np.linalg.cond(x) for x in x_data]
 
 
@@ -810,12 +810,12 @@ def main():
                     params['meanExpressionThresh'] = meanExpressionThresh
                     params['meanPredictionThresh'] = meanPredictionThresh
                     params['highMeanPredictorIDXs'] = highMeanPredictorIDXs
-                    params['numPrecision'] = numPrecision
-                    params['alphaPrecision'] = alphaPrecision
+                    params['num_precision'] = num_precision
+                    params['alpha_precision'] = alpha_precision
                     params['structNum'] = structNum
 
                     paths = {}
-                    paths['savePath'] = savePath_OSs
+                    paths['save_path'] = save_path_OSs
                     paths['predictorPathSuffix'] = predictorPathSuffix
                     paths['tauSortedPath'] = tauSortedPath_OSs
 
@@ -856,10 +856,10 @@ def main():
                     model_vals['lasso_weight_tau'] = lasso_weight_tau
 
                     meta_dict = {}
-                    meta_dict['lineSelection'] = lineSelection
-                    meta_dict['structList'] = structList
-                    meta_dict['areaColors'] = areaColors
-                    meta_dict['plottingConditions'] = plottingConditions
+                    meta_dict['line_selection'] = line_selection
+                    meta_dict['struct_list'] = struct_list
+                    meta_dict['area_colors'] = area_colors
+                    meta_dict['plotting_conditions'] = plotting_conditions
                     meta_dict['params'] = params
                     meta_dict['paths'] = paths
                     meta_dict['titles'] = titles
@@ -874,10 +874,10 @@ def main():
                     # temp_path = 'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3\Cux2-Ai96\pooling0.1025mm\GenePredictors\Merfish'
                     # meta_dict = pickle.load(open(os.path.join(temp_path,f'plotting_data.pickle'), 'rb'))
 
-                    # lineSelection = meta_dict['lineSelection']
-                    # structList = meta_dict['structList']
-                    # areaColors = meta_dict['areaColors']
-                    # plottingConditions = meta_dict['plottingConditions']
+                    # line_selection = meta_dict['line_selection']
+                    # struct_list = meta_dict['struct_list']
+                    # area_colors = meta_dict['area_colors']
+                    # plotting_conditions = meta_dict['plotting_conditions']
                     # params = meta_dict['params']
                     # paths = meta_dict['paths']
                     # titles = meta_dict['titles']
@@ -885,14 +885,14 @@ def main():
                     # plotting_data = meta_dict['plotting_data']
 
                     try:
-                        plot_regressions(lineSelection, structList, areaColors, plottingConditions, params, paths, titles, model_vals, plotting_data)
+                        plot_regressions(line_selection, struct_list, area_colors, plotting_conditions, params, paths, titles, model_vals, plotting_data)
                     except Exception as e:
                         print(f"An error occurred while plotting regressions: {e}")
 
         ##############################################
         ### Layer-specific expression correlations ###
         try:
-            plot_expression_correlations(layerNames, structList, areaColors, mean_expression_standard, savePath)
+            plot_expression_correlations(layerNames, struct_list, area_colors, mean_expression_standard, save_path)
         except Exception as e:
             print(f"An error occurred while plotting expression correlations: {e}")
 
