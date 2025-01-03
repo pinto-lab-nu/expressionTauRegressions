@@ -71,6 +71,7 @@ def main():
     parser.add_argument("--max_iter", type=int, default=200) # For layer regressions
     parser.add_argument("--variableManagement", type=bool, default=True) # Removes large variables from memory after use (needs to be expamnded to include more variables)
     parser.add_argument("--plottingConditions", type=bool, nargs='+', default=[False, True]) # For plotting spatial reconstructions
+    parser.add_argument("--arg_parse_test", type=bool, default=False) # For testing the bash argument parser
     parser.add_argument("--job_task_id", type=int, default=0) # For parallel processing
     args = parser.parse_args()
 
@@ -90,6 +91,7 @@ def main():
     max_iter = args.max_iter
     variableManagement = args.variableManagement
     plottingConditions = args.plottingConditions
+    arg_parse_test = args.arg_parse_test
     job_task_id = args.job_task_id
 
     print(f"lineSelection: {lineSelection}")
@@ -108,7 +110,11 @@ def main():
     print(f"max_iter: {max_iter}")
     print(f"variableManagement: {variableManagement}")
     print(f"plottingConditions: {plottingConditions}")
+    print(f"arg_parse_test: {arg_parse_test}")
     print(f"job_task_id: {job_task_id}")
+
+    if arg_parse_test:
+        return
 
     for restrict_merfish_imputed_values, predictorOrder in zip([True,False],[[0,1],[0]]):
 

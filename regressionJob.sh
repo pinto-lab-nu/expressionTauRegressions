@@ -33,6 +33,7 @@ while [[ "$#" -gt 0 ]]; do
         -m|--max_iter) max_iter="$2"; shift ;;
         -c|--variableManagement) variableManagement="$2"; shift ;;
         -k|--plottingConditions) plottingConditions="$2"; shift ;;
+        -x|--arg_parse_test) arg_parse_test="$2"; shift ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
@@ -55,6 +56,7 @@ regressionsToStart=${regressionsToStart:-0,1}
 max_iter=${max_iter:-200}
 variableManagement=${variableManagement:-true}
 plottingConditions=${plottingConditions:-false,true}
+arg_parse_test=${arg_parse_test:-false}
 
 python expressionRegression.py \
     --geneLimit=$geneLimit \
@@ -73,4 +75,5 @@ python expressionRegression.py \
     --max_iter=$max_iter \
     --variableManagement=$variableManagement \
     --plottingConditions=$plottingConditions \
+    --arg_parse_test=$arg_parse_test \
     --job_task_id=$SLURM_ARRAY_TASK_ID
