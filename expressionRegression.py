@@ -180,7 +180,7 @@ def main():
         #    struct_list = [x+layerAppend for x in struct_list]
 
 
-        line_selection, my_os, save_path_OSs, download_base = pathSetter(line_selection) # Line selection is modified if the script is run on Linux
+        my_os, save_path_OSs, download_base = pathSetter()
         save_path = save_path_OSs[my_os == 'Windows']
 
         time_start = datetime.now()

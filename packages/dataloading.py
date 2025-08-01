@@ -164,11 +164,8 @@ def pilotLoader(savePath):
     return gene_data_dense, geneNames, fn_clustid, fn_CCF
 
 
-def pathSetter(lineSelection):
+def pathSetter():
     my_os = platform.system()
-
-    if my_os == 'Linux':
-        lineSelection  = ['Rpb4-Ai96','Cux2-Ai96','C57BL6/J','PV-Ai96'][int(sys.argv[2])]
 
     linux_prepend = r'/mnt/fsmresfiles/Tau_Processing/'
     windows_prepend = r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing'
@@ -185,4 +182,4 @@ def pathSetter(lineSelection):
     print(f'merfish download_base: {download_base}')
     print(f'download_base contents: {os.listdir(download_base)}')
 
-    return lineSelection, my_os, savePath, download_base
+    return my_os, savePath, download_base
