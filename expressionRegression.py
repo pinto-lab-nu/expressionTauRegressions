@@ -119,6 +119,9 @@ def main():
     bootstrapping_scale = args.bootstrapping_scale
     min_pool_size = args.min_pool_size
 
+    # make sure that alpha_params steps is an integer
+    alpha_params[2] = int(alpha_params[2])
+
     print(f"line_selection: {line_selection}")
     print(f"gene_limit: {gene_limit}")
     print(f"restrict_merfish_imputed_values: {restrict_merfish_imputed_values}")
