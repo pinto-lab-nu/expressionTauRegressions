@@ -1020,7 +1020,7 @@ def main():
         except Exception as e:
             print(f"An error occurred while plotting expression correlations: {e}")
 
-        time_end = datetime.datetime.now()
+        time_end = datetime.now()
         print(f'Time to run: {time_end - time_load_data}')
 
 
