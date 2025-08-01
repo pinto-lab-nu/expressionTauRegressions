@@ -5,6 +5,7 @@ from allensdk.core.reference_space_cache import ReferenceSpaceCache
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import r2_score
+from scipy.stats import ttest_ind
 import sys
 import os
 import numpy as np
@@ -16,12 +17,19 @@ import pickle
 #from sklearn.preprocessing import OneHotEncoder
 from packages.regressionUtils import *
 from packages.dataloading import *
-from packages.functional_dataset import *
+#from packages.functional_dataset import *
 from packages.plotting_util import *
 from collections import Counter
 import datetime
 import re
 import argparse
+
+
+#from utils.connect_to_dj import VM
+from ccfRegistration.ccf_utils import * #load_tau_CCF, key_CCF, merge_regions, calculate_pooling_grid, passing_census, functional_timescales
+
+
+test_mode = False # just makes a few things easier when runninng in interactive mode
 
 
 def string_sanitizer(input_string):
@@ -35,9 +43,9 @@ def plot_mask(structureOfInterest,structure_mask,save_path,resolution):
     plt.savefig(os.path.join(save_path,'Masks',f'{structureOfInterest}_{resolution}.pdf'),dpi=600,bbox_inches='tight')
     plt.close()
 
-def cell_region_function(cell_region,cell_layer,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX,layerIDX):
+def cell_region_function(cell_region, cell_layer, resolution, structure_mask, CCFvalues, CCFindexOrder, CCFmultiplier, structIDX, layerIDX):
     for cell in range(cell_region[resolution].shape[0]):
-        currentMask = structure_mask[round(CCFvalues[cell,CCFindexOrder[0]]*CCFmultiplier),round(CCFvalues[cell,CCFindexOrder[1]]*CCFmultiplier),round(CCFvalues[cell,CCFindexOrder[2]]*CCFmultiplier)]
+        currentMask = structure_mask[round(CCFvalues[cell,CCFindexOrder[0]]*CCFmultiplier), round(CCFvalues[cell,CCFindexOrder[1]]*CCFmultiplier), round(CCFvalues[cell,CCFindexOrder[2]]*CCFmultiplier)]
         if currentMask > 0:
             cell_region[resolution][cell] = structIDX
             if resolution == '10':
@@ -58,7 +66,7 @@ def main():
     parser.add_argument("--line_selection", choices=["Cux2-Ai96", "Rpb4-Ai96"], default="Cux2-Ai96") #select the functional dataset for tau regressions
     parser.add_argument("--gene_limit", type=int, default=-1) #for testing purposes to load a subset of merfish-imputed data, set to -1 to include all genes
     parser.add_argument("--restrict_merfish_imputed_values", type=bool, default=False) #condition to restrict merfish-imputed dataset to non-imputed genes
-    parser.add_argument("--tau_pool_size_array_full", type=lambda s: [float(item) for item in s.split(',')], default="4.1") #[1,2,3,4,5] #in 25um resolution CCF voxels, converted to mm later
+    parser.add_argument("--tau_pool_size_array_full", type=lambda s: [float(item) for item in s.split(',')], default="4.0") #[1,2,3,4,5] #in 25um resolution CCF voxels, converted to mm later
     parser.add_argument("--n_splits", type=int, default=5) #number of splits for cross-validations in regressions
     parser.add_argument("--alpha_params", type=lambda s: [float(item) for item in s.split(',')], default="-5,0,30") # [Alpha Lower (10**x), Alpha Upper (10**x), Steps]... alpha values for Lasso regressions
     parser.add_argument("--plotting", type=bool, default=True)
@@ -72,10 +80,17 @@ def main():
     parser.add_argument("--plotting_conditions", type=lambda s: [bool(int(item)) for item in s.split(',')], default="0,1") # For plotting spatial reconstructions
     parser.add_argument("--arg_parse_test", type=bool, default=False) # For testing the bash argument parser
     parser.add_argument("--job_task_id", type=int, default=0) # For parallel processing
-    args = parser.parse_args()
+    parser.add_argument("--bootstrapping_scale", type=float, default=1.0) # For CCF coordinate pool bootstrapping (functional-transcriptomic pool registration) scale, default is 1.0
+    parser.add_argument("--min_pool_size", type=int, default=3) # Minimum number of pixels and cells in a pool for bootstrapping, default is 3
+    
+    if test_mode:
+        args = parser.parse_args([])
+        gene_limit = 2 # For testing purposes, limit the number of genes to 2
+    else:
+        args = parser.parse_args()
+        gene_limit = args.gene_limit
 
     line_selection = args.line_selection
-    gene_limit = args.gene_limit
     restrict_merfish_imputed_values = args.restrict_merfish_imputed_values
     tau_pool_size_array_full = args.tau_pool_size_array_full
     n_splits = args.n_splits
@@ -91,6 +106,8 @@ def main():
     plotting_conditions = args.plotting_conditions
     arg_parse_test = args.arg_parse_test
     job_task_id = args.job_task_id
+    bootstrapping_scale = args.bootstrapping_scale
+    min_pool_size = args.min_pool_size
 
     print(f"line_selection: {line_selection}")
     print(f"gene_limit: {gene_limit}")
@@ -109,21 +126,38 @@ def main():
     print(f"plotting_conditions: {plotting_conditions}")
     print(f"arg_parse_test: {arg_parse_test}")
     print(f"job_task_id: {job_task_id}")
+    print(f"bootstrapping_scale: {bootstrapping_scale}")
+    print(f"min_pool_size: {min_pool_size}")
 
     if arg_parse_test:
-        return
+        sys.exit('Test mode: terminating script...')
+
+    
+    
+    #struct_list = np.array(['MOp','MOs','VISa','VISp','VISam','VISpm','SS','RSP'])
+    # area_colors = ['#ff0000','#ff704d',                      #MO, reds
+    #             '#4dd2ff','#0066ff','#003cb3','#00ffff',    #VIS, blues
+    #             '#33cc33',                                  #SSp, greens
+    #             '#a366ff']                                  #RSP, purples
+    region_color_dict = {
+        'MOp'   : '#ff704d',
+        'MOs'   : '#ff0000',
+        'VISa'  : '#00aeff',
+        'VISp'  : '#1a31fc',
+        'VISam' : '#21ffff',
+        'VISpm' : '#2a5cc1',
+        'SS'    : '#33cc33',
+        'RSP'   : '#a366ff',
+    }
+
+    struct_list = np.array(list(region_color_dict.keys()))
+    area_colors = list(region_color_dict.values())
+
+
 
     for restrict_merfish_imputed_values, predictor_order in zip([True,False],[[0,1],[0]]):
 
-        struct_list = np.array(['MOp','MOs','VISa','VISp','VISam','VISpm','SS','RSP'])
-
-        area_colors = ['#ff0000','#ff704d',                      #MO, reds
-                    '#4dd2ff','#0066ff','#003cb3','#00ffff',    #VIS, blues
-                    '#33cc33',                                  #SSp, greens
-                    '#a366ff']                                  #RSP, purples
-
-
-        structNum = struct_list.shape[0]
+        structNum = len(struct_list)
         #applyLayerSpecificityFilter = False #ensure that CCM coordinates are contained within a layer specified in layerAppend
         #layerAppend = '2/3'
         #groupSelector = 12  #12 -> IT_7  -> L2/3 IT
@@ -139,7 +173,7 @@ def main():
         line_selection, my_os, save_path_OSs, download_base = pathSetter(line_selection) # Line selection is modified if the script is run on Linux
         save_path = save_path_OSs[my_os == 'Windows']
 
-        time_start = datetime.datetime.now()
+        time_start = datetime.now()
 
         standard_scaler = StandardScaler()
         #hotencoder = OneHotEncoder(sparse_output=False)
@@ -148,26 +182,26 @@ def main():
         ### CCF Reference Space Creation
         ### See link for CCF example scripts from the allen: allensdk.readthedocs.io/en/latest/_static/examples/nb/reference_space.html
         tree = {}
-        rsp = {}
+        ref_space = {}
         for resolution in [10,25,100]:
             output_dir = os.path.join(save_path,'Data',f'nrrd{resolution}')
             reference_space_key = os.path.join('annotation','ccf_2017')
-            rspc = ReferenceSpaceCache(resolution, 'annotation/ccf_2017', manifest=Path(output_dir) / 'manifest.json') #reference_space_key replaced by 'annotation/ccf_2017'
+            ref_space_cache = ReferenceSpaceCache(resolution, 'annotation/ccf_2017', manifest=Path(output_dir) / 'manifest.json') #reference_space_key replaced by 'annotation/ccf_2017'
             # ID 1 is the adult mouse structure graph
-            tree[f'{resolution}'] = rspc.get_structure_tree(structure_graph_id=1)
+            tree[f'{resolution}'] = ref_space_cache.get_structure_tree(structure_graph_id=1)
 
-            annotation, meta = rspc.get_annotation_volume() #in browser navigate to the .nrrd file and download manually, not working automatically for some reason
+            annotation, meta = ref_space_cache.get_annotation_volume() #in browser navigate to the .nrrd file and download manually, not working automatically for some reason
             # The file should be moved to the reference space key directory, only needs to be done once
             os.listdir(Path(output_dir) / reference_space_key)
-            rsp[f'{resolution}'] = rspc.get_reference_space()
+            ref_space[f'{resolution}'] = ref_space_cache.get_reference_space()
 
         #################
         ### Load data ###
         gene_data_dense, pilot_gene_names, fn_clustid, fn_CCF = pilotLoader(save_path)
-        merfish_CCF_Genes, all_merfish_gene_names = merfishLoader(save_path,download_base,pilot_gene_names,restrict_merfish_imputed_values,gene_limit)
-        all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line_selection, 'IntoTheVoid')
+        merfish_CCF_Genes, all_merfish_gene_names = merfishLoader(save_path, download_base, pilot_gene_names, restrict_merfish_imputed_values, gene_limit)
+        all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line_selection, task='IntoTheVoid')
 
-        time_load_data = datetime.datetime.now()
+        time_load_data = datetime.now()
         print(f'Time to load data: {time_load_data - time_start}')
 
         if plotting:
@@ -182,12 +216,13 @@ def main():
             img = ax.scatter(all_tau_CCF_coords[0,:], all_tau_CCF_coords[1,:], s=0.1, c=all_tau_CCF_coords[2,:], cmap='cool')
             ax.scatter(CCF25_bregma[0], CCF25_bregma[1], color='blue', label='bregma')
             ax.scatter(CCF25_lambda[0], CCF25_lambda[1], color='purple', label='lambda')
-            ax.set_xlabel(r'$L \leftarrow M \rightarrow L$ CCF')
-            ax.set_ylabel(r'$A \leftrightarrow P$ CCF')
-            ax.set_title(r'25um CCF-Registered $\tau$ Dataset')
+            ax.set_xlabel(r'CCF ($L \leftarrow M \rightarrow L$)')
+            ax.set_ylabel(r'CCF ($P \leftrightarrow A$)')
+            ax.set_title(rf'25$\mu$m CCF-Registered {line_selection} $\tau$ Dataset')
             ax.legend()
             cbar = plt.colorbar(img, ax=ax)
-            cbar.set_label(r'$\tau$')
+            cbar.set_label(r'$\tau$ (s)')
+            plt.gca().invert_yaxis()
 
         #standardMerfish_CCF_Genes = standard_scaler.fit_transform(merfish_CCF_Genes)
         #standardMerfish_CCF_Genes = pd.DataFrame(standardMerfish_CCF_Genes, columns=merfish_CCF_Genes.columns)
@@ -200,8 +235,8 @@ def main():
         raw_merfish_CCF = np.array(merfish_CCF_Genes.loc[:,['x_ccf','y_ccf','z_ccf']])
         del merfish_CCF_Genes
 
-        print(f'Memory usage of raw_merfish_genes: {round(sys.getsizeof(raw_merfish_genes)/1024/1024,1)}GB')
-        print(f'Memory usage of raw_merfish_CCF: {round(sys.getsizeof(raw_merfish_CCF)/1024/1024,1)}GB') #even though there are only three coordinate axes, the precision of these values is higher than the gene expressions (uses up more memory than might be expected)
+        print(f'Memory usage of raw_merfish_genes: {round(sys.getsizeof(raw_merfish_genes)/1024/1024,1)} MB')
+        print(f'Memory usage of raw_merfish_CCF: {round(sys.getsizeof(raw_merfish_CCF)/1024/1024,1)} MB') #even though there are only three coordinate axes, the precision of these values is higher than the gene expressions (uses up more memory than might be expected)
 
 
 
@@ -259,7 +294,7 @@ def main():
         else:
             merfish_datasetName_append = '-Imputed'
 
-        for resolution,datasetName in zip(['10','25'],['Merfish'+merfish_datasetName_append,'Pilot']):
+        for resolution, datasetName in zip(['10','25'], ['Merfish'+merfish_datasetName_append,'Pilot']):
             if resolution == '10':
                 CCFvalues = raw_merfish_CCF
                 CCFmultiplier = 100
@@ -269,7 +304,7 @@ def main():
                 CCFmultiplier = 1
                 CCFindexOrder = [0,1,2]
 
-            maskDim0,maskDim1,maskDim2 = rsp[f'{resolution}'].make_structure_mask([1]).shape
+            maskDim0,maskDim1,maskDim2 = ref_space[f'{resolution}'].make_structure_mask([1]).shape
             
             fig, ax = plt.subplots(1,3,figsize=(15,5))
             for ccfIDX,axes in enumerate(ax):
@@ -280,11 +315,12 @@ def main():
 
             #fig, ax = plt.subplots(1,1,figsize=(8,8))
             if resolution == '10':
+                print(f'\n(10 um masks, layer masking required for Merfish dataset)')
                 for layerIDX,layerAppend in enumerate(merfish_layer_names):
                     print('\n')
 
                     for structIDX,structureOfInterest in enumerate(struct_list):
-                        print(f'Making {layerAppend} {structureOfInterest} CCF mask (resolution={resolution})...')
+                        print(f'Making {layerAppend} {structureOfInterest} CCF mask (resolution={resolution} um)...')
                         
                         if structureOfInterest == 'RSP':
                             structure_mask = np.zeros((maskDim0,maskDim1,maskDim2))
@@ -293,7 +329,7 @@ def main():
                                     for subRSP in ['v','d','agl']:
                                         structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest+subRSP+subLayerAppend])
                                         structureID = structureTree[0]['id']
-                                        structure_mask += rsp[f'{resolution}'].make_structure_mask([structureID])
+                                        structure_mask += ref_space[f'{resolution}'].make_structure_mask([structureID])
                         
                         if structureOfInterest == 'SS':
                             structure_mask = np.zeros((maskDim0,maskDim1,maskDim2))
@@ -301,7 +337,7 @@ def main():
                                 for subSS in ['p-n','p-bfd','p-ll','p-m','p-ul','p-tr','p-un','s']:
                                     structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest+subSS+subLayerAppend])
                                     structureID = structureTree[0]['id']
-                                    structure_mask += rsp[f'{resolution}'].make_structure_mask([structureID])
+                                    structure_mask += ref_space[f'{resolution}'].make_structure_mask([structureID])
 
                         if (structureOfInterest != 'SS') and (structureOfInterest != 'RSP'):
                             structure_mask = np.zeros((maskDim0,maskDim1,maskDim2))
@@ -309,21 +345,21 @@ def main():
                                 if not((subLayerAppend == '4') and (structureOfInterest == 'MOp')) and not((subLayerAppend == '4') and (structureOfInterest == 'MOs')):
                                     structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest+subLayerAppend])
                                     structureID = structureTree[0]['id']
-                                    structure_mask += rsp[f'{resolution}'].make_structure_mask([structureID])
+                                    structure_mask += ref_space[f'{resolution}'].make_structure_mask([structureID])
 
                         plot_mask(f'{structureOfInterest} {string_sanitizer(layerAppend)}',structure_mask,save_path,resolution)
                         cell_region,cell_layer = cell_region_function(cell_region,cell_layer,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX,layerIDX)
                     region_count_printer(cell_region,resolution,f'{datasetName} {string_sanitizer(layerAppend)}',struct_list)
             
             if resolution == '25':
-                print(f'\n(no layer masking required, as it is already present in dataset)')
+                print(f'\n(25 um masks, no layer masking required, as it is already present in dataset)\n')
                 for structIDX,structureOfInterest in enumerate(struct_list):
-                    print(f'Making {structureOfInterest} CCF mask (resolution={resolution})...')
+                    print(f'Making {structureOfInterest} CCF mask (resolution={resolution} um)...')
 
                     structureTree = tree[f'{resolution}'].get_structures_by_acronym([structureOfInterest])
                     structureName = structureTree[0]['name']
                     structureID = structureTree[0]['id']
-                    structure_mask = rsp[f'{resolution}'].make_structure_mask([structureID])
+                    structure_mask = ref_space[f'{resolution}'].make_structure_mask([structureID])
 
                     plot_mask(structureOfInterest,structure_mask,save_path,resolution)
                     cell_region,cell_layer = cell_region_function(cell_region,cell_layer,resolution,structure_mask,CCFvalues,CCFindexOrder,CCFmultiplier,structIDX,layerIDX)
@@ -334,7 +370,7 @@ def main():
         regionalResample = False #resample each cortical region such that it's represented equally, in practice this tends to over-represent smaller regions
         regional_resampling = 3000
         cell_region_H2layerFiltered, gene_data_dense_H2layerFiltered, mlCCF_per_cell_H2layerFiltered, apCCF_per_cell_H2layerFiltered, H3_per_cell_H2layerFiltered, mean_expression = {},{},{},{},{},{}
-        for layerNames,numLayers,resolution in zip([pilotLayerNames,merfish_layer_names],[len(pilotLayerNames),len(merfish_layer_names)],['25','10']):
+        for layerNames, numLayers, resolution in zip([pilotLayerNames,merfish_layer_names], [len(pilotLayerNames),len(merfish_layer_names)], ['25','10']):
             if resolution == '10':
                 CCFvalues = raw_merfish_CCF
                 gene_data = raw_merfish_genes
@@ -472,6 +508,7 @@ def main():
                 for layerIDX in range(numLayers):
                     geneProfilePresentCount = 0
                     possiblePoolsCount = 0
+                    tau_cell_poolsize_mean_ratio = 0
                     print(f'Tau-Gene Alignment Pooling ({datasetName}, size {tauPoolSize}mm): {layerNames[layerIDX]}')
                     for current_tau_ML_pool in np.arange(minML_CCF,CCF_ML_Center_mm,tauPoolSize):
                         current_ML_tau_pooling_IDXs = np.where(np.abs(np.abs(all_tau_CCF_coords[0,:]-CCF_ML_Center_mm)-np.abs(current_tau_ML_pool-CCF_ML_Center_mm))<(tauPoolSize/2))[0] #our pixel space extents bilaterally, but CCF is unilateral, so 'CCF' coordinates from pixel space need to reflected over the ML center axis (CCF_ML_center)
@@ -492,18 +529,23 @@ def main():
 
                             current_cell_pooling_IDXs = np.where(np.abs(apCCF_per_cell_H2layerFiltered[resolution][layerIDX].reshape(-1)[current_ML_cell_pooling_IDXs]-current_tau_AP_pool)<(tauPoolSize/2))[0]
                             pooledTaus = all_tau_CCF_coords[2,current_ML_tau_pooling_IDXs[current_tau_pooling_IDXs]].reshape(-1,1)
-                            if pooledTaus.shape[0] > 0:
+                            if pooledTaus.shape[0] >= min_pool_size:
                                 #print(mlCCF_per_cell_H2layerFiltered[layerIDX][current_ML_cell_pooling_IDXs])
                                 possiblePoolsCount += 1
-                                if current_cell_pooling_IDXs.shape[0] > 0:
+                                if current_cell_pooling_IDXs.shape[0] >= min_pool_size:
                                     #print(current_tau_ML_pool,current_tau_AP_pool)
+                                    #sys.exit('testing :)')
+                                    tau_cell_poolsize_ratio = pooledTaus.shape[0] / current_cell_pooling_IDXs.shape[0]
+                                    tau_cell_poolsize_mean_ratio += tau_cell_poolsize_ratio
+                                    
                                     geneProfilePresentCount += 1
 
                                     pooledTauCCF_coords[layerIDX] = np.vstack((pooledTauCCF_coords[layerIDX], np.array((current_tau_ML_pool,current_tau_AP_pool,np.mean(pooledTaus),np.std(pooledTaus))).reshape(1,4))) #switched order
                                     
                                     #######################################################
                                     ### Alignment of functional and expression datasets ###
-                                    pool_resample_size = current_cell_pooling_IDXs.shape[0] #<- resample to the size of the expression data (sets expression dataset as the bottleneck)
+                                    pool_resample_size = int(bootstrapping_scale * pooledTaus.shape[0]) #<- resample to the size of the functional data (sets functional dataset as the bottleneck)
+                                    #pool_resample_size = int(bootstrapping_scale * current_cell_pooling_IDXs.shape[0]) #<- resample to the size of the expression data (sets expression dataset as the bottleneck)
                                     
                                     tauResamplingIDX = random.choices(np.arange(0,pooledTaus.shape[0]), k=pool_resample_size)
                                     resampledTau_aligned[layerIDX] = np.vstack((resampledTau_aligned[layerIDX],pooledTaus[tauResamplingIDX,:].reshape(-1,1)))
@@ -546,9 +588,68 @@ def main():
                                 else:
                                     pooledTauCCF_coords_noGene[layerIDX] = np.vstack((pooledTauCCF_coords_noGene[layerIDX], np.array((current_tau_ML_pool,current_tau_AP_pool,np.mean(pooledTaus),np.std(pooledTaus))).reshape(1,4)))
                     genePoolSaturation.append(geneProfilePresentCount/possiblePoolsCount)
+
+                    tau_cell_poolsize_mean_ratio /= geneProfilePresentCount
+                    print(f'Tau-Cell Pool Size Mean Ratio: {round(tau_cell_poolsize_mean_ratio,3)}')
                     # if resolution == '25':
                     #     resampledH3_aligned_H2layerFiltered_OneHot.append(hotencoder.fit_transform(resampledH3_aligned_H2layerFiltered[layerIDX].T))
                     #     H3_per_cell_H2layerFiltered_OneHot.append(hotencoder.fit_transform(H3_per_cell_H2layerFiltered[resolution][layerIDX]))
+                
+
+
+                ########################################################################
+                ### Script for transcriptomic tau-fold change in expression strength ###
+                if datasetName != 'Pilot':
+                    for layer_idx in range(numLayers):
+                        tau_25th, tau_75th = np.percentile(resampledTau_aligned[layer_idx], [25, 75])
+                        tau_25th_idxs = np.where(resampledTau_aligned[layer_idx] <= tau_25th)[0]
+                        tau_75th_idxs = np.where(resampledTau_aligned[layer_idx] >= tau_75th)[0]
+
+                        volcano_log2_fc = np.zeros(total_genes)
+                        volcano_neg_log10_p = np.ones(total_genes)
+
+                        for geneIDX in range(total_genes):
+                            gene_expression_tau25th = resampledGenes_aligned[layer_idx][tau_25th_idxs, geneIDX]
+                            gene_expression_tau75th = resampledGenes_aligned[layer_idx][tau_75th_idxs, geneIDX]
+
+                            # Calculate log2 fold change (add small value to avoid division by zero)
+                            mean_25 = np.mean(gene_expression_tau25th) + 1e-10
+                            mean_75 = np.mean(gene_expression_tau75th) + 1e-10
+                            volcano_log2_fc[geneIDX] = np.log2(mean_75 / mean_25)
+
+                            if geneIDX < 5: # Show a small number of genes as example of their expression distribution across the tau quartiles
+                                plt.figure(figsize=(8, 6))
+                                plt.hist(gene_expression_tau25th, bins=100, alpha=0.5, color='blue')
+                                plt.hist(gene_expression_tau75th, bins=100, alpha=0.5, color='orange')
+                                plt.axvline(np.mean(gene_expression_tau25th), color='blue', linestyle='dashed', linewidth=1, label=f'Mean Expression, Bottom Quartile $\\tau$')
+                                plt.axvline(np.mean(gene_expression_tau75th), color='orange', linestyle='dashed', linewidth=1, label=f'Mean Expression, Top Quartile $\\tau$')
+                                plt.xlabel('Gene Expression')
+                                plt.ylabel('Frequency')
+                                plt.title(f'{enriched_gene_names[geneIDX]} Expression Distribution Across $\\tau$ Quartiles')
+                                plt.legend()
+                                plt.savefig(os.path.join(tauSortedPath, f'{datasetName}_{line_selection}_geneExpressionDistributionAcrossTauQuartiles_{enriched_gene_names[geneIDX]}_{layerNames[layer_idx]}.pdf'), bbox_inches='tight')
+                                plt.close()
+                            
+                            # Calculate p-value using t-test
+                            volcano_neg_log10_p[geneIDX] = -np.log10(ttest_ind(gene_expression_tau75th, gene_expression_tau25th, equal_var=False)[1]) # Index at 1 (p-value) b/c index at 0 is the t-statistic
+                        
+                        plt.figure(figsize=(8, 6))
+                        plt.scatter(volcano_log2_fc, volcano_neg_log10_p, s=3, color='black')
+                        plt.axhline(y=-np.log10(0.05), color='red', linestyle='--', label='p=0.05')
+                        plt.axvline(x=0, color='black', linestyle='--', label='FC=0')
+                        plt.title(f'Gene Expression Fold Change Across $\\tau$ Top & Bottom Quartiles ({datasetName}, {layerNames[layer_idx]})')
+                        plt.xlabel(f'Log2 Expression Fold Change')
+                        plt.ylabel('-Log10 p-value')
+                        # Annotate each gene with its name
+                        for i, gene_name in enumerate(enriched_gene_names):
+                            plt.annotate(gene_name, (volcano_log2_fc[i], volcano_neg_log10_p[i]), fontsize=10, alpha=1.0)
+                        plt.legend()
+                        plt.savefig(os.path.join(tauSortedPath, f'{datasetName}_{line_selection}_volcanoGeneExpressionFoldChangeAcrossTauQuartiles_{layerNames[layer_idx]}.pdf'), bbox_inches='tight')
+                        plt.close()
+                ############################################################################
+                ### End script for transcriptomic tau-fold change in expression strength ###
+
+
 
                 for layerIDX in range(numLayers):
                     plt.figure(), plt.title(f'CCF Pooling:{tauPoolSize}mm, Fraction of Tau Pooled Points with at least one Gene Profile:{round(genePoolSaturation[layerIDX],3)}\n{line_selection}, {layerNames[layerIDX]}')
@@ -558,23 +659,37 @@ def main():
                     plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{line_selection}_tauExpressionPooling{tauPoolSize}mm_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
                     plt.close()
 
-                    fig, ax = plt.subplots(1,1,figsize=(8,8))
+                    fig, ax = plt.subplots(1,1,figsize=(8,5))
                     plt.suptitle(f'{line_selection} Tau, CCF Pooling:{tauPoolSize}mm\n{line_selection}, {layerNames[layerIDX]}')
                     cmap = plt.get_cmap('cool')
-                    global_min,global_max = np.log10(1),np.log10(30)
-                    norm = matplotlib.colors.Normalize(global_min, global_max)
-                    tau_colors = cmap(norm(np.log10(pooledTauCCF_coords[layerIDX][:,2])))
-                    ax.scatter(pooledTauCCF_coords[layerIDX][:,1],pooledTauCCF_coords[layerIDX][:,0],color=tau_colors,s=6)
-                    ax.set_xlabel(r'A$\leftrightarrow$P (mm)'), ax.set_ylabel(r'L$\leftrightarrow$M (mm)'), ax.axis('equal')
-                    mappable = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-                    mappable.set_array(tau_colors)
-                    cbar = plt.colorbar(mappable, ax=ax, shrink=0.5, aspect=35, pad=0.1, orientation='horizontal')
-                    cbar_ticks = np.arange(global_min, global_max, 1)
-                    cbar.set_ticks(cbar_ticks)
-                    cbar.set_ticklabels(10**(cbar_ticks),fontsize=6,rotation=45)
-                    cbar.set_label('Tau', rotation=0)
+                    sc = ax.scatter(pooledTauCCF_coords[layerIDX][:,1], pooledTauCCF_coords[layerIDX][:,0], c=pooledTauCCF_coords[layerIDX][:,2], s=12, cmap=cmap)
+                    ax.set_xlabel(r'A$\leftrightarrow$P (mm)')
+                    ax.set_ylabel(r'L$\leftrightarrow$M (mm)')
+                    ax.axis('equal')
+                    # Move colorbar further down below the x-axis label
+                    fig.subplots_adjust(bottom=0.22)  # Increase bottom margin to make space
+                    cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.03])  # [left, bottom, width, height]
+                    cbar = fig.colorbar(sc, cax=cbar_ax, orientation='horizontal')
+                    cbar.set_label(f'$\\tau$ (s)', rotation=0)
                     plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{line_selection}_tauPooling{tauPoolSize}mm_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
                     plt.close()
+                    # fig, ax = plt.subplots(1,1,figsize=(8,8))
+                    # plt.suptitle(f'{line_selection} Tau, CCF Pooling:{tauPoolSize}mm\n{line_selection}, {layerNames[layerIDX]}')
+                    # cmap = plt.get_cmap('cool')
+                    # global_min,global_max = np.log10(1),np.log10(30)
+                    # norm = matplotlib.colors.Normalize(global_min, global_max)
+                    # tau_colors = cmap(norm(np.log10(pooledTauCCF_coords[layerIDX][:,2])))
+                    # ax.scatter(pooledTauCCF_coords[layerIDX][:,1],pooledTauCCF_coords[layerIDX][:,0],color=tau_colors,s=6)
+                    # ax.set_xlabel(r'A$\leftrightarrow$P (mm)'), ax.set_ylabel(r'L$\leftrightarrow$M (mm)'), ax.axis('equal')
+                    # mappable = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+                    # mappable.set_array(tau_colors)
+                    # cbar = plt.colorbar(mappable, ax=ax, shrink=0.5, aspect=35, pad=0.1, orientation='horizontal')
+                    # cbar_ticks = np.arange(global_min, global_max, 1)
+                    # cbar.set_ticks(cbar_ticks)
+                    # cbar.set_ticklabels(10**(cbar_ticks),fontsize=6,rotation=45)
+                    # cbar.set_label('Tau', rotation=0)
+                    # plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{line_selection}_tauPooling{tauPoolSize}mm_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
+                    # plt.close()
 
                     plt.figure(), plt.xlabel('Pool Pixel Count'), plt.ylabel('Pool Cell Count')
                     plt.title(f'Pool Size:{tauPoolSize}mm, Pixel & Cell Counts by CCF Pool\n{layerNames[layerIDX]}\n{line_selection}, {layerNames[layerIDX]}')

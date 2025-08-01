@@ -4,9 +4,7 @@ import os
 import pickle
 from sklearn.metrics import r2_score
 from sklearn.linear_model import LinearRegression
-from scipy.stats import gaussian_kde
 import platform
-from scipy.ndimage import gaussian_filter
 
 # Define color constants
 BACKGROUND_GENE_COLOR_PDF = (0, 0, 0)

@@ -13,7 +13,18 @@ from abc_atlas_access.abc_atlas_cache.abc_project_cache import AbcProjectCache
 import anndata
 
 
-def merfishLoader(savePath,download_base,pilotGeneNames,restrict_merfish_imputed_values,geneLimit=-1):
+def merfishLoader(savePath, download_base, pilotGeneNames, restrict_merfish_imputed_values, geneLimit=-1, manifest_version='20240831', ensured_gene_list=['Cux2']):
+    '''
+    Load the Merfish-Imputed Dataset and filter genes based on pilot dataset and ensured gene list.
+    Args:
+        savePath: Path to save the output files
+        download_base: Base path for downloading data
+        pilotGeneNames: List of gene names from the pilot dataset
+        restrict_merfish_imputed_values: Boolean to restrict values to those in the pilot dataset
+        geneLimit: Limit on the number of genes to include, -1 for no limit
+        manifest_version: Version of the manifest to use for loading data
+        ensured_gene_list: make sure to include these genes, regardless of whether they are imputed or not
+    '''
 
     print(f'\nLoading Merfish-Imputed Dataset...')
 
@@ -23,7 +34,7 @@ def merfishLoader(savePath,download_base,pilotGeneNames,restrict_merfish_imputed
     abc_cache = AbcProjectCache.from_s3_cache(download_base)
     print(abc_cache.current_manifest)
     print(abc_cache.cache.manifest_file_names)
-    abc_cache.load_manifest('releases/20240831/manifest.json')
+    abc_cache.load_manifest(f'releases/{manifest_version}/manifest.json')
 
     abc_cache.list_directories
 
@@ -93,7 +104,6 @@ def merfishLoader(savePath,download_base,pilotGeneNames,restrict_merfish_imputed
     print(f'Number of unique enriched genes: {len(unique_enriched_genes)}')
 
 
-    ensured_gene_list = ['Cux2'] #make sure to include these genes, regardless of whether they are imputed or not
     if restrict_merfish_imputed_values:
         used_genes_list = list(((set(enriched_gene_names_merfish_imputed) | set(pilotGeneNames)) & set(merfishGenes)) | set(ensured_gene_list))
     else:
