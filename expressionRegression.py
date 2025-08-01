@@ -24,15 +24,6 @@ import datetime
 import re
 import argparse
 
-my_os = platform.system()
-local_pinto_repo_dir = {
-    'Linux': r'/home/lai7370/Experiments/',
-    'Windows': r'C:\Users\lai7370\Experiments2'
-}.get(my_os, '')
-sub_repo_path = os.path.join('python', 'src')
-repos_to_append = ['PintoLab_behavioralAnalysis', 'PintoLab_dj', 'PintoLab_util', 'PintoLab_imagingAnalysis']
-for current_repo in repos_to_append:
-    sys.path.append(os.path.join(local_pinto_repo_dir, current_repo, sub_repo_path))
 
 #from utils.connect_to_dj import VM
 from ccfRegistration.ccf_utils import * #load_tau_CCF, key_CCF, merge_regions, calculate_pooling_grid, passing_census, functional_timescales

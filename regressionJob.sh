@@ -55,7 +55,7 @@ while [[ "$#" -gt 0 ]]; do
             echo "  -k, --plotting_conditions               # For plotting spatial reconstructions"
             echo "  -x, --arg_parse_test                    # For testing the bash argument parser"
             echo "  -b, --bootstrapping_scale               # Scale for bootstrapping, default is 1.0"
-            echo "  -i, --min_pool_size                     # Minimum pool size for tau regressions, default is 3.0"
+            echo "  -i, --min_pool_size                     # Minimum pool size for tau regressions, default is 3"
             echo "  -h, --help                              # Display this help message"
             exit 0
             ;;
@@ -81,7 +81,7 @@ variable_management=${variable_management:-true}
 plotting_conditions=${plotting_conditions:-0,1} # converted to bool in python script
 arg_parse_test=${arg_parse_test:-false}
 bootstrapping_scale=${bootstrapping_scale:-1.0}
-min_pool_size=${min_pool_size:-3.0}
+min_pool_size=${min_pool_size:-3}
 
 python expressionRegression.py \
     --gene_limit=$gene_limit \
