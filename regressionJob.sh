@@ -12,7 +12,7 @@
 export PYTHONUNBUFFERED=1 #for real-time log files
 
 source ~/miniconda3/etc/profile.d/conda.sh
-conda activate allenSDKenv
+conda activate torchEnv #allenSDKenv
 
 # Parse command line arguments for all variables
 while [[ "$#" -gt 0 ]]; do
