@@ -951,7 +951,8 @@ def main():
                             if y_data[0].shape[0] != x_data[0].shape[0]:
                                 print(f'Aborting regression, number of predictor and response matrix observations do not agree...')
                                 break
-                            best_coef_XCCF_tau, lasso_weight_XCCF_tau, bestAlpha_XCCF_tau, alphas_XCCF_tau, tauPredictions_XCCF_tau, bestR2_XCCF_tau, loss_history_test_XCCF_tau, loss_history_train_XCCF_tau, dual_gap_history_XCCF_tau = layerRegressions(response_dim, n_splits, highMeanPredictorIDXs, x_data, y_data, layerNames, regressionConditions, region_label_filtered, alpha_params, max_iter)
+                            highMeanPredictorIDXs_XCCF = [np.concatenate((highMeanPredictorIDXs[layerIDX], np.array([x_data[layerIDX].shape[1]-2, x_data[layerIDX].shape[1]-1]))) for layerIDX in range(numLayers)] #add AP and ML CCF indices to high mean predictors
+                            best_coef_XCCF_tau, lasso_weight_XCCF_tau, bestAlpha_XCCF_tau, alphas_XCCF_tau, tauPredictions_XCCF_tau, bestR2_XCCF_tau, loss_history_test_XCCF_tau, loss_history_train_XCCF_tau, dual_gap_history_XCCF_tau = layerRegressions(response_dim, n_splits, highMeanPredictorIDXs_XCCF, x_data, y_data, layerNames, regressionConditions, region_label_filtered, alpha_params, max_iter)
                             predictor_condition_numbers_XCCF_tau = [np.linalg.cond(x) for x in x_data]
 
 
@@ -1048,7 +1049,7 @@ def main():
                     with open(os.path.join(output_dir, 'plotting_data.pickle'), 'wb') as handle:
                         pickle.dump(meta_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-                    # temp_path = 'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3\Cux2-Ai96\pooling0.1025mm\GenePredictors\Merfish'
+                    # temp_path = 'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3\Cux2-Ai96\pooling0.1mm\GenePredictors\Merfish'
                     # meta_dict = pickle.load(open(os.path.join(temp_path,f'plotting_data.pickle'), 'rb'))
 
                     # line_selection = meta_dict['line_selection']

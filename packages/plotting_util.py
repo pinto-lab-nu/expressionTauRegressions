@@ -64,7 +64,7 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
     alphaPrecision = params['alpha_precision']
     structNum = params['structNum']
 
-    savePath = paths['savePath'][my_os == 'Windows']
+    savePath = paths['save_path'][my_os == 'Windows']
     predictorPathSuffix = paths['predictorPathSuffix']
     tauSortedPath = paths['tauSortedPath'][my_os == 'Windows']
 
@@ -119,8 +119,11 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
     ###################################################################
     ################### Regression Outputs Plotting ###################
     resampTitle = f'predThresh={meanPredictionThresh}'
-    for spatialReconstruction in plottingConditions: #[True,False]
-        if spatialReconstruction:
+    
+    #for spatialReconstruction in plottingConditions: #[True,False]
+    for reconstruction_type in ['spatial', 'tau', 'XCCF_tau']:
+        if reconstruction_type == 'spatial':
+            spatialReconstruction = True
             recon_type = 'Spatial'
             save_name = 'spatial'
             loss_history_test = loss_history_test_spatial
@@ -143,7 +146,8 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
             else:
                 titleAppend = f'Spatial Reconstruction from {datasetName} {predictorTitle} ({resampTitle})'
                 plottingDir = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}')
-        else:
+        if reconstruction_type == 'tau':
+            spatialReconstruction = False
             recon_type = '$\\tau$'
             save_name = 'tau'
             loss_history_test = loss_history_test_tau
@@ -162,6 +166,27 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
             sd_fold_coef = sd_fold_coef_tau
             response_dim = 1
             plottingDir = os.path.join(tauSortedPath,f'{predictorPathSuffix}',f'{datasetName}')
+        if reconstruction_type == 'XCCF_tau':
+            spatialReconstruction = False
+            recon_type = '$\\beta$[Expression,CCF]=$\\tau$'
+            save_name = 'XCCF_tau'
+            loss_history_test = loss_history_test_XCCF_tau
+            loss_history_train = loss_history_train_XCCF_tau
+            dual_gap_history = dual_gap_history_XCCF_tau
+            predictor_condition_numbers = predictor_condition_numbers_XCCF_tau
+            plottingTitles = ["X,CCF to tau"]
+            titleAppend = f'{lineSelection} X,CCF to tau Reconstruction from {datasetName} {predictorTitle} (pooling={tauPoolSize}mm, {resampTitle})'
+            tauPredictions = tauPredictions_XCCF_tau
+            bestR2 = bestR2_XCCF_tau
+            mean_fold_coef = mean_fold_coef_XCCF_tau
+            sorted_coef = sorted_coef_XCCF_tau
+            bestAlpha = bestAlpha_XCCF_tau
+            alphas = alphas_XCCF_tau
+            lasso_weight = lasso_weight_XCCF_tau
+            sd_fold_coef = sd_fold_coef_XCCF_tau
+            response_dim = 1
+            plottingDir = os.path.join(tauSortedPath,f'{predictorPathSuffix}',f'{datasetName}')
+            predictorNamesArray = np.hstack((predictorNamesArray,['AP','ML']))
         
         if not os.path.exists(plottingDir):
             os.makedirs(plottingDir)
