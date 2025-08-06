@@ -84,7 +84,7 @@ def main():
     parser.add_argument("--alpha_precision", type=int, default=5) # Just for display (in plotting and regression text files)
     parser.add_argument("--verbose", type=str_to_bool, default=True)    # For print statements
     parser.add_argument("--predictor_order", type=lambda s: [int(item) for item in s.split(',')], default="0")           # Select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
-    parser.add_argument("--regressions_to_start", type=lambda s: [int(item) for item in s.split(',')], default="0,1")    # Select response variables for regressions, and order [0:tau, 1:CCF]
+    parser.add_argument("--regressions_to_start", type=lambda s: [int(item) for item in s.split(',')], default="0,1,2")    # Select response variables for regressions, and order [0:tau, 1:CCF]
     parser.add_argument("--max_iter", type=int, default=200) # For layer regressions
     parser.add_argument("--variable_management", type=str_to_bool, default=True) # Removes large variables from memory after use (needs to be expanded to include more variables)
     parser.add_argument("--plotting_conditions", type=lambda s: [bool(int(item)) for item in s.split(',')], default="0,1") # For plotting spatial reconstructions
@@ -505,6 +505,8 @@ def main():
                 pooledTauCCF_coords_noGene = [np.empty((0,4)) for _ in range(numLayers)]
                 pooledPixelCount_v_CellCount = [np.empty((0,2)) for _ in range(numLayers)]
                 resampledTau_aligned = [np.empty((0,1)) for _ in range(numLayers)]
+                resampledAP_aligned = [np.empty((0,1)) for _ in range(numLayers)]
+                resampledML_aligned = [np.empty((0,1)) for _ in range(numLayers)]
                 tau_aligned_forH3 = [np.empty((0,1)) for _ in range(numLayers)]
                 pooled_cell_region_geneAligned_H2layerFiltered = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
                 pooled_region_label_alignedForTau = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
@@ -567,6 +569,11 @@ def main():
                                     gene_pool_data = gene_data_dense_H2layerFiltered[resolution][layerIDX][current_ML_cell_pooling_IDXs[current_cell_pooling_IDXs],:]
                                     geneResamplingIDX = random.choices(np.arange(0,gene_pool_data.shape[0]), k=pool_resample_size)
                                     resampledGenes_aligned[layerIDX] = np.vstack((resampledGenes_aligned[layerIDX],gene_pool_data[geneResamplingIDX,:].reshape(-1,total_genes)))
+
+                                    pool_apCCF = np.ones((pool_resample_size, 1)) * current_tau_AP_pool
+                                    pool_mlCCF = np.ones((pool_resample_size, 1)) * current_tau_ML_pool
+                                    resampledAP_aligned[layerIDX] = np.vstack((resampledAP_aligned[layerIDX],pool_apCCF))
+                                    resampledML_aligned[layerIDX] = np.vstack((resampledML_aligned[layerIDX],pool_mlCCF))
                                     ### Alignment handled ###
                                     #########################
 
@@ -578,7 +585,7 @@ def main():
                                         counts = np.array([np.sum(data_flattened == category) for category in categories])
                                         normalized_counts = (counts / counts.sum()).reshape(-1,9)
 
-                                        H3ResamplingIDX = random.choices(np.arange(0,1), k=pooledTaus.shape[0])
+                                        H3ResamplingIDX = random.choices(np.arange(0,1), k=pool_resample_size) #k=pooledTaus.shape[0])
 
                                         #resampledH3_aligned_H2layerFiltered[layerIDX] = np.hstack((resampledH3_aligned_H2layerFiltered[layerIDX],H3_pool_data[geneResamplingIDX,:].reshape(1,-1)))
                                         resampledH3_aligned_H2layerFiltered[layerIDX] = np.vstack((resampledH3_aligned_H2layerFiltered[layerIDX],normalized_counts[H3ResamplingIDX,:].reshape(-1,9)))
@@ -603,7 +610,7 @@ def main():
                     genePoolSaturation.append(geneProfilePresentCount/possiblePoolsCount)
 
                     tau_cell_poolsize_mean_ratio /= geneProfilePresentCount
-                    print(f'Tau-Cell Pool Size Mean Ratio: {round(tau_cell_poolsize_mean_ratio,3)}')
+                    print(f'Tau:Cell Pool Size Mean Ratio = {round(tau_cell_poolsize_mean_ratio,3)}')
                     # if resolution == '25':
                     #     resampledH3_aligned_H2layerFiltered_OneHot.append(hotencoder.fit_transform(resampledH3_aligned_H2layerFiltered[layerIDX].T))
                     #     H3_per_cell_H2layerFiltered_OneHot.append(hotencoder.fit_transform(H3_per_cell_H2layerFiltered[resolution][layerIDX]))
@@ -651,8 +658,8 @@ def main():
                         plt.axhline(y=-np.log10(0.05), color='red', linestyle='--', label='p=0.05')
                         plt.axvline(x=0, color='black', linestyle='--', label='FC=0')
                         plt.title(f'Gene Expression Fold Change Across $\\tau$ Top & Bottom Quartiles ({datasetName}, {layerNames[layer_idx]})')
-                        plt.xlabel(f'Log2 Expression Fold Change')
-                        plt.ylabel('-Log10 p-value')
+                        plt.xlabel(f'$Log_2$ Expression Fold Change')
+                        plt.ylabel(f'$-Log_{{10}}$ p-value')
                         # Annotate each gene with its name
                         for i, gene_name in enumerate(enriched_gene_names):
                             plt.annotate(gene_name, (volcano_log2_fc[i], volcano_neg_log10_p[i]), fontsize=10, alpha=1.0)
@@ -745,6 +752,8 @@ def main():
                 tau_aligned_forH3_standard = [np.zeros_like(tau_aligned_forH3[layerIDX]) for layerIDX in range(numLayers)]
                 resampledGenes_aligned_H2layerFiltered_standard = [np.zeros_like(resampledGenes_aligned[layerIDX]) for layerIDX in range(numLayers)]
                 # CCF Regressions #
+                resampledAP_aligned_standard = [np.zeros_like(resampledAP_aligned[layerIDX]) for layerIDX in range(numLayers)]
+                resampledML_aligned_standard = [np.zeros_like(resampledML_aligned[layerIDX]) for layerIDX in range(numLayers)]
                 gene_data_dense_H2layerFiltered_standard = [np.zeros_like(gene_data_dense_H2layerFiltered[resolution][layerIDX]) for layerIDX in range(numLayers)]
                 #tau_per_cell_H2layerFiltered_standard = [np.zeros_like(tau_per_cell_H2layerFiltered[layerIDX]) for layerIDX in range(numLayers)]
                 mlCCF_per_cell_H2layerFiltered_standard = [np.zeros_like(mlCCF_per_cell_H2layerFiltered[resolution][layerIDX]) for layerIDX in range(numLayers)]
@@ -759,6 +768,8 @@ def main():
                     resampledGenes_aligned_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(resampledGenes_aligned[layerIDX][:,:]))
                     gene_data_dense_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(gene_data_dense_H2layerFiltered[resolution][layerIDX][:,:]))
                     # CCF #
+                    resampledAP_aligned_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(resampledAP_aligned[layerIDX][:,:]))
+                    resampledML_aligned_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(resampledML_aligned[layerIDX][:,:]))
                     mlCCF_per_cell_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(mlCCF_per_cell_H2layerFiltered[resolution][layerIDX][:,:]))
                     apCCF_per_cell_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(apCCF_per_cell_H2layerFiltered[resolution][layerIDX][:,:])) * -1 #Standardized AP CCF is inverted for regressions
                         
@@ -891,6 +902,21 @@ def main():
                                 x_data = pooledH3_for_spatial #[m.T for m in pooledH3_for_spatial] #H3_per_cell_H2layerFiltered
                                 y_data = [standardized_CCF_Tau[layerIDX][:,[1,0]] for layerIDX in range(numLayers)]
                                 region_label_filtered = [np.array(pooled_region_label[layerIDX]) for layerIDX in range(numLayers)]
+                        
+                        if regressionType == 2: # geneX+AP+ML, H3+AP+ML -> Tau
+                            spatialReconstruction = False
+                            tauRegression = True
+                            response_dim = 1
+                            if predictorPathSuffix == 'GenePredictors':
+                                #x_data = resampledGenes_aligned_H2layerFiltered_standard
+                                x_data = [np.hstack((resampledGenes_aligned_H2layerFiltered_standard[layerIDX], resampledAP_aligned_standard[layerIDX], resampledML_aligned_standard[layerIDX])) for layerIDX in range(numLayers)]
+                                y_data = resampledTau_aligned_standard
+                                region_label_filtered = pooled_cell_region_geneAligned_H2layerFiltered
+                            if predictorPathSuffix == 'H3Predictors':
+                                #x_data = resampledH3_aligned_H2layerFiltered#[m.T for m in resampledH3_aligned_H2layerFiltered]
+                                x_data = [np.hstack((resampledH3_aligned_H2layerFiltered[layerIDX], resampledAP_aligned_standard[layerIDX], resampledML_aligned_standard[layerIDX])) for layerIDX in range(numLayers)]
+                                y_data = tau_aligned_forH3_standard
+                                region_label_filtered = pooled_region_label_alignedForTau
 
                         # if ???:
                         #     y_data = tau_per_cell_H2layerFiltered_standard
@@ -917,14 +943,29 @@ def main():
                                 break
                             best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial,loss_history_test_spatial,loss_history_train_spatial,dual_gap_history_spatial = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alpha_params,max_iter)
                             predictor_condition_numbers_spatial = [np.linalg.cond(x) for x in x_data]
+                        
+                        if (regressionType == 2):
+                            print(f'{datasetName} {predictorTitle} + AP + ML -> {line_selection} Tau (CCF Pooling={tauPoolSize}mm, predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
+                            if verbose:
+                                predictor_response_info(x_data,y_data)
+                            if y_data[0].shape[0] != x_data[0].shape[0]:
+                                print(f'Aborting regression, number of predictor and response matrix observations do not agree...')
+                                break
+                            best_coef_XCCF_tau, lasso_weight_XCCF_tau, bestAlpha_XCCF_tau, alphas_XCCF_tau, tauPredictions_XCCF_tau, bestR2_XCCF_tau, loss_history_test_XCCF_tau, loss_history_train_XCCF_tau, dual_gap_history_XCCF_tau = layerRegressions(response_dim, n_splits, highMeanPredictorIDXs, x_data, y_data, layerNames, regressionConditions, region_label_filtered, alpha_params, max_iter)
+                            predictor_condition_numbers_XCCF_tau = [np.linalg.cond(x) for x in x_data]
 
 
                     mean_fold_coef_tau = [np.mean(best_coef_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
                     sd_fold_coef_tau = [np.std(best_coef_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
                     sorted_coef_tau = [np.argsort(mean_fold_coef_tau[layerIDX]) for layerIDX in range(numLayers)]
+                    
                     mean_fold_coef_spatial = [np.mean(best_coef_spatial[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
                     sd_fold_coef_spatial = [np.std(best_coef_spatial[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
                     sorted_coef_spatial = [np.argsort(mean_fold_coef_spatial[layerIDX]) for layerIDX in range(numLayers)]
+
+                    mean_fold_coef_XCCF_tau = [np.mean(best_coef_XCCF_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
+                    sd_fold_coef_XCCF_tau = [np.std(best_coef_XCCF_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
+                    sorted_coef_XCCF_tau = [np.argsort(mean_fold_coef_XCCF_tau[layerIDX]) for layerIDX in range(numLayers)]
 
 
                     params = {}
@@ -954,30 +995,42 @@ def main():
                     plotting_data['mean_expression_standard'] = mean_expression_standard
                     plotting_data['tauPredictions_spatial'] = tauPredictions_spatial
                     plotting_data['tauPredictions_tau'] = tauPredictions_tau
+                    plotting_data['tauPredictions_XCCF_tau'] = tauPredictions_XCCF_tau
                     plotting_data['loss_history_test_spatial'] = loss_history_test_spatial
                     plotting_data['loss_history_test_tau'] = loss_history_test_tau
+                    plotting_data['loss_history_test_XCCF_tau'] = loss_history_test_XCCF_tau
                     plotting_data['loss_history_train_spatial'] = loss_history_train_spatial
                     plotting_data['loss_history_train_tau'] = loss_history_train_tau
+                    plotting_data['loss_history_train_XCCF_tau'] = loss_history_train_XCCF_tau
                     plotting_data['dual_gap_history_spatial'] = dual_gap_history_spatial
                     plotting_data['dual_gap_history_tau'] = dual_gap_history_tau
+                    plotting_data['dual_gap_history_XCCF_tau'] = dual_gap_history_XCCF_tau
                     plotting_data['predictor_condition_numbers_spatial'] = predictor_condition_numbers_spatial
                     plotting_data['predictor_condition_numbers_tau'] = predictor_condition_numbers_tau
+                    plotting_data['predictor_condition_numbers_XCCF_tau'] = predictor_condition_numbers_XCCF_tau
 
                     model_vals = {}
                     model_vals['sd_fold_coef_tau'] = sd_fold_coef_tau
+                    model_vals['sd_fold_coef_XCCF_tau'] = sd_fold_coef_XCCF_tau
                     model_vals['sd_fold_coef_spatial'] = sd_fold_coef_spatial
                     model_vals['mean_fold_coef_tau'] = mean_fold_coef_tau
+                    model_vals['mean_fold_coef_XCCF_tau'] = mean_fold_coef_XCCF_tau
                     model_vals['mean_fold_coef_spatial'] = mean_fold_coef_spatial
                     model_vals['bestR2_spatial'] = bestR2_spatial
                     model_vals['bestR2_tau'] = bestR2_tau
+                    model_vals['bestR2_XCCF_tau'] = bestR2_XCCF_tau
                     model_vals['sorted_coef_spatial'] = sorted_coef_spatial
                     model_vals['sorted_coef_tau'] = sorted_coef_tau
+                    model_vals['sorted_coef_XCCF_tau'] = sorted_coef_XCCF_tau
                     model_vals['bestAlpha_spatial'] = bestAlpha_spatial
                     model_vals['bestAlpha_tau'] = bestAlpha_tau
+                    model_vals['bestAlpha_XCCF_tau'] = bestAlpha_XCCF_tau
                     model_vals['alphas_spatial'] = alphas_spatial
                     model_vals['alphas_tau'] = alphas_tau
+                    model_vals['alphas_XCCF_tau'] = alphas_XCCF_tau
                     model_vals['lasso_weight_spatial'] = lasso_weight_spatial
                     model_vals['lasso_weight_tau'] = lasso_weight_tau
+                    model_vals['lasso_weight_XCCF_tau'] = lasso_weight_XCCF_tau
 
                     meta_dict = {}
                     meta_dict['line_selection'] = line_selection
