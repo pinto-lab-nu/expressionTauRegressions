@@ -53,6 +53,7 @@ def color_gradient(values, start_hex, end_hex, L_percentile=2.5, U_percentile=97
 def plot_regressions(lineSelection, structList, areaColors, plottingConditions, params, paths, titles, model_vals, plotting_data):
 
     my_os = platform.system()
+    num_print_betas = 10 # Number of betas to print in the output file
 
     n_splits = params['n_splits']
     tauPoolSize = params['tauPoolSize']
@@ -78,40 +79,52 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
     tauPredictions_spatial = plotting_data['tauPredictions_spatial']
     tauPredictions_tau = plotting_data['tauPredictions_tau']
     tauPredictions_XCCF_tau = plotting_data['tauPredictions_XCCF_tau']
+    tauPredictions_X_tauRes = plotting_data['tauPredictions_X_tauRes']
     loss_history_test_spatial = plotting_data['loss_history_test_spatial']
     loss_history_test_tau = plotting_data['loss_history_test_tau']
     loss_history_test_XCCF_tau = plotting_data['loss_history_test_XCCF_tau']
+    loss_history_test_X_tauRes = plotting_data['loss_history_test_X_tauRes']
     loss_history_train_spatial = plotting_data['loss_history_train_spatial']
     loss_history_train_tau = plotting_data['loss_history_train_tau']
     loss_history_train_XCCF_tau = plotting_data['loss_history_train_XCCF_tau']
+    loss_history_train_X_tauRes = plotting_data['loss_history_train_X_tauRes']
     dual_gap_history_spatial = plotting_data['dual_gap_history_spatial']
     dual_gap_history_tau = plotting_data['dual_gap_history_tau']
     dual_gap_history_XCCF_tau = plotting_data['dual_gap_history_XCCF_tau']
+    dual_gap_history_X_tauRes = plotting_data['dual_gap_history_X_tauRes']
     predictor_condition_numbers_spatial = plotting_data['predictor_condition_numbers_spatial']
     predictor_condition_numbers_tau = plotting_data['predictor_condition_numbers_tau']
     predictor_condition_numbers_XCCF_tau = plotting_data['predictor_condition_numbers_XCCF_tau']
+    predictor_condition_numbers_X_tauRes = plotting_data['predictor_condition_numbers_X_tauRes']
 
     sd_fold_coef_tau = model_vals['sd_fold_coef_tau']
     sd_fold_coef_XCCF_tau = model_vals['sd_fold_coef_XCCF_tau']
+    sd_fold_coef_X_tauRes = model_vals['sd_fold_coef_X_tauRes']
     sd_fold_coef_spatial = model_vals['sd_fold_coef_spatial']
     mean_fold_coef_tau = model_vals['mean_fold_coef_tau']
     mean_fold_coef_XCCF_tau = model_vals['mean_fold_coef_XCCF_tau']
+    mean_fold_coef_X_tauRes = model_vals['mean_fold_coef_X_tauRes']
     mean_fold_coef_spatial = model_vals['mean_fold_coef_spatial']
     bestR2_spatial = model_vals['bestR2_spatial']
     bestR2_tau = model_vals['bestR2_tau']
     bestR2_XCCF_tau = model_vals['bestR2_XCCF_tau']
+    bestR2_X_tauRes = model_vals['bestR2_X_tauRes']
     sorted_coef_spatial = model_vals['sorted_coef_spatial']
     sorted_coef_tau = model_vals['sorted_coef_tau']
     sorted_coef_XCCF_tau = model_vals['sorted_coef_XCCF_tau']
+    sorted_coef_X_tauRes = model_vals['sorted_coef_X_tauRes']
     bestAlpha_spatial = model_vals['bestAlpha_spatial']
     bestAlpha_tau = model_vals['bestAlpha_tau']
     bestAlpha_XCCF_tau = model_vals['bestAlpha_XCCF_tau']
+    bestAlpha_X_tauRes = model_vals['bestAlpha_X_tauRes']
     alphas_spatial = model_vals['alphas_spatial']
     alphas_tau = model_vals['alphas_tau']
     alphas_XCCF_tau = model_vals['alphas_XCCF_tau']
+    alphas_X_tauRes = model_vals['alphas_X_tauRes']
     lasso_weight_spatial = model_vals['lasso_weight_spatial']
     lasso_weight_tau = model_vals['lasso_weight_tau']
     lasso_weight_XCCF_tau = model_vals['lasso_weight_XCCF_tau']
+    lasso_weight_X_tauRes = model_vals['lasso_weight_X_tauRes']
 
     plotting = True
     linearmodel = LinearRegression()
@@ -121,8 +134,9 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
     resampTitle = f'predThresh={meanPredictionThresh}'
     
     #for spatialReconstruction in plottingConditions: #[True,False]
-    for reconstruction_type in ['spatial', 'tau', 'XCCF_tau']:
+    for reconstruction_type in ['spatial', 'tau', 'X_tauRes', 'XCCF_tau']:
         if reconstruction_type == 'spatial':
+            print('Spatial Response Plotting...')
             spatialReconstruction = True
             recon_type = 'Spatial'
             save_name = 'spatial'
@@ -147,6 +161,7 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                 titleAppend = f'Spatial Reconstruction from {datasetName} {predictorTitle} ({resampTitle})'
                 plottingDir = os.path.join(savePath,'Spatial',f'{predictorPathSuffix}',f'{datasetName}')
         if reconstruction_type == 'tau':
+            print('Tau Response Plotting...')
             spatialReconstruction = False
             recon_type = '$\\tau$'
             save_name = 'tau'
@@ -166,7 +181,29 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
             sd_fold_coef = sd_fold_coef_tau
             response_dim = 1
             plottingDir = os.path.join(tauSortedPath,f'{predictorPathSuffix}',f'{datasetName}')
+        if reconstruction_type == 'X_tauRes':
+            print('Tau Residuals Response Plotting...')
+            spatialReconstruction = False
+            recon_type = '$\\tau$ Residuals'
+            save_name = 'tauResiduals'
+            loss_history_test = loss_history_test_X_tauRes
+            loss_history_train = loss_history_train_X_tauRes
+            dual_gap_history = dual_gap_history_X_tauRes
+            predictor_condition_numbers = predictor_condition_numbers_X_tauRes
+            plottingTitles = ["tauResiduals"]
+            titleAppend = f'{lineSelection} Tau Residuals Reconstruction from {datasetName} {predictorTitle} (pooling={tauPoolSize}mm, {resampTitle})'
+            tauPredictions = tauPredictions_X_tauRes
+            bestR2 = bestR2_X_tauRes
+            mean_fold_coef = mean_fold_coef_X_tauRes
+            sorted_coef = sorted_coef_X_tauRes
+            bestAlpha = bestAlpha_X_tauRes
+            alphas = alphas_X_tauRes
+            lasso_weight = lasso_weight_X_tauRes
+            sd_fold_coef = sd_fold_coef_X_tauRes
+            response_dim = 1
+            plottingDir = os.path.join(tauSortedPath,f'{predictorPathSuffix}',f'{datasetName}')
         if reconstruction_type == 'XCCF_tau':
+            print('Expression, CCF Predictors -> Tau Response Plotting...')
             spatialReconstruction = False
             recon_type = '$\\beta$[Expression,CCF]=$\\tau$'
             save_name = 'XCCF_tau'
@@ -175,7 +212,7 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
             dual_gap_history = dual_gap_history_XCCF_tau
             predictor_condition_numbers = predictor_condition_numbers_XCCF_tau
             plottingTitles = ["X,CCF to tau"]
-            titleAppend = f'{lineSelection} X,CCF to tau Reconstruction from {datasetName} {predictorTitle} (pooling={tauPoolSize}mm, {resampTitle})'
+            titleAppend = f'X,CCF to {lineSelection} Tau Reconstruction from {datasetName} {predictorTitle} (pooling={tauPoolSize}mm, {resampTitle})'
             tauPredictions = tauPredictions_XCCF_tau
             bestR2 = bestR2_XCCF_tau
             mean_fold_coef = mean_fold_coef_XCCF_tau
@@ -187,6 +224,7 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
             response_dim = 1
             plottingDir = os.path.join(tauSortedPath,f'{predictorPathSuffix}',f'{datasetName}')
             predictorNamesArray = np.hstack((predictorNamesArray,['AP','ML']))
+            highMeanPredictorIDXs = [np.concatenate((highMeanPredictorIDXs[layerIDX], np.array([sorted_coef[layerIDX].shape[1]-2, sorted_coef[layerIDX].shape[1]-1]))) for layerIDX in range(numLayers)]
         
         if not os.path.exists(plottingDir):
             os.makedirs(plottingDir)
@@ -394,10 +432,12 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                 for dim in range(response_dim):
                     if spatialReconstruction:
                         file.write(f'####### {plottingTitles[dim]} #######\n')
-                    file.write(f'Highest + Predictors:{predictorNamesArray[highMeanPredictorIDXs[layerIDX]][sorted_coef[layerIDX][dim,:]][-5:]}\n')
-                    file.write(f'Predictor Weights:{np.round(mean_fold_coef[layerIDX][dim,sorted_coef[layerIDX][dim,:]][-5:],3)}\n')
-                    file.write(f'Lowest - Predictors:{predictorNamesArray[highMeanPredictorIDXs[layerIDX]][sorted_coef[layerIDX][dim,:]][:5]}\n')
-                    file.write(f'Predictor Weights:{np.round(mean_fold_coef[layerIDX][dim,sorted_coef[layerIDX][dim,:]][:5],3)}\n')
+                    file.write(f'Highest + Predictors:{predictorNamesArray[highMeanPredictorIDXs[layerIDX]][sorted_coef[layerIDX][dim,:]][-num_print_betas:]}\n')
+                    file.write(f'Predictor Weights:{np.round(mean_fold_coef[layerIDX][dim,sorted_coef[layerIDX][dim,:]][-num_print_betas:],3)}\n')
+                    file.write(f'SD of Weights:{np.round(sd_fold_coef[layerIDX][dim,sorted_coef[layerIDX][dim,:]][-num_print_betas:],3)}\n')
+                    file.write(f'Lowest - Predictors:{predictorNamesArray[highMeanPredictorIDXs[layerIDX]][sorted_coef[layerIDX][dim,:]][:num_print_betas]}\n')
+                    file.write(f'Predictor Weights:{np.round(mean_fold_coef[layerIDX][dim,sorted_coef[layerIDX][dim,:]][:num_print_betas],3)}\n')
+                    file.write(f'SD of Weights:{np.round(sd_fold_coef[layerIDX][dim,sorted_coef[layerIDX][dim,:]][:num_print_betas],3)}\n')
                     if spatialReconstruction and (predictorPathSuffix == 'GenePredictors') and (meanExpressionThresh == 0) and (dim == 0):
                         file.write(f'Central A-P betas on margins of Tau beta distribution: {significantTau_centeredSpatial_betas_list[layerIDX]}\n')
                 file.write(f'\n')
@@ -444,20 +484,21 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                 plt.savefig(os.path.join(plottingDir,f'{predictorPathSuffix}LassoWeights_{layerName}_{titleAppend}.pdf'),dpi=600,bbox_inches='tight')
                 plt.close()
             
-            fig1, axes = plt.subplots(response_dim,1,figsize=(12,12))
-            #fig2, ax2 = plt.subplots(1,1,figsize=(15,8))
-            for dim,ax in enumerate(np.atleast_1d(axes)):
-                for structIDX,structureOfInterest in enumerate(structList):
-                    ax.plot(np.arange(0,highMeanPredictorIDXs[layerIDX].shape[0],1),mean_expression_standard[layerIDX,structIDX,highMeanPredictorIDXs[layerIDX]].reshape(-1,1)[sorted_coef[layerIDX][dim,:]],label=structureOfInterest,color=areaColors[structIDX])
-                    #ax2.plot(np.arange(0,total_genes,1),gaussian_filter(mean_expression_standard[structIDX,:].reshape(-1,1)[sorted_coef],sigma=2),label=structureOfInterest,color=areaColors[structIDX])
-                ax.set_xticks(np.arange(0, highMeanPredictorIDXs[layerIDX].shape[0], 1))
-                ax.set_xticklabels(predictorNamesArray[highMeanPredictorIDXs[layerIDX]][sorted_coef[layerIDX][dim,:]], rotation=90)
-                ax.legend()
-                ax.set_ylabel(f'{predictorEncodeType} {predictorTitle}')
-                ax.set_title(f'{titleAppend}, {layerName}, $\\alpha\pm$SD={round(bestAlpha_mean,alphaPrecision)}$\pm${round(bestAlpha_SD,alphaPrecision)}, $R^2\pm$SD={bestR2_mean}$\pm${bestR2_SD}')
-            if plotting:
-                plt.savefig(os.path.join(plottingDir,f'regional{predictorPathSuffix}_{layerName}_{titleAppend}.pdf'),dpi=600,bbox_inches='tight')
-                plt.close()
+            if reconstruction_type != 'XCCF_tau':
+                fig1, axes = plt.subplots(response_dim,1,figsize=(12,12))
+                #fig2, ax2 = plt.subplots(1,1,figsize=(15,8))
+                for dim,ax in enumerate(np.atleast_1d(axes)):
+                    for structIDX,structureOfInterest in enumerate(structList):
+                        ax.plot(np.arange(0,highMeanPredictorIDXs[layerIDX].shape[0],1),mean_expression_standard[layerIDX,structIDX,highMeanPredictorIDXs[layerIDX]].reshape(-1,1)[sorted_coef[layerIDX][dim,:]],label=structureOfInterest,color=areaColors[structIDX])
+                        #ax2.plot(np.arange(0,total_genes,1),gaussian_filter(mean_expression_standard[structIDX,:].reshape(-1,1)[sorted_coef],sigma=2),label=structureOfInterest,color=areaColors[structIDX])
+                    ax.set_xticks(np.arange(0, highMeanPredictorIDXs[layerIDX].shape[0], 1))
+                    ax.set_xticklabels(predictorNamesArray[highMeanPredictorIDXs[layerIDX]][sorted_coef[layerIDX][dim,:]], rotation=90)
+                    ax.legend()
+                    ax.set_ylabel(f'{predictorEncodeType} {predictorTitle}')
+                    ax.set_title(f'{titleAppend}, {layerName}, $\\alpha\pm$SD={round(bestAlpha_mean,alphaPrecision)}$\pm${round(bestAlpha_SD,alphaPrecision)}, $R^2\pm$SD={bestR2_mean}$\pm${bestR2_SD}')
+                if plotting:
+                    plt.savefig(os.path.join(plottingDir,f'regional{predictorPathSuffix}_{layerName}_{titleAppend}.pdf'),dpi=600,bbox_inches='tight')
+                    plt.close()
 
             for dim in range(response_dim):
                 currentPlottingTitle = plottingTitles[dim]

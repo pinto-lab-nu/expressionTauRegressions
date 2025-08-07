@@ -69,6 +69,13 @@ def region_count_printer(cell_region,resolution,datasetName,struct_list):
     for structIDX in range(len(struct_list)):
         print(f'{struct_list[structIDX]}:{regionalCounts[structIDX]}')
 
+def pre_regression_check(verbose, x_data, y_data):
+    if verbose:
+        predictor_response_info(x_data,y_data)
+    if y_data[0].shape[0] != x_data[0].shape[0]:
+        print(f'Aborting regression, number of predictor and response matrix observations do not agree...')
+        return False
+    return True
 
 def main():
 
@@ -211,8 +218,13 @@ def main():
         #################
         ### Load data ###
         gene_data_dense, pilot_gene_names, fn_clustid, fn_CCF = pilotLoader(save_path)
-        merfish_CCF_Genes, all_merfish_gene_names = merfishLoader(save_path, download_base, pilot_gene_names, restrict_merfish_imputed_values, gene_limit)
+        merfish_CCF_Genes, all_merfish_gene_names, distractor_genes = merfishLoader(save_path, download_base, pilot_gene_names, restrict_merfish_imputed_values, gene_limit)
         all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line_selection, task='IntoTheVoid')
+
+        # dump list of all_merfish_gene_names into a text file for reference
+        with open(os.path.join(save_path,f'merfishImputed_allGeneNames.txt'), "w") as file:
+            for currentGene in all_merfish_gene_names:
+                file.write(currentGene+'\n')
 
         time_load_data = datetime.now()
         print(f'Time to load data: {time_load_data - time_start}')
@@ -487,7 +499,7 @@ def main():
         dataset_name_list = ['Merfish'+merfish_datasetName_append,'Pilot']
 
         for layerNames,numLayers,resolution,datasetName in zip([layer_names_list[order] for order in predictor_order],[num_layers_list[order] for order in predictor_order],[resolution_list[order] for order in predictor_order],[dataset_name_list[order] for order in predictor_order]):
-
+            
             #for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3ThreshArray):
             
             poolIndex = 0
@@ -719,12 +731,13 @@ def main():
                     plt.close()
 
 
-
+                # pooledTauCCF_coords[layer] has columns: ML, AP, tau_mean, tau_std
                 standardized_CCF_Tau = [standard_scaler.fit_transform(pooledTauCCF_coords[layerIDX]) for layerIDX in range(numLayers)]
                 for layerIDX in range(numLayers):
-                    standardized_CCF_Tau[layerIDX][:,1] *= -1 #invert AP CCF for regressions
-                linearmodel = LinearRegression()
+                    standardized_CCF_Tau[layerIDX][:,1] *= -1 #invert standardized AP CCF for regressions
+                APML_tau_models = []
                 for layerIDX in range(numLayers):
+                    linearmodel = LinearRegression()
                     
                     r_squared_regression = []
                     for dim in range(2):
@@ -742,6 +755,17 @@ def main():
                     plt.savefig(os.path.join(tauSortedPath,f'{datasetName}_{line_selection}_pooling{tauPoolSize}mm_TauCCFcorr_{layerNames[layerIDX]}.pdf'),dpi=600,bbox_inches='tight')
                     plt.close()
 
+                    ### AP, ML -> Tau regression fit ###
+                    linearmodel.fit(standardized_CCF_Tau[layerIDX][:,[1,0]], standardized_CCF_Tau[layerIDX][:,2].reshape(-1)) # [1,0] to switch to AP,ML order
+                    tau_pred = linearmodel.predict(standardized_CCF_Tau[layerIDX][:,[1,0]])
+                    r_squared_regression_APML_tau = r2_score(standardized_CCF_Tau[layerIDX][:,2].reshape(-1,1), tau_pred)
+                    APML_tau_models.append(linearmodel)
+                    #print(r_squared_regression_APML_tau)
+                    #print(linearmodel.coef_, linearmodel.intercept_)
+                    # plt.figure()
+                    # plt.scatter(standardized_CCF_Tau[layerIDX][:,1], tau_pred, color='black', s=1)
+                    # plt.title(f'R^2: {r_squared_regression_APML_tau}')
+                    # plt.show()
 
 
                 ######################################################################################
@@ -896,25 +920,25 @@ def main():
                             response_dim = 2
                             if predictorPathSuffix == 'GenePredictors':
                                 x_data = gene_data_dense_H2layerFiltered_standard
-                                y_data = [np.hstack((apCCF_per_cell_H2layerFiltered_standard[layerIDX],mlCCF_per_cell_H2layerFiltered_standard[layerIDX])) for layerIDX in range(numLayers)]
+                                y_data = [np.hstack((apCCF_per_cell_H2layerFiltered_standard[layerIDX]*-1, mlCCF_per_cell_H2layerFiltered_standard[layerIDX])) for layerIDX in range(numLayers)]
                                 region_label_filtered = cell_region_H2layerFiltered[resolution]
                             if predictorPathSuffix == 'H3Predictors':
                                 x_data = pooledH3_for_spatial #[m.T for m in pooledH3_for_spatial] #H3_per_cell_H2layerFiltered
                                 y_data = [standardized_CCF_Tau[layerIDX][:,[1,0]] for layerIDX in range(numLayers)]
                                 region_label_filtered = [np.array(pooled_region_label[layerIDX]) for layerIDX in range(numLayers)]
                         
-                        if regressionType == 2: # geneX+AP+ML, H3+AP+ML -> Tau
+                        if (regressionType == 2) or (regressionType == 3): # geneX+AP+ML, H3+AP+ML -> Tau (or Tau Residuals)
                             spatialReconstruction = False
                             tauRegression = True
                             response_dim = 1
                             if predictorPathSuffix == 'GenePredictors':
                                 #x_data = resampledGenes_aligned_H2layerFiltered_standard
-                                x_data = [np.hstack((resampledGenes_aligned_H2layerFiltered_standard[layerIDX], resampledAP_aligned_standard[layerIDX], resampledML_aligned_standard[layerIDX])) for layerIDX in range(numLayers)]
+                                x_data = [np.hstack((resampledGenes_aligned_H2layerFiltered_standard[layerIDX], resampledAP_aligned_standard[layerIDX]*-1, resampledML_aligned_standard[layerIDX])) for layerIDX in range(numLayers)]
                                 y_data = resampledTau_aligned_standard
                                 region_label_filtered = pooled_cell_region_geneAligned_H2layerFiltered
                             if predictorPathSuffix == 'H3Predictors':
                                 #x_data = resampledH3_aligned_H2layerFiltered#[m.T for m in resampledH3_aligned_H2layerFiltered]
-                                x_data = [np.hstack((resampledH3_aligned_H2layerFiltered[layerIDX], resampledAP_aligned_standard[layerIDX], resampledML_aligned_standard[layerIDX])) for layerIDX in range(numLayers)]
+                                x_data = [np.hstack((resampledH3_aligned_H2layerFiltered[layerIDX], resampledAP_aligned_standard[layerIDX]*-1, resampledML_aligned_standard[layerIDX])) for layerIDX in range(numLayers)]
                                 y_data = tau_aligned_forH3_standard
                                 region_label_filtered = pooled_region_label_alignedForTau
 
@@ -924,36 +948,60 @@ def main():
                         regressionConditions = [spatialReconstruction,tauRegression,regionalResample] #genePredictors (relic term at index 3)
 
                         print(f'\nStarting Regressions, Type {regressionType}:')
+                        print(f'(CCF Pooling={tauPoolSize}mm, predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
                         if (regressionType == 0):
-                            print(f'{datasetName} {predictorTitle} -> {line_selection} Tau (CCF Pooling={tauPoolSize}mm, predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
-                            if verbose:
-                                predictor_response_info(x_data,y_data)
-                            if y_data[0].shape[0] != x_data[0].shape[0]:
-                                print(f'Aborting regression, number of predictor and response matrix observations do not agree...')
+                            print(f'{datasetName} {predictorTitle} -> {line_selection} Tau')
+                            if not (check_val := pre_regression_check(verbose, x_data, y_data)):
                                 break
                             best_coef_tau,lasso_weight_tau,bestAlpha_tau,alphas_tau,tauPredictions_tau,bestR2_tau,loss_history_test_tau,loss_history_train_tau,dual_gap_history_tau = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alpha_params,max_iter)
                             predictor_condition_numbers_tau = [np.linalg.cond(x) for x in x_data]
 
                         if (regressionType == 1):
-                            print(f'{datasetName} {predictorTitle} -> CCF (predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
-                            if verbose:
-                                predictor_response_info(x_data,y_data)
-                            if y_data[0].shape[0] != x_data[0].shape[0]:
-                                print(f'Aborting regression, number of predictor and response matrix observations do not agree...')
+                            print(f'{datasetName} {predictorTitle} -> CCF')
+                            if not (check_val := pre_regression_check(verbose, x_data, y_data)):
                                 break
                             best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial,loss_history_test_spatial,loss_history_train_spatial,dual_gap_history_spatial = layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,layerNames,regressionConditions,region_label_filtered,alpha_params,max_iter)
                             predictor_condition_numbers_spatial = [np.linalg.cond(x) for x in x_data]
                         
                         if (regressionType == 2):
-                            print(f'{datasetName} {predictorTitle} + AP + ML -> {line_selection} Tau (CCF Pooling={tauPoolSize}mm, predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
-                            if verbose:
-                                predictor_response_info(x_data,y_data)
-                            if y_data[0].shape[0] != x_data[0].shape[0]:
-                                print(f'Aborting regression, number of predictor and response matrix observations do not agree...')
+                            print(f'{datasetName} {predictorTitle} + AP + ML -> {line_selection} Tau')
+                            if not (check_val := pre_regression_check(verbose, x_data, y_data)):
                                 break
                             highMeanPredictorIDXs_XCCF = [np.concatenate((highMeanPredictorIDXs[layerIDX], np.array([x_data[layerIDX].shape[1]-2, x_data[layerIDX].shape[1]-1]))) for layerIDX in range(numLayers)] #add AP and ML CCF indices to high mean predictors
                             best_coef_XCCF_tau, lasso_weight_XCCF_tau, bestAlpha_XCCF_tau, alphas_XCCF_tau, tauPredictions_XCCF_tau, bestR2_XCCF_tau, loss_history_test_XCCF_tau, loss_history_train_XCCF_tau, dual_gap_history_XCCF_tau = layerRegressions(response_dim, n_splits, highMeanPredictorIDXs_XCCF, x_data, y_data, layerNames, regressionConditions, region_label_filtered, alpha_params, max_iter)
                             predictor_condition_numbers_XCCF_tau = [np.linalg.cond(x) for x in x_data]
+                        
+                        if (regressionType == 3):
+                            print(f'{datasetName} {predictorTitle} -> {line_selection} Tau Residuals (from CCF -> Tau Regression)')
+                            ### generate the residuals from CCF -> Tau regression ###
+                            #tau_hat = [APML_tau_models[layerIDX].predict(x_data[layerIDX][:,-2:]).reshape(-1,1) for layerIDX in range(numLayers)]
+                            #target_tau_residuals = [y_data[layerIDX] - tau_hat[layerIDX] for layerIDX in range(numLayers)]
+
+                            tau_hat = [np.zeros_like(y_data[layerIDX]) for layerIDX in range(numLayers)]
+                            tau_residuals = [np.zeros_like(y_data[layerIDX]) for layerIDX in range(numLayers)]
+                            for layerIDX in range(numLayers):
+                                linearmodel = LinearRegression()
+                                linearmodel.fit(x_data[layerIDX][:,-2:], y_data[layerIDX].reshape(-1,1)) # no need to cross-validate here, since we are just using the AP and ML CCF predictors to generate tau residuals
+                                tau_hat[layerIDX] = linearmodel.predict(x_data[layerIDX][:,-2:]).reshape(-1,1)
+                                tau_residuals[layerIDX] = y_data[layerIDX] - tau_hat[layerIDX]
+
+                            # for layerIDX in range(numLayers):
+                            #     plt.figure()
+                            #     plt.hist(tau_residuals[layerIDX], bins=75, color='black');
+                            
+                            # for layerIDX in range(numLayers):
+                            #     r_squared_regression_APML_tau_layer = r2_score(y_data[layerIDX], tau_hat[layerIDX])
+                            #     plt.figure()
+                            #     plt.scatter(y_data[layerIDX], tau_hat[layerIDX], color='black', s=0.1);
+                            #     plt.title(f'R^2: {r_squared_regression_APML_tau_layer}')
+
+                            x_data = [x_data[:,:-2] for layerIDX in range(numLayers)] #remove AP and ML CCF predictors from x_data once we have generated the tau residuals
+                            y_data = tau_residuals
+
+                            if not (check_val := pre_regression_check(verbose, x_data, y_data)):
+                                break
+                            best_coef_X_tauRes, lasso_weight_X_tauRes, bestAlpha_X_tauRes, alphas_X_tauRes, tauPredictions_X_tauRes, bestR2_X_tauRes, loss_history_test_X_tauRes, loss_history_train_X_tauRes, dual_gap_history_X_tauRes = layerRegressions(response_dim, n_splits, highMeanPredictorIDXs, x_data, y_data, layerNames, regressionConditions, region_label_filtered, alpha_params, max_iter)
+                            predictor_condition_numbers_X_tauRes = [np.linalg.cond(x) for x in x_data]
 
 
                     mean_fold_coef_tau = [np.mean(best_coef_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
@@ -967,6 +1015,10 @@ def main():
                     mean_fold_coef_XCCF_tau = [np.mean(best_coef_XCCF_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
                     sd_fold_coef_XCCF_tau = [np.std(best_coef_XCCF_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
                     sorted_coef_XCCF_tau = [np.argsort(mean_fold_coef_XCCF_tau[layerIDX]) for layerIDX in range(numLayers)]
+
+                    mean_fold_coef_X_tauRes = [np.mean(best_coef_X_tauRes[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
+                    sd_fold_coef_X_tauRes = [np.std(best_coef_X_tauRes[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
+                    sorted_coef_X_tauRes = [np.argsort(mean_fold_coef_X_tauRes[layerIDX]) for layerIDX in range(numLayers)]
 
 
                     params = {}
@@ -997,25 +1049,32 @@ def main():
                     plotting_data['tauPredictions_spatial'] = tauPredictions_spatial
                     plotting_data['tauPredictions_tau'] = tauPredictions_tau
                     plotting_data['tauPredictions_XCCF_tau'] = tauPredictions_XCCF_tau
+                    plotting_data['tauPredictions_X_tauRes'] = tauPredictions_X_tauRes
                     plotting_data['loss_history_test_spatial'] = loss_history_test_spatial
                     plotting_data['loss_history_test_tau'] = loss_history_test_tau
                     plotting_data['loss_history_test_XCCF_tau'] = loss_history_test_XCCF_tau
+                    plotting_data['loss_history_test_X_tauRes'] = loss_history_test_X_tauRes
                     plotting_data['loss_history_train_spatial'] = loss_history_train_spatial
                     plotting_data['loss_history_train_tau'] = loss_history_train_tau
                     plotting_data['loss_history_train_XCCF_tau'] = loss_history_train_XCCF_tau
+                    plotting_data['loss_history_train_X_tauRes'] = loss_history_train_X_tauRes
                     plotting_data['dual_gap_history_spatial'] = dual_gap_history_spatial
                     plotting_data['dual_gap_history_tau'] = dual_gap_history_tau
                     plotting_data['dual_gap_history_XCCF_tau'] = dual_gap_history_XCCF_tau
+                    plotting_data['dual_gap_history_X_tauRes'] = dual_gap_history_X_tauRes
                     plotting_data['predictor_condition_numbers_spatial'] = predictor_condition_numbers_spatial
                     plotting_data['predictor_condition_numbers_tau'] = predictor_condition_numbers_tau
                     plotting_data['predictor_condition_numbers_XCCF_tau'] = predictor_condition_numbers_XCCF_tau
+                    plotting_data['predictor_condition_numbers_X_tauRes'] = predictor_condition_numbers_X_tauRes
 
                     model_vals = {}
                     model_vals['sd_fold_coef_tau'] = sd_fold_coef_tau
                     model_vals['sd_fold_coef_XCCF_tau'] = sd_fold_coef_XCCF_tau
+                    model_vals['sd_fold_coef_X_tauRes'] = sd_fold_coef_X_tauRes
                     model_vals['sd_fold_coef_spatial'] = sd_fold_coef_spatial
                     model_vals['mean_fold_coef_tau'] = mean_fold_coef_tau
                     model_vals['mean_fold_coef_XCCF_tau'] = mean_fold_coef_XCCF_tau
+                    model_vals['mean_fold_coef_X_tauRes'] = mean_fold_coef_X_tauRes
                     model_vals['mean_fold_coef_spatial'] = mean_fold_coef_spatial
                     model_vals['bestR2_spatial'] = bestR2_spatial
                     model_vals['bestR2_tau'] = bestR2_tau
@@ -1023,15 +1082,19 @@ def main():
                     model_vals['sorted_coef_spatial'] = sorted_coef_spatial
                     model_vals['sorted_coef_tau'] = sorted_coef_tau
                     model_vals['sorted_coef_XCCF_tau'] = sorted_coef_XCCF_tau
+                    model_vals['sorted_coef_X_tauRes'] = sorted_coef_X_tauRes
                     model_vals['bestAlpha_spatial'] = bestAlpha_spatial
                     model_vals['bestAlpha_tau'] = bestAlpha_tau
                     model_vals['bestAlpha_XCCF_tau'] = bestAlpha_XCCF_tau
+                    model_vals['bestAlpha_X_tauRes'] = bestAlpha_X_tauRes
                     model_vals['alphas_spatial'] = alphas_spatial
                     model_vals['alphas_tau'] = alphas_tau
                     model_vals['alphas_XCCF_tau'] = alphas_XCCF_tau
+                    model_vals['alphas_X_tauRes'] = alphas_X_tauRes
                     model_vals['lasso_weight_spatial'] = lasso_weight_spatial
                     model_vals['lasso_weight_tau'] = lasso_weight_tau
                     model_vals['lasso_weight_XCCF_tau'] = lasso_weight_XCCF_tau
+                    model_vals['lasso_weight_X_tauRes'] = lasso_weight_X_tauRes
 
                     meta_dict = {}
                     meta_dict['line_selection'] = line_selection
@@ -1049,7 +1112,7 @@ def main():
                     with open(os.path.join(output_dir, 'plotting_data.pickle'), 'wb') as handle:
                         pickle.dump(meta_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-                    # temp_path = 'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3\Cux2-Ai96\pooling0.1mm\GenePredictors\Merfish'
+                    # temp_path = 'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3\Cux2-Ai96\pooling0.1mm\GenePredictors\Merfish-Imputed'
                     # meta_dict = pickle.load(open(os.path.join(temp_path,f'plotting_data.pickle'), 'rb'))
 
                     # line_selection = meta_dict['line_selection']
@@ -1072,6 +1135,7 @@ def main():
         try:
             plot_expression_correlations(layerNames, struct_list, area_colors, mean_expression_standard, save_path)
         except Exception as e:
+            print('!!!!! ERROR !!!!!')
             print(f"An error occurred while plotting expression correlations: {e}")
 
         time_end = datetime.now()
