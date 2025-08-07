@@ -91,7 +91,7 @@ def main():
     parser.add_argument("--alpha_precision", type=int, default=5) # Just for display (in plotting and regression text files)
     parser.add_argument("--verbose", type=str_to_bool, default=True)    # For print statements
     parser.add_argument("--predictor_order", type=lambda s: [int(item) for item in s.split(',')], default="0")           # Select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
-    parser.add_argument("--regressions_to_start", type=lambda s: [int(item) for item in s.split(',')], default="0,1,2")    # Select response variables for regressions, and order [0:tau, 1:CCF]
+    parser.add_argument("--regressions_to_start", type=lambda s: [int(item) for item in s.split(',')], default="0,1,2,3")    # Select response variables for regressions, and order [0:tau, 1:CCF]
     parser.add_argument("--max_iter", type=int, default=200) # For layer regressions
     parser.add_argument("--variable_management", type=str_to_bool, default=True) # Removes large variables from memory after use (needs to be expanded to include more variables)
     parser.add_argument("--plotting_conditions", type=lambda s: [bool(int(item)) for item in s.split(',')], default="0,1") # For plotting spatial reconstructions
