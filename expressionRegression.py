@@ -91,7 +91,7 @@ def main():
     parser.add_argument("--alpha_precision", type=int, default=5) # Just for display (in plotting and regression text files)
     parser.add_argument("--verbose", type=str_to_bool, default=True)    # For print statements
     parser.add_argument("--predictor_order", type=lambda s: [int(item) for item in s.split(',')], default="0")           # Select predictors for regressions, and order [0:merfish{-imputed}, 1:pilot]
-    parser.add_argument("--regressions_to_start", type=lambda s: [int(item) for item in s.split(',')], default="0,1,2,3")    # Select response variables for regressions, and order [0:tau, 1:CCF]
+    parser.add_argument("--regressions_to_start", type=lambda s: [int(item) for item in s.split(',')], default="0,1,2,3")    # Select predictor/response variables for regressions, and order [0:X->Tau, 1:X->CCF, 2:X,CCF->Tau, 3:X->Tau Res.]
     parser.add_argument("--max_iter", type=int, default=200) # For layer regressions
     parser.add_argument("--variable_management", type=str_to_bool, default=True) # Removes large variables from memory after use (needs to be expanded to include more variables)
     parser.add_argument("--plotting_conditions", type=lambda s: [bool(int(item)) for item in s.split(',')], default="0,1") # For plotting spatial reconstructions
@@ -995,7 +995,7 @@ def main():
                             #     plt.scatter(y_data[layerIDX], tau_hat[layerIDX], color='black', s=0.1);
                             #     plt.title(f'R^2: {r_squared_regression_APML_tau_layer}')
 
-                            x_data = [x_data[:,:-2] for layerIDX in range(numLayers)] #remove AP and ML CCF predictors from x_data once we have generated the tau residuals
+                            x_data = [x_data[layerIDX][:,:-2] for layerIDX in range(numLayers)] #remove AP and ML CCF predictors from x_data once we have generated the tau residuals
                             y_data = tau_residuals
 
                             if not (check_val := pre_regression_check(verbose, x_data, y_data)):
