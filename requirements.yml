@@ -11,8 +11,8 @@ dependencies:
   - seaborn
   - datajoint
   - pypdf
+  - psutil
   - pip
-  
   - pip:
     - git+https://github.com/alleninstitute/allensdk
     - git+https://github.com/alleninstitute/abc_atlas_access

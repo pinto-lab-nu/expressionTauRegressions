@@ -194,7 +194,7 @@ def main():
 
 
 
-    for restrict_merfish_imputed_values, predictor_order in zip([True,False],[[0,1],[0]]):
+    for restrict_merfish_imputed_values, predictor_order in zip([False,True],[[0],[0,1]]):
 
         structNum = len(struct_list)
         #applyLayerSpecificityFilter = False #ensure that CCM coordinates are contained within a layer specified in layerAppend
