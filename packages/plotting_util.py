@@ -393,14 +393,14 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                         #     axes[layerIDX0, layerIDX1].legend(proxy_artists, contour_labels, loc='upper right', prop={'family': paper_font})
                             
                         for i, predictorText in enumerate(predictorNamesArray):
+                            gene_color = 'red' if predictorText in distractor_genes else colorArray[i]
                             axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_tau[layerIDX1][dim][i], mean_fold_coef_spatial[layerIDX0][dim][i],
                                                                 xerr=sd_fold_coef_tau[layerIDX1][dim][i], yerr=sd_fold_coef_spatial[layerIDX0][dim][i],
-                                                                fmt="o", color=colorArray[i], markersize=0.15, elinewidth=0.15)
+                                                                fmt="o", color=gene_color, markersize=0.15, elinewidth=0.15)
                             if ((fileType == '.eps') and (np.where(predictorNamesArray[significantGenesIDXs] == predictorText)[0].shape[0] > 0)) or (fileType == '.pdf'):
-                                text_color = 'red' if predictorText in distractor_genes else colorArray[i]
                                 axes[layerIDX0,layerIDX1].annotate(predictorText,
                                                                     (mean_fold_coef_tau[layerIDX1][dim][i], mean_fold_coef_spatial[layerIDX0][dim][i]),
-                                                                    color=text_color, fontsize=3, fontname=paper_font)
+                                                                    color=gene_color, fontsize=3, fontname=paper_font)
                         if layerIDX1 == 0:
                             axes[layerIDX0,layerIDX1].set_ylabel(f"{layerNames[layerIDX0]} A-P $\\beta$", fontname=paper_font)
                         if layerIDX0 == numLayers-1:

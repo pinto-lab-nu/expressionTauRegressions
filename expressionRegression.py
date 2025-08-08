@@ -23,6 +23,7 @@ from collections import Counter
 import datetime
 import re
 import argparse
+import psutil
 
 
 #from utils.connect_to_dj import VM
@@ -77,17 +78,21 @@ def pre_regression_check(verbose, x_data, y_data):
         return False
     return True
 
+# def memory_usage():
+#     total_size = 0
+#     for name, value in globals().items():
+#         try:
+#             size = sys.getsizeof(value)
+#             total_size += size
+#             if size > 1024 ** 3: # only print variables larger than ~1GB
+#                 print(f'Variable: {name}, Size: {size / (1024 ** 3):.2f} GB')
+#         except TypeError:
+#             pass
+#     print(f'Total memory usage: {total_size / (1024 ** 3):.2f} GB')
 def memory_usage():
-    total_size = 0
-    for name, value in globals().items():
-        try:
-            size = sys.getsizeof(value)
-            total_size += size
-            if size > 1024 ** 3: # only print variables larger than ~1GB
-                print(f'Variable: {name}, Size: {size / (1024 ** 3):.2f} GB')
-        except TypeError:
-            pass
-    print(f'Total memory usage: {total_size / (1024 ** 3):.2f} GB')
+    process = psutil.Process(os.getpid())
+    mem_bytes = process.memory_info().rss
+    print(f'Total memory usage: {mem_bytes / (1024 ** 3):.2f} GB')
 
 
 
@@ -998,8 +1003,8 @@ def main():
                                 linearmodel = LinearRegression()
                                 print(f'x_data type: {type(x_data[layerIDX][:,-2:])}, x_data shape: {x_data[layerIDX][:,-2:].shape}')
                                 print(f'y_data type: {type(y_data[layerIDX].reshape(-1,1))}, y_data shape: {y_data[layerIDX].reshape(-1,1).shape}')
-                                linearmodel.fit(x_data[layerIDX][:,-2:], y_data[layerIDX].reshape(-1,1)) # no need to cross-validate here, since we are just using the AP and ML CCF predictors to generate tau residuals
-                                tau_hat[layerIDX] = linearmodel.predict(x_data[layerIDX][:,-2:]).reshape(-1,1)
+                                linearmodel.fit(np.asarray(x_data[layerIDX][:,-2:]), np.asarray(y_data[layerIDX].reshape(-1,1))) # no need to cross-validate here, since we are just using the AP and ML CCF predictors to generate tau residuals
+                                tau_hat[layerIDX] = linearmodel.predict(np.asarray(x_data[layerIDX][:,-2:])).reshape(-1,1)
                                 tau_residuals[layerIDX] = y_data[layerIDX] - tau_hat[layerIDX]
 
                             # for layerIDX in range(numLayers):
