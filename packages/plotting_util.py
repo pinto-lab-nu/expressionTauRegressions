@@ -75,6 +75,7 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
     predictorNamesArray = titles['predictorNamesArray']
     predictorEncodeType = titles['predictorEncodeType']
 
+    distractor_genes = plotting_data['distractor_genes']
     mean_expression_standard = plotting_data['mean_expression_standard']
     tauPredictions_spatial = plotting_data['tauPredictions_spatial']
     tauPredictions_tau = plotting_data['tauPredictions_tau']
@@ -274,7 +275,8 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                             axes[layerIDX0,layerIDX1].scatter(mean_fold_coef_plot[layerIDX1][dim],mean_fold_coef_plot[layerIDX0][dim],color='black',s=0.15)
                             axes[layerIDX0,layerIDX1].errorbar(mean_fold_coef_plot[layerIDX1][dim],mean_fold_coef_plot[layerIDX0][dim], xerr=sd_fold_coef_plot[layerIDX1][dim], yerr=sd_fold_coef_plot[layerIDX0][dim], fmt="o", color='black', markersize=0.15, elinewidth=0.15)
                             for i, predictorText in enumerate(predictorNamesArray):
-                                axes[layerIDX0,layerIDX1].annotate(predictorText, (mean_fold_coef_plot[layerIDX1][dim][i], mean_fold_coef_plot[layerIDX0][dim][i]), fontsize=3)
+                                text_color = 'red' if predictorText in distractor_genes else 'black'
+                                axes[layerIDX0,layerIDX1].annotate(predictorText, (mean_fold_coef_plot[layerIDX1][dim][i], mean_fold_coef_plot[layerIDX0][dim][i]), fontsize=3, color=text_color)
                             if layerIDX1 == 0:
                                 axes[layerIDX0,layerIDX1].set_ylabel(f"{layerNames[layerIDX0]} {dimTitle}$\\beta$")
                             if layerIDX0 == numLayers-1:
@@ -395,9 +397,10 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                                                                 xerr=sd_fold_coef_tau[layerIDX1][dim][i], yerr=sd_fold_coef_spatial[layerIDX0][dim][i],
                                                                 fmt="o", color=colorArray[i], markersize=0.15, elinewidth=0.15)
                             if ((fileType == '.eps') and (np.where(predictorNamesArray[significantGenesIDXs] == predictorText)[0].shape[0] > 0)) or (fileType == '.pdf'):
+                                text_color = 'red' if predictorText in distractor_genes else colorArray[i]
                                 axes[layerIDX0,layerIDX1].annotate(predictorText,
                                                                     (mean_fold_coef_tau[layerIDX1][dim][i], mean_fold_coef_spatial[layerIDX0][dim][i]),
-                                                                    color=colorArray[i], fontsize=3, fontname=paper_font)
+                                                                    color=text_color, fontsize=3, fontname=paper_font)
                         if layerIDX1 == 0:
                             axes[layerIDX0,layerIDX1].set_ylabel(f"{layerNames[layerIDX0]} A-P $\\beta$", fontname=paper_font)
                         if layerIDX0 == numLayers-1:
@@ -463,7 +466,8 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
                 ax.scatter(mean_fold_coef[layerIDX][0,:],mean_fold_coef[layerIDX][1,:],color='black',s=0.5)
                 plt.errorbar(mean_fold_coef[layerIDX][0,:], mean_fold_coef[layerIDX][1,:], xerr=sd_fold_coef[layerIDX][0,:], yerr=sd_fold_coef[layerIDX][1,:], fmt="o", color='black')
                 for i, predictorText in enumerate(predictorNamesArray[highMeanPredictorIDXs[layerIDX]]):
-                    ax.annotate(predictorText, (mean_fold_coef[layerIDX][0,i], mean_fold_coef[layerIDX][1,i]))
+                    text_color = 'red' if predictorText in distractor_genes else 'black'
+                    ax.annotate(predictorText, (mean_fold_coef[layerIDX][0,i], mean_fold_coef[layerIDX][1,i]), color=text_color)
                 ax.set_xlabel(f'A-P $\\beta$')
                 ax.set_ylabel(f'M-L $\\beta$')
                 if plotting:
@@ -583,8 +587,9 @@ def plot_regressions(lineSelection, structList, areaColors, plottingConditions, 
         ax[1].scatter(mean_fold_coef_tau[layerIDX].reshape(-1), mean_fold_coef_spatial[layerIDX][1,:].reshape(-1),color='black',s=0.5)
         ax[1].errorbar(mean_fold_coef_tau[layerIDX].reshape(-1), mean_fold_coef_spatial[layerIDX][1,:].reshape(-1), xerr=sd_fold_coef_tau[layerIDX][0,:], yerr=sd_fold_coef_spatial[layerIDX][1,:], fmt="o", color='black')
         for i, predictorText in enumerate(predictorNamesArray[highMeanPredictorIDXs[layerIDX]]):
-            ax[0].annotate(predictorText, (mean_fold_coef_tau[layerIDX][0,i], mean_fold_coef_spatial[layerIDX][0,i]))
-            ax[1].annotate(predictorText, (mean_fold_coef_tau[layerIDX][0,i], mean_fold_coef_spatial[layerIDX][1,i]))
+            text_color = 'red' if predictorText in distractor_genes else 'black'
+            ax[0].annotate(predictorText, (mean_fold_coef_tau[layerIDX][0,i], mean_fold_coef_spatial[layerIDX][0,i]), color=text_color)
+            ax[1].annotate(predictorText, (mean_fold_coef_tau[layerIDX][0,i], mean_fold_coef_spatial[layerIDX][1,i]), color=text_color)
         ax[0].set_xlabel(f'Tau $\\beta$')
         ax[0].set_ylabel(f'A-P $\\beta$')
         ax[1].set_xlabel(f'Tau $\\beta$')

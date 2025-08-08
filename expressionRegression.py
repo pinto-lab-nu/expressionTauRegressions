@@ -77,6 +77,20 @@ def pre_regression_check(verbose, x_data, y_data):
         return False
     return True
 
+def memory_usage():
+    total_size = 0
+    for name, value in globals().items():
+        try:
+            size = sys.getsizeof(value)
+            total_size += size
+            if size > 1024 ** 3: # only print variables larger than ~1GB
+                print(f'Variable: {name}, Size: {size / (1024 ** 3):.2f} GB')
+        except TypeError:
+            pass
+    print(f'Total memory usage: {total_size / (1024 ** 3):.2f} GB')
+
+
+
 def main():
 
     parser = argparse.ArgumentParser()
@@ -228,6 +242,7 @@ def main():
 
         time_load_data = datetime.now()
         print(f'Time to load data: {time_load_data - time_start}')
+        memory_usage()
 
         if plotting:
             # Plot CCF-registered Tau dataset
@@ -1045,6 +1060,7 @@ def main():
                     titles['predictorEncodeType'] = predictorEncodeType
 
                     plotting_data = {}
+                    plotting_data['distractor_genes'] = distractor_genes
                     plotting_data['mean_expression_standard'] = mean_expression_standard
                     plotting_data['tauPredictions_spatial'] = tauPredictions_spatial
                     plotting_data['tauPredictions_tau'] = tauPredictions_tau
