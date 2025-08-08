@@ -247,7 +247,7 @@ def main():
 
         time_load_data = datetime.now()
         print(f'Time to load data: {time_load_data - time_start}')
-        memory_usage()
+        #memory_usage()
 
         if plotting:
             # Plot CCF-registered Tau dataset
@@ -1102,6 +1102,7 @@ def main():
                     model_vals['bestR2_spatial'] = bestR2_spatial
                     model_vals['bestR2_tau'] = bestR2_tau
                     model_vals['bestR2_XCCF_tau'] = bestR2_XCCF_tau
+                    model_vals['bestR2_X_tauRes'] = bestR2_X_tauRes
                     model_vals['sorted_coef_spatial'] = sorted_coef_spatial
                     model_vals['sorted_coef_tau'] = sorted_coef_tau
                     model_vals['sorted_coef_XCCF_tau'] = sorted_coef_XCCF_tau
