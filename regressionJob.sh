@@ -1,9 +1,9 @@
 #!/bin/bash
 
 #SBATCH --nodes=1
-#SBATCH --time=08:00:00
+#SBATCH --time=11:00:00
 #SBATCH --job-name=tauRegression
-#SBATCH --mem=75GB
+#SBATCH --mem=180GB
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --output=/mnt/fsmresfiles/Tau_Processing/H3/SlurmLogs/regression_%j.txt
