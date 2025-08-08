@@ -996,6 +996,8 @@ def main():
                             tau_residuals = [np.zeros_like(y_data[layerIDX]) for layerIDX in range(numLayers)]
                             for layerIDX in range(numLayers):
                                 linearmodel = LinearRegression()
+                                print(f'x_data type: {type(x_data[layerIDX][:,-2:])}, x_data shape: {x_data[layerIDX][:,-2:].shape}')
+                                print(f'y_data type: {type(y_data[layerIDX].reshape(-1,1))}, y_data shape: {y_data[layerIDX].reshape(-1,1).shape}')
                                 linearmodel.fit(x_data[layerIDX][:,-2:], y_data[layerIDX].reshape(-1,1)) # no need to cross-validate here, since we are just using the AP and ML CCF predictors to generate tau residuals
                                 tau_hat[layerIDX] = linearmodel.predict(x_data[layerIDX][:,-2:]).reshape(-1,1)
                                 tau_residuals[layerIDX] = y_data[layerIDX] - tau_hat[layerIDX]
