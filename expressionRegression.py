@@ -824,6 +824,7 @@ def main():
                         figWidth = 15
 
                     highMeanPredictorIDXs = [[] for _ in range(numLayers)]
+                    num_predictors = len(predictorNamesArray)
                     volcano_log2_fc = [np.zeros(num_predictors) for _ in range(numLayers)]
                     volcano_neg_log10_p = [np.ones(num_predictors) for _ in range(numLayers)]
                     for layerIDX in range(numLayers):
@@ -869,7 +870,6 @@ def main():
                             tau_25th_idxs = np.where(resampledTau_aligned[layerIDX] <= tau_25th)[0]
                             tau_75th_idxs = np.where(resampledTau_aligned[layerIDX] >= tau_75th)[0]
 
-                            num_predictors = len(predictorNamesArray)
                             raw_p_values = np.ones(num_predictors)
 
                             for geneIDX in range(num_predictors):
@@ -972,7 +972,7 @@ def main():
                     if datasetName != 'Pilot':
                         plotting_data['volcano_log2_fc'] = volcano_log2_fc
                         plotting_data['volcano_neg_log10_p'] = volcano_neg_log10_p
-                        
+
                     plotting_data['distractor_genes'] = distractor_genes
                     plotting_data['mean_expression_standard'] = mean_expression_standard
 
