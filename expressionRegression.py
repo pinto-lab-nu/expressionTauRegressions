@@ -1194,6 +1194,7 @@ def main():
                     params['num_precision'] = num_precision
                     params['alpha_precision'] = alpha_precision
                     params['structNum'] = structNum
+                    params['regressions_to_start'] = regressions_to_start
 
                     paths = {}
                     paths['save_path'] = save_path_OSs
