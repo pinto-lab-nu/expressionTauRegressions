@@ -79,6 +79,16 @@ def pre_regression_check(verbose, x_data, y_data):
         return False
     return True
 
+def get_keys(key_list):
+    return [
+        {
+            "subject_fullname": k[0],
+            "session_date": k[1],
+            "session_number": k[2],
+        }
+        for k in key_list
+    ]
+
 # def memory_usage():
 #     total_size = 0
 #     for name, value in globals().items():
@@ -195,7 +205,9 @@ def main():
 
 
 
-    for restrict_merfish_imputed_values, predictor_order in zip([False,True],[[0],[0,1]]):
+    for restrict_merfish_imputed_values, predictor_order in zip([False], [[0]]): #[False,True],[[0],[0,1]]
+
+        print(restrict_merfish_imputed_values, predictor_order) # now the default is just merfish-imputed data, no pilot genes
 
         structNum = len(struct_list)
         #applyLayerSpecificityFilter = False #ensure that CCM coordinates are contained within a layer specified in layerAppend
@@ -237,9 +249,19 @@ def main():
 
         #################
         ### Load data ###
+        key_list_intothevoid = [
+            ("rsx2237_Cilantro", "2023-05-23", 1),
+            ("pss3570_Chip", "2022-09-04", 1),
+            ("pss3570_Caesar", "2022-09-04", 1),
+            ("pss3570_Champ", "2022-09-04", 1),
+            ("rsx2237_Charlie", "2023-05-16", 2)
+        ]
+
+        key_list_intothevoid = get_keys(key_list_intothevoid)
+
         gene_data_dense, pilot_gene_names, fn_clustid, fn_CCF = pilotLoader(save_path)
-        merfish_CCF_Genes, all_merfish_gene_names, distractor_genes = merfishLoader(save_path, download_base, pilot_gene_names, restrict_merfish_imputed_values, gene_limit)
-        all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line_selection, task='IntoTheVoid')
+        merfish_CCF_Genes, all_merfish_gene_names, gene_categories = merfishLoader(save_path, download_base, pilot_gene_names, restrict_merfish_imputed_values, gene_limit)
+        all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line_selection, keys=key_list_intothevoid, task='IntoTheVoid')
 
         # dump list of all_merfish_gene_names into a text file for reference
         with open(os.path.join(save_path,f'merfishImputed_allGeneNames.txt'), "w") as file:
@@ -250,25 +272,6 @@ def main():
         print(f'Time to load data: {time_load_data - time_start}')
         #memory_usage()
 
-        if plotting:
-            # Plot CCF-registered Tau dataset
-            fig, ax = plt.subplots(1, 1, figsize=(7,5))
-            #hex_0 = '#00ffff'
-            #hex_1 = '#ff33cc'
-            #value_0 = np.percentile(all_tau_CCF_coords[2,:], 0)
-            #value_1 = np.percentile(all_tau_CCF_coords[2,:], 97.5)
-            #all_tau_colors = color_gradient(all_tau_CCF_coords[2,:], hex_0, hex_1, 0, 97.5)
-            
-            img = ax.scatter(all_tau_CCF_coords[0,:], all_tau_CCF_coords[1,:], s=0.1, c=all_tau_CCF_coords[2,:], cmap='cool')
-            ax.scatter(CCF25_bregma[0], CCF25_bregma[1], color='blue', label='bregma')
-            ax.scatter(CCF25_lambda[0], CCF25_lambda[1], color='purple', label='lambda')
-            ax.set_xlabel(r'CCF ($L \leftarrow M \rightarrow L$)')
-            ax.set_ylabel(r'CCF ($P \leftrightarrow A$)')
-            ax.set_title(rf'25$\mu$m CCF-Registered {line_selection} $\tau$ Dataset')
-            ax.legend()
-            cbar = plt.colorbar(img, ax=ax)
-            cbar.set_label(r'$\tau$ (s)')
-            plt.gca().invert_yaxis()
 
         #standardMerfish_CCF_Genes = standard_scaler.fit_transform(merfish_CCF_Genes)
         #standardMerfish_CCF_Genes = pd.DataFrame(standardMerfish_CCF_Genes, columns=merfish_CCF_Genes.columns)
@@ -284,6 +287,10 @@ def main():
         print(f'Memory usage of raw_merfish_genes: {round(sys.getsizeof(raw_merfish_genes)/1024/1024,1)} MB')
         print(f'Memory usage of raw_merfish_CCF: {round(sys.getsizeof(raw_merfish_CCF)/1024/1024,1)} MB') #even though there are only three coordinate axes, the precision of these values is higher than the gene expressions (uses up more memory than might be expected)
 
+        # # Plot example gene expression for Fig 1
+        # plt.figure(figsize=(15,15))
+        # plt.scatter(raw_merfish_CCF[:,0], raw_merfish_CCF[:,2], s=1, c=raw_merfish_genes[:,0], cmap='gray')
+        # plt.axis('equal')
 
 
         # with open(os.path.join(save_path,f'Chen_merfishImputed_geneOverlap.txt'), "w") as file:
@@ -315,6 +322,7 @@ def main():
 
         pilotLayerNames  =  ['L2_3 IT',   'L4_5 IT',  'L5 IT',    'L6 IT',    'L5 ET']
         layerIDs    =       [12,          4,          14,         11,         17]
+        # H2 names are...   ['IT 7',      'IT 11',    'IT 9',     'IT 6',     'PT']
         #numLayers = len(layerIDs)
 
 
@@ -500,6 +508,47 @@ def main():
         all_tau_CCF_coords[0,:] *= 0.025 #convert 25um resolution functional-registered coordinates to mm
         all_tau_CCF_coords[1,:] *= 0.025 #convert "..."
 
+
+        if plotting:
+            # Plot CCF-registered Tau dataset
+            fig, ax = plt.subplots(1, 1, figsize=(4,3))
+            #hex_0 = '#00ffff'
+            #hex_1 = '#ff33cc'
+            #value_0 = np.percentile(all_tau_CCF_coords[2,:], 0)
+            #value_1 = np.percentile(all_tau_CCF_coords[2,:], 97.5)
+            #all_tau_colors = color_gradient(all_tau_CCF_coords[2,:], hex_0, hex_1, 0, 97.5)
+            
+            img = ax.scatter(all_tau_CCF_coords[0,::5], all_tau_CCF_coords[1,::5], s=1, alpha=0.5, c=all_tau_CCF_coords[2,::5], cmap='cool')
+            #ax.scatter(CCF25_bregma[0], CCF25_bregma[1], color='blue', label='bregma')
+            #ax.scatter(CCF25_lambda[0], CCF25_lambda[1], color='purple', label='lambda')
+            ax.set_xlabel(r'CCF ($L \leftarrow M \rightarrow L$)')
+            ax.set_ylabel(r'CCF ($P \leftrightarrow A$)')
+            ax.set_title(rf'25$\mu$m CCF-Registered {line_selection} $\tau$ Dataset')
+            plt.axvline(x=CCF_ML_Center_mm, color='red', linestyle='--')
+            #ax.legend()
+            cbar = plt.colorbar(img, ax=ax)
+            cbar.set_label(r'$\tau$ (s)')
+            plt.gca().invert_yaxis()
+            plt.savefig(os.path.join(save_path, 'fig1_tau.pdf'), bbox_inches='tight')
+            plt.close()
+
+
+            # Plot example gene expression for Fig 1
+            plt.figure(figsize=(3,3))
+            plt.scatter(raw_merfish_CCF[::30,2], raw_merfish_CCF[::30,0], s=0.35, alpha=0.35, color='black')
+            # make y ticks at positionns 2 - 10
+            plt.yticks(np.arange(2, 11, 1))
+            plt.xticks(np.arange(0, 11, 1))
+            # Add dashed line at x=CCF_ML_Center_mm
+            plt.axvline(x=CCF_ML_Center_mm, color='red', linestyle='--')
+            plt.axis('equal')
+            #plt.ylim((3,10))
+            plt.gca().invert_yaxis()
+            plt.savefig(os.path.join(save_path, 'fig1_merfish.pdf'), bbox_inches='tight')
+            plt.close()
+        
+        
+
         #meanExpressionThreshArrayFull = [0] #[0.4,0.2,0.1,0]
         #meanH3ThreshArrayFull = [0] #[0.1,0.05,0.025,0]
 
@@ -520,7 +569,7 @@ def main():
         dataset_name_list = ['Merfish'+merfish_datasetName_append,'Pilot']
 
         for layerNames,numLayers,resolution,datasetName in zip([layer_names_list[order] for order in predictor_order],[num_layers_list[order] for order in predictor_order],[resolution_list[order] for order in predictor_order],[dataset_name_list[order] for order in predictor_order]):
-            
+
             #for meanExpressionThresh,meanH3Thresh in zip(meanExpressionThreshArray,meanH3ThreshArray):
             
             poolIndex = 0
@@ -734,6 +783,42 @@ def main():
                     # plt.title(f'R^2: {r_squared_regression_APML_tau}')
                     # plt.show()
 
+                    for title_append in ['ylimit','']:
+                        # Plot tau along ML and AP axes
+                        fig, ax = plt.subplots(1,2,figsize=(5,2))
+                        n_points = resampledML_aligned[layerIDX].shape[0]
+                        jitter = np.random.normal(0, 0.05, n_points)
+                        region_colors = [area_colors[int(idx)] for idx in pooled_region_label_alignedForTau[layerIDX]]
+                        # Shuffle indices for random z-order
+                        shuffle_idx = np.random.permutation(n_points)
+                        ml_vals = resampledML_aligned[layerIDX][:,0][shuffle_idx] + jitter[shuffle_idx]
+                        ap_vals = resampledAP_aligned[layerIDX][:,0][shuffle_idx] + jitter[shuffle_idx]
+                        tau_vals = tau_aligned_forH3[layerIDX][:,0][shuffle_idx]
+                        region_colors_shuffled = np.array(region_colors)[shuffle_idx]
+                        ax[0].scatter(ml_vals, tau_vals, color=region_colors_shuffled, s=0.4)
+                        ax[1].scatter(ap_vals, tau_vals, color=region_colors_shuffled, s=0.4)
+                        ax[0].set_xlabel('ML CCF (mm)'), ax[1].set_xlabel('AP CCF (mm)')
+                        ax[0].set_ylabel(f'$\\tau$ (s)')
+                        if title_append == 'ylimit':
+                            ax[0].set_ylim(0, 29)
+                            ax[1].set_ylim(0, 29)
+                        region_color_patch = [mpatches.Patch(color=area_colors[i], label=struct_list[i]) for i in range(len(struct_list))]
+                        ax[1].legend(handles=region_color_patch, loc='upper left', bbox_to_anchor=(1.05, 1), fontsize='small', borderaxespad=0.)
+                        plt.savefig(os.path.join(save_path,f'{line_selection}_Tau{title_append}_by_ML_AP_{layerNames[layerIDX]}.pdf'), bbox_inches='tight')
+                        plt.close()
+
+                    param_settings = {'mc_param_set_id': 1,
+                    'pixel_param_set_id': 1,
+                    'dff_param_set_id': 2,
+                    'wf_inclusion_param_set_id': 2,
+                    'ts_param_set_id': 2,
+                    'corr_param_set_id': 1}
+                    plt.hist(all_tau_CCF_coords[2,:], color='black', bins=75)
+                    plt.title(f'{line_selection} Tau Distribution Histogram \n {param_settings} \n {key_list_intothevoid}')
+                    plt.xlabel(f'$\\tau$ (s)'), plt.ylabel('Counts')
+                    plt.savefig(os.path.join(save_path,f'{line_selection}_Tau_Histogram.pdf'), bbox_inches='tight')
+                    plt.close()
+
 
                 ######################################################################################
                 ### Standard Scaler transform the gene expression and tau data prior to regression ###
@@ -783,6 +868,7 @@ def main():
                     
                     if (predictorPathSuffix == 'H3Predictors') and ((datasetName == 'Merfish-Imputed') or (datasetName == 'Merfish')):
                         print(f'\nAborting H3 Predictor regressions for Merfish{merfish_datasetName_append} dataset...')
+                        print(f'please load Pilot dataset if your intent is to run H3 Predictor regressions.\n')
                         break
                     
                     if not os.path.exists(os.path.join(save_path,'Spatial',f'{predictorPathSuffix}',f'{datasetName}')):
@@ -886,36 +972,37 @@ def main():
                                 raw_p_values[geneIDX] = p_val
                                 #volcano_neg_log10_p[layerIDX][geneIDX] = -np.log10(p_val)
 
-                                if geneIDX < 5: # Show a small number of genes as example of their expression distribution across the tau quartiles
-                                    plt.figure(figsize=(8, 6))
-                                    plt.hist(gene_expression_tau25th, bins=100, alpha=0.5, color='blue')
-                                    plt.hist(gene_expression_tau75th, bins=100, alpha=0.5, color='orange')
-                                    plt.axvline(np.mean(gene_expression_tau25th), color='blue', linestyle='dashed', linewidth=1, label=f'Mean Expression, Bottom Quartile $\\tau$')
-                                    plt.axvline(np.mean(gene_expression_tau75th), color='orange', linestyle='dashed', linewidth=1, label=f'Mean Expression, Top Quartile $\\tau$')
-                                    plt.xlabel('Gene Expression')
-                                    plt.ylabel('Frequency')
-                                    plt.title(f'{predictorNamesArray[geneIDX]} Expression Distribution Across $\\tau$ Quartiles')
-                                    plt.legend()
-                                    plt.savefig(os.path.join(tauSortedPath, f'{datasetName}_{line_selection}_geneExpressionDistributionAcrossTauQuartiles_{predictorNamesArray[geneIDX]}_{layerNames[layerIDX]}.pdf'), bbox_inches='tight')
-                                    plt.close()
+                                if verbose:
+                                    if geneIDX < 5: # Show a small number of genes as example of their expression distribution across the tau quartiles
+                                        plt.figure(figsize=(8, 6))
+                                        plt.hist(gene_expression_tau25th, bins=100, alpha=0.5, color='blue')
+                                        plt.hist(gene_expression_tau75th, bins=100, alpha=0.5, color='orange')
+                                        plt.axvline(np.mean(gene_expression_tau25th), color='blue', linestyle='dashed', linewidth=1, label=f'Mean Expression, Bottom Quartile $\\tau$')
+                                        plt.axvline(np.mean(gene_expression_tau75th), color='orange', linestyle='dashed', linewidth=1, label=f'Mean Expression, Top Quartile $\\tau$')
+                                        plt.xlabel('Gene Expression')
+                                        plt.ylabel('Frequency')
+                                        plt.title(f'{predictorNamesArray[geneIDX]} Expression Distribution Across $\\tau$ Quartiles')
+                                        plt.legend()
+                                        plt.savefig(os.path.join(tauSortedPath, f'{datasetName}_{line_selection}_geneExpressionDistributionAcrossTauQuartiles_{predictorNamesArray[geneIDX]}_{layerNames[layerIDX]}.pdf'), bbox_inches='tight')
+                                        plt.close()
                             
                             # FDR correction of p-values
                             _, fdr_corrected_pvals, _, _ = multipletests(raw_p_values, alpha=0.05, method='fdr_bh')
                             volcano_neg_log10_p[layerIDX] = -np.log10(fdr_corrected_pvals)
                             
-                            plt.figure(figsize=(8, 6))
-                            plt.scatter(volcano_log2_fc[layerIDX], volcano_neg_log10_p[layerIDX], s=3, color='black')
-                            plt.axhline(y=-np.log10(0.05), color='red', linestyle='--', label='FDR p=0.05')
-                            plt.axvline(x=0, color='black', linestyle='--', label='FC=0')
-                            plt.title(f'Gene Expression Fold Change Across $\\tau$ Top & Bottom Quartiles ({datasetName}, {layerNames[layerIDX]})')
-                            plt.xlabel(f'$Log_2$ Expression Fold Change')
-                            plt.ylabel(f'$-Log_{{10}}$ FDR-corrected p-value')
-                            # Annotate each gene with its name
-                            for i, gene_name in enumerate(predictorNamesArray):
-                                plt.annotate(gene_name, (volcano_log2_fc[layerIDX][i], volcano_neg_log10_p[layerIDX][i]), fontsize=10, alpha=1.0)
-                            plt.legend()
-                            plt.savefig(os.path.join(tauSortedPath, f'{datasetName}_{line_selection}_volcanoGeneExpressionFoldChangeAcrossTauQuartiles_{layerNames[layerIDX]}.pdf'), bbox_inches='tight')
-                            plt.close()
+                            # plt.figure(figsize=(8, 6))
+                            # plt.scatter(volcano_log2_fc[layerIDX], volcano_neg_log10_p[layerIDX], s=3, color='black')
+                            # plt.axhline(y=-np.log10(0.05), color='red', linestyle='--', label='FDR p=0.05')
+                            # plt.axvline(x=0, color='black', linestyle='--', label='FC=0')
+                            # plt.title(f'Gene Expression Fold Change Across $\\tau$ Top & Bottom Quartiles ({datasetName}, {layerNames[layerIDX]})')
+                            # plt.xlabel(f'$Log_2$ Expression Fold Change')
+                            # plt.ylabel(f'$-Log_{{10}}$ FDR-corrected p-value')
+                            # # Annotate each gene with its name
+                            # for i, gene_name in enumerate(predictorNamesArray):
+                            #     plt.annotate(gene_name, (volcano_log2_fc[layerIDX][i], volcano_neg_log10_p[layerIDX][i]), fontsize=10, alpha=1.0)
+                            # plt.legend()
+                            # plt.savefig(os.path.join(tauSortedPath, f'{datasetName}_{line_selection}_volcanoGeneExpressionFoldChangeAcrossTauQuartiles_{layerNames[layerIDX]}.pdf'), bbox_inches='tight')
+                            # plt.close()
                         ############################################################################
                         ### End script for transcriptomic tau-fold change in expression strength ###
 
@@ -926,46 +1013,12 @@ def main():
                         del predictorDataRaw
 
                     model_vals = {}
-                    # model_vals['sd_fold_coef_tau'] = sd_fold_coef_tau
-                    # model_vals['sd_fold_coef_XCCF_tau'] = sd_fold_coef_XCCF_tau
-                    # model_vals['sd_fold_coef_X_tauRes'] = sd_fold_coef_X_tauRes
-                    # model_vals['sd_fold_coef_spatial'] = sd_fold_coef_spatial
                     model_vals['sd_fold_coef'] = {}
-
-                    # model_vals['mean_fold_coef_tau'] = mean_fold_coef_tau
-                    # model_vals['mean_fold_coef_XCCF_tau'] = mean_fold_coef_XCCF_tau
-                    # model_vals['mean_fold_coef_X_tauRes'] = mean_fold_coef_X_tauRes
-                    # model_vals['mean_fold_coef_spatial'] = mean_fold_coef_spatial
                     model_vals['mean_fold_coef'] = {}
-
-                    # model_vals['bestR2_spatial'] = bestR2_spatial
-                    # model_vals['bestR2_tau'] = bestR2_tau
-                    # model_vals['bestR2_XCCF_tau'] = bestR2_XCCF_tau
-                    # model_vals['bestR2_X_tauRes'] = bestR2_X_tauRes
                     model_vals['bestR2'] = {}
-
-                    # model_vals['sorted_coef_spatial'] = sorted_coef_spatial
-                    # model_vals['sorted_coef_tau'] = sorted_coef_tau
-                    # model_vals['sorted_coef_XCCF_tau'] = sorted_coef_XCCF_tau
-                    # model_vals['sorted_coef_X_tauRes'] = sorted_coef_X_tauRes
                     model_vals['sorted_coef'] = {}
-
-                    # model_vals['bestAlpha_spatial'] = bestAlpha_spatial
-                    # model_vals['bestAlpha_tau'] = bestAlpha_tau
-                    # model_vals['bestAlpha_XCCF_tau'] = bestAlpha_XCCF_tau
-                    # model_vals['bestAlpha_X_tauRes'] = bestAlpha_X_tauRes
                     model_vals['bestAlpha'] = {}
-
-                    # model_vals['alphas_spatial'] = alphas_spatial
-                    # model_vals['alphas_tau'] = alphas_tau
-                    # model_vals['alphas_XCCF_tau'] = alphas_XCCF_tau
-                    # model_vals['alphas_X_tauRes'] = alphas_X_tauRes
                     model_vals['alphas'] = {}
-
-                    # model_vals['lasso_weight_spatial'] = lasso_weight_spatial
-                    # model_vals['lasso_weight_tau'] = lasso_weight_tau
-                    # model_vals['lasso_weight_XCCF_tau'] = lasso_weight_XCCF_tau
-                    # model_vals['lasso_weight_X_tauRes'] = lasso_weight_X_tauRes
                     model_vals['lasso_weight'] = {}
 
                     plotting_data = {}
@@ -973,37 +1026,13 @@ def main():
                         plotting_data['volcano_log2_fc'] = volcano_log2_fc
                         plotting_data['volcano_neg_log10_p'] = volcano_neg_log10_p
 
-                    plotting_data['distractor_genes'] = distractor_genes
+                    #plotting_data['distractor_genes'] = gene_categories['metabolic_genes']
                     plotting_data['mean_expression_standard'] = mean_expression_standard
 
-                    # plotting_data['tauPredictions_spatial'] = tauPredictions_spatial
-                    # plotting_data['tauPredictions_tau'] = tauPredictions_tau
-                    # plotting_data['tauPredictions_XCCF_tau'] = tauPredictions_XCCF_tau
-                    # plotting_data['tauPredictions_X_tauRes'] = tauPredictions_X_tauRes
                     plotting_data['tauPredictions'] = {}
-
-                    # plotting_data['loss_history_test_spatial'] = loss_history_test_spatial
-                    # plotting_data['loss_history_test_tau'] = loss_history_test_tau
-                    # plotting_data['loss_history_test_XCCF_tau'] = loss_history_test_XCCF_tau
-                    # plotting_data['loss_history_test_X_tauRes'] = loss_history_test_X_tauRes
                     plotting_data['loss_history_test'] = {}
-
-                    # plotting_data['loss_history_train_spatial'] = loss_history_train_spatial
-                    # plotting_data['loss_history_train_tau'] = loss_history_train_tau
-                    # plotting_data['loss_history_train_XCCF_tau'] = loss_history_train_XCCF_tau
-                    # plotting_data['loss_history_train_X_tauRes'] = loss_history_train_X_tauRes
                     plotting_data['loss_history_train'] = {}
-
-                    # plotting_data['dual_gap_history_spatial'] = dual_gap_history_spatial
-                    # plotting_data['dual_gap_history_tau'] = dual_gap_history_tau
-                    # plotting_data['dual_gap_history_XCCF_tau'] = dual_gap_history_XCCF_tau
-                    # plotting_data['dual_gap_history_X_tauRes'] = dual_gap_history_X_tauRes
                     plotting_data['dual_gap_history'] = {}
-
-                    # plotting_data['predictor_condition_numbers_spatial'] = predictor_condition_numbers_spatial
-                    # plotting_data['predictor_condition_numbers_tau'] = predictor_condition_numbers_tau
-                    # plotting_data['predictor_condition_numbers_XCCF_tau'] = predictor_condition_numbers_XCCF_tau
-                    # plotting_data['predictor_condition_numbers_X_tauRes'] = predictor_condition_numbers_X_tauRes
                     plotting_data['predictor_condition_numbers'] = {}
 
                     for regressionType in regressions_to_start:
@@ -1056,82 +1085,29 @@ def main():
                         print(f'\nStarting Regressions, Type {regressionType}:')
                         print(f'(CCF Pooling={tauPoolSize}mm, predThresh={meanPredictionThresh}, regionResamp={regressionConditions[2]})')
                         if (regressionType == 0):
+                            reconstruction_type = 'tau'
                             print(f'{datasetName} {predictorTitle} -> {line_selection} Tau')
                             if not (check_val := pre_regression_check(verbose, x_data, y_data)):
                                 break
-                            best_coef_tau,lasso_weight_tau,bestAlpha_tau,alphas_tau,tauPredictions_tau,bestR2_tau,loss_history_test_tau,loss_history_train_tau,dual_gap_history_tau = layerRegressions(response_dim, n_splits, highMeanPredictorIDXs, x_data, y_data, layerNames, regressionConditions, region_label_filtered, alpha_params, max_iter)
-                            predictor_condition_numbers_tau = [np.linalg.cond(x) for x in x_data]
-
-                            mean_fold_coef_tau = [np.mean(best_coef_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
-                            sd_fold_coef_tau = [np.std(best_coef_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
-                            sorted_coef_tau = [np.argsort(mean_fold_coef_tau[layerIDX]) for layerIDX in range(numLayers)]
-
-                            model_vals['sd_fold_coef']['tau'] = sd_fold_coef_tau
-                            model_vals['mean_fold_coef']['tau'] = mean_fold_coef_tau
-                            model_vals['bestR2']['tau'] = bestR2_tau
-                            model_vals['sorted_coef']['tau'] = sorted_coef_tau
-                            model_vals['bestAlpha']['tau'] = bestAlpha_tau
-                            model_vals['alphas']['tau'] = alphas_tau
-                            model_vals['lasso_weight']['tau'] = lasso_weight_tau
-
-                            plotting_data['tauPredictions']['tau'] = tauPredictions_tau
-                            plotting_data['loss_history_test']['tau'] = loss_history_test_tau
-                            plotting_data['loss_history_train']['tau'] = loss_history_train_tau
-                            plotting_data['dual_gap_history']['tau'] = dual_gap_history_tau
-                            plotting_data['predictor_condition_numbers']['tau'] = predictor_condition_numbers_tau
+                            best_coef, lasso_weight, bestAlpha, alphas, tauPredictions, bestR2, loss_history_test, loss_history_train, dual_gap_history = layerRegressions(response_dim, n_splits, highMeanPredictorIDXs, x_data, y_data, layerNames, regressionConditions, region_label_filtered, alpha_params, max_iter)
 
                         if (regressionType == 1):
+                            reconstruction_type = 'spatial'
                             print(f'{datasetName} {predictorTitle} -> CCF')
                             if not (check_val := pre_regression_check(verbose, x_data, y_data)):
                                 break
-                            best_coef_spatial,lasso_weight_spatial,bestAlpha_spatial,alphas_spatial,tauPredictions_spatial,bestR2_spatial,loss_history_test_spatial,loss_history_train_spatial,dual_gap_history_spatial = layerRegressions(response_dim, n_splits, highMeanPredictorIDXs, x_data, y_data, layerNames, regressionConditions, region_label_filtered, alpha_params, max_iter)
-                            predictor_condition_numbers_spatial = [np.linalg.cond(x) for x in x_data]
+                            best_coef, lasso_weight, bestAlpha, alphas, tauPredictions, bestR2, loss_history_test, loss_history_train, dual_gap_history = layerRegressions(response_dim, n_splits, highMeanPredictorIDXs, x_data, y_data, layerNames, regressionConditions, region_label_filtered, alpha_params, max_iter)
 
-                            mean_fold_coef_spatial = [np.mean(best_coef_spatial[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
-                            sd_fold_coef_spatial = [np.std(best_coef_spatial[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
-                            sorted_coef_spatial = [np.argsort(mean_fold_coef_spatial[layerIDX]) for layerIDX in range(numLayers)]
-
-                            model_vals['sd_fold_coef']['spatial'] = sd_fold_coef_spatial
-                            model_vals['mean_fold_coef']['spatial'] = mean_fold_coef_spatial
-                            model_vals['bestR2']['spatial'] = bestR2_spatial
-                            model_vals['sorted_coef']['spatial'] = sorted_coef_spatial
-                            model_vals['bestAlpha']['spatial'] = bestAlpha_spatial
-                            model_vals['alphas']['spatial'] = alphas_spatial
-                            model_vals['lasso_weight']['spatial'] = lasso_weight_spatial
-
-                            plotting_data['tauPredictions']['spatial'] = tauPredictions_spatial
-                            plotting_data['loss_history_test']['spatial'] = loss_history_test_spatial
-                            plotting_data['loss_history_train']['spatial'] = loss_history_train_spatial
-                            plotting_data['dual_gap_history']['spatial'] = dual_gap_history_spatial
-                            plotting_data['predictor_condition_numbers']['spatial'] = predictor_condition_numbers_spatial
-                        
                         if (regressionType == 2):
+                            reconstruction_type = 'XCCF_tau'
                             print(f'{datasetName} {predictorTitle} + AP + ML -> {line_selection} Tau')
                             if not (check_val := pre_regression_check(verbose, x_data, y_data)):
                                 break
                             highMeanPredictorIDXs_XCCF = [np.concatenate((highMeanPredictorIDXs[layerIDX], np.array([x_data[layerIDX].shape[1]-2, x_data[layerIDX].shape[1]-1]))) for layerIDX in range(numLayers)] #add AP and ML CCF indices to high mean predictors
-                            best_coef_XCCF_tau, lasso_weight_XCCF_tau, bestAlpha_XCCF_tau, alphas_XCCF_tau, tauPredictions_XCCF_tau, bestR2_XCCF_tau, loss_history_test_XCCF_tau, loss_history_train_XCCF_tau, dual_gap_history_XCCF_tau = layerRegressions(response_dim, n_splits, highMeanPredictorIDXs_XCCF, x_data, y_data, layerNames, regressionConditions, region_label_filtered, alpha_params, max_iter)
-                            predictor_condition_numbers_XCCF_tau = [np.linalg.cond(x) for x in x_data]
-
-                            mean_fold_coef_XCCF_tau = [np.mean(best_coef_XCCF_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
-                            sd_fold_coef_XCCF_tau = [np.std(best_coef_XCCF_tau[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
-                            sorted_coef_XCCF_tau = [np.argsort(mean_fold_coef_XCCF_tau[layerIDX]) for layerIDX in range(numLayers)]
-
-                            model_vals['sd_fold_coef']['XCCF_tau'] = sd_fold_coef_XCCF_tau
-                            model_vals['mean_fold_coef']['XCCF_tau'] = mean_fold_coef_XCCF_tau
-                            model_vals['bestR2']['XCCF_tau'] = bestR2_XCCF_tau
-                            model_vals['sorted_coef']['XCCF_tau'] = sorted_coef_XCCF_tau
-                            model_vals['bestAlpha']['XCCF_tau'] = bestAlpha_XCCF_tau
-                            model_vals['alphas']['XCCF_tau'] = alphas_XCCF_tau
-                            model_vals['lasso_weight']['XCCF_tau'] = lasso_weight_XCCF_tau
-
-                            plotting_data['tauPredictions']['XCCF_tau'] = tauPredictions_XCCF_tau
-                            plotting_data['loss_history_test']['XCCF_tau'] = loss_history_test_XCCF_tau
-                            plotting_data['loss_history_train']['XCCF_tau'] = loss_history_train_XCCF_tau
-                            plotting_data['dual_gap_history']['XCCF_tau'] = dual_gap_history_XCCF_tau
-                            plotting_data['predictor_condition_numbers']['XCCF_tau'] = predictor_condition_numbers_XCCF_tau
+                            best_coef, lasso_weight, bestAlpha, alphas, tauPredictions, bestR2, loss_history_test, loss_history_train, dual_gap_history = layerRegressions(response_dim, n_splits, highMeanPredictorIDXs_XCCF, x_data, y_data, layerNames, regressionConditions, region_label_filtered, alpha_params, max_iter)
                         
                         if (regressionType == 3):
+                            reconstruction_type = 'X_tauRes'
                             print(f'{datasetName} {predictorTitle} -> {line_selection} Tau Residuals (from CCF -> Tau Regression)')
                             ### generate the residuals from CCF -> Tau regression ###
                             #tau_hat = [APML_tau_models[layerIDX].predict(x_data[layerIDX][:,-2:]).reshape(-1,1) for layerIDX in range(numLayers)]
@@ -1162,26 +1138,25 @@ def main():
 
                             if not (check_val := pre_regression_check(verbose, x_data, y_data)):
                                 break
-                            best_coef_X_tauRes, lasso_weight_X_tauRes, bestAlpha_X_tauRes, alphas_X_tauRes, tauPredictions_X_tauRes, bestR2_X_tauRes, loss_history_test_X_tauRes, loss_history_train_X_tauRes, dual_gap_history_X_tauRes = layerRegressions(response_dim, n_splits, highMeanPredictorIDXs, x_data, y_data, layerNames, regressionConditions, region_label_filtered, alpha_params, max_iter)
-                            predictor_condition_numbers_X_tauRes = [np.linalg.cond(x) for x in x_data]
-
-                            mean_fold_coef_X_tauRes = [np.mean(best_coef_X_tauRes[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
-                            sd_fold_coef_X_tauRes = [np.std(best_coef_X_tauRes[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
-                            sorted_coef_X_tauRes = [np.argsort(mean_fold_coef_X_tauRes[layerIDX]) for layerIDX in range(numLayers)]
-
-                            model_vals['sd_fold_coef']['X_tauRes'] = sd_fold_coef_X_tauRes
-                            model_vals['mean_fold_coef']['X_tauRes'] = mean_fold_coef_X_tauRes
-                            model_vals['bestR2']['X_tauRes'] = bestR2_X_tauRes
-                            model_vals['sorted_coef']['X_tauRes'] = sorted_coef_X_tauRes
-                            model_vals['bestAlpha']['X_tauRes'] = bestAlpha_X_tauRes
-                            model_vals['alphas']['X_tauRes'] = alphas_X_tauRes
-                            model_vals['lasso_weight']['X_tauRes'] = lasso_weight_X_tauRes
-
-                            plotting_data['tauPredictions']['X_tauRes'] = tauPredictions_X_tauRes
-                            plotting_data['loss_history_test']['X_tauRes'] = loss_history_test_X_tauRes
-                            plotting_data['loss_history_train']['X_tauRes'] = loss_history_train_X_tauRes
-                            plotting_data['dual_gap_history']['X_tauRes'] = dual_gap_history_X_tauRes
-                            plotting_data['predictor_condition_numbers']['X_tauRes'] = predictor_condition_numbers_X_tauRes
+                            best_coef, lasso_weight, bestAlpha, alphas, tauPredictions, bestR2, loss_history_test, loss_history_train, dual_gap_history = layerRegressions(response_dim, n_splits, highMeanPredictorIDXs, x_data, y_data, layerNames, regressionConditions, region_label_filtered, alpha_params, max_iter)
+                            
+                        predictor_condition_numbers = [np.linalg.cond(x) for x in x_data]
+                        mean_fold_coef = [np.mean(best_coef[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
+                        sd_fold_coef = [np.std(best_coef[layerIDX][:,:,:],axis=0) for layerIDX in range(numLayers)]
+                        sorted_coef = [np.argsort(mean_fold_coef[layerIDX]) for layerIDX in range(numLayers)]
+                        
+                        model_vals['sd_fold_coef'][reconstruction_type] = sd_fold_coef
+                        model_vals['mean_fold_coef'][reconstruction_type] = mean_fold_coef
+                        model_vals['bestR2'][reconstruction_type] = bestR2
+                        model_vals['sorted_coef'][reconstruction_type] = sorted_coef
+                        model_vals['bestAlpha'][reconstruction_type] = bestAlpha
+                        model_vals['alphas'][reconstruction_type] = alphas
+                        model_vals['lasso_weight'][reconstruction_type] = lasso_weight
+                        plotting_data['tauPredictions'][reconstruction_type] = tauPredictions
+                        plotting_data['loss_history_test'][reconstruction_type] = loss_history_test
+                        plotting_data['loss_history_train'][reconstruction_type] = loss_history_train
+                        plotting_data['dual_gap_history'][reconstruction_type] = dual_gap_history
+                        plotting_data['predictor_condition_numbers'][reconstruction_type] = predictor_condition_numbers
 
 
                     params = {}
@@ -1224,21 +1199,21 @@ def main():
                     with open(os.path.join(output_dir, 'plotting_data.pickle'), 'wb') as handle:
                         pickle.dump(meta_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-                    # temp_path = 'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3\Cux2-Ai96\pooling0.1mm\GenePredictors\Merfish-Imputed'
-                    # meta_dict = pickle.load(open(os.path.join(temp_path,f'plotting_data.pickle'), 'rb'))
+                    temp_path = 'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing\H3\Cux2-Ai96\pooling0.1mm\GenePredictors\Merfish-Imputed'
+                    meta_dict = pickle.load(open(os.path.join(temp_path,f'plotting_data.pickle'), 'rb'))
 
-                    # line_selection = meta_dict['line_selection']
-                    # struct_list = meta_dict['struct_list']
-                    # area_colors = meta_dict['area_colors']
-                    # plotting_conditions = meta_dict['plotting_conditions']
-                    # params = meta_dict['params']
-                    # paths = meta_dict['paths']
-                    # titles = meta_dict['titles']
-                    # model_vals = meta_dict['model_vals']
-                    # plotting_data = meta_dict['plotting_data']
+                    line_selection = meta_dict['line_selection']
+                    struct_list = meta_dict['struct_list']
+                    area_colors = meta_dict['area_colors']
+                    plotting_conditions = meta_dict['plotting_conditions']
+                    params = meta_dict['params']
+                    paths = meta_dict['paths']
+                    titles = meta_dict['titles']
+                    model_vals = meta_dict['model_vals']
+                    plotting_data = meta_dict['plotting_data']
 
                     try:
-                        plot_regressions(line_selection, struct_list, area_colors, plotting_conditions, params, paths, titles, model_vals, plotting_data)
+                        plot_regressions(True, True, gene_categories, line_selection, struct_list, area_colors, plotting_conditions, params, paths, titles, model_vals, plotting_data, regressions_to_plot=[1,2,3], paper_plotting=True, cross_layers=[0,2])
                     except Exception as e:
                         print(f"An error occurred while plotting regressions: {e}")
 

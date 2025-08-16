@@ -13,7 +13,7 @@ from abc_atlas_access.abc_atlas_cache.abc_project_cache import AbcProjectCache
 import anndata
 
 
-def merfishLoader(savePath, download_base, pilotGeneNames, restrict_merfish_imputed_values, geneLimit=-1, manifest_version='20240831', ensured_gene_list=['Cux2']):
+def merfishLoader(savePath, download_base, pilotGeneNames, restrict_merfish_imputed_values, geneLimit=-1, manifest_version='20240831', ensured_gene_list=['Cux2'], add_extra_genes=True):
     '''
     Load the Merfish-Imputed Dataset and filter genes based on pilot dataset and ensured gene list.
     Args:
@@ -64,30 +64,50 @@ def merfishLoader(savePath, download_base, pilotGeneNames, restrict_merfish_impu
 
     merfishGenes = list(np.array(abc_cache.get_metadata_dataframe(directory='MERFISH-C57BL6J-638850', file_name='gene').set_index('gene_identifier').gene_symbol))
     allMerfishImputedGeneNames = list(np.array(abc_cache.get_metadata_dataframe(directory='MERFISH-C57BL6J-638850-imputed', file_name='gene').set_index('gene_identifier').gene_symbol)) #list(adata.var.gene_symbol)
+    
     channelGeneFamilyList = ['Grin', 'Grm', 'Grik', 'Gria', 'Gabr', 'Kcnj', 'Kcna', 'Kcnn', 'Scn', 'Cacn', 'Clca', 'Clcn', 'Cdh']
-
-    plast_conn_genes = ['FOSB', 'EGR1', 'NPAS4', 'MEF2C', 'FOXP1', 'CAMK2A', 'CAMK2B', 'SYN1', 'SYN2', 'HOMER1', 'SHANK1', 'SHANK2', 'NRXN1', 'NRXN2', 'NRXN3', 'NLGN1', 'NLGN3', 'NCAM1']
+    plast_conn_genes = ['FOSB', 'EGR1', 'NPAS4', 'MEF2C', 'FOXP1', 'CAMK2A', 'CAMK2B', 'SYN1', 'SYN2', 'HOMER1', 'SHANK1', 'SHANK2', 'NRXN1', 'NRXN2', 'NRXN3', 'NLGN1', 'NLGN3', 'NCAM1', 'CCND1']
     plast_conn_genes = [gene.capitalize() for gene in plast_conn_genes]
-
-    distractor_genes = ['Mgll', 'Ccnd1', 'Chst2', 'St6galnac5', 'Car4', 'Dpp4', 'Echdc2', 'Man2a1', 'St6gal1', 'Chst11']
+    metabolic_genes = ['Mgll', 'Chst2', 'St6galnac5', 'Car4', 'Dpp4', 'Echdc2', 'Man2a1', 'St6gal1', 'Chst11']
+    ion_channel_genes, gaba_receptor_genes, glu_receptor_genes = [], [], []
 
     with open(os.path.join(savePath,f'familyGenes_merfishImputed.txt'), "w") as file:
         file.write('Gene Family Representation (Merfish-Imputed Dataset):\n\n')
 
-        enriched_gene_names_merfish_imputed = plast_conn_genes.copy() + distractor_genes.copy() #start with plasticity & connectivity genes, add to this list
+        if add_extra_genes:
+            enriched_gene_names_merfish_imputed = plast_conn_genes.copy() + metabolic_genes.copy() # Start with plasticity & connectivity genes, add to this list
+        else:
+            enriched_gene_names_merfish_imputed = []
+
         for currentGeneFamily in channelGeneFamilyList:
             fullGeneFamily = []
-            for geneIDX,currentGene in enumerate(allMerfishImputedGeneNames):
+            for geneIDX, currentGene in enumerate(allMerfishImputedGeneNames):
                 if currentGene[:len(currentGeneFamily)] == currentGeneFamily:
-                    fullGeneFamily.append(allMerfishImputedGeneNames[geneIDX])
-                    if allMerfishImputedGeneNames[geneIDX] not in enriched_gene_names_merfish_imputed:
-                        enriched_gene_names_merfish_imputed.append(allMerfishImputedGeneNames[geneIDX])
+                    fullGeneFamily.append(currentGene)
+                    if currentGene not in enriched_gene_names_merfish_imputed:
+                        enriched_gene_names_merfish_imputed.append(currentGene)
+                    
+                    if currentGeneFamily in ['Grin', 'Grm', 'Grik', 'Gria']:
+                        glu_receptor_genes.append(currentGene)
+                    elif currentGeneFamily in ['Gabr']:
+                        gaba_receptor_genes.append(currentGene)
+                    elif currentGeneFamily in ['Kcnj', 'Kcna', 'Kcnn', 'Scn', 'Cacn', 'Clca', 'Clcn']:
+                        ion_channel_genes.append(currentGene)
+                    elif currentGeneFamily in ['Cdh']:
+                        plast_conn_genes.append(currentGene)
 
             geneText = f'Gene Family {currentGeneFamily}: {fullGeneFamily}\n\n'
             #print(geneText)
             file.write(geneText)
         file.write(f'Full Gene List ({len(enriched_gene_names_merfish_imputed)} total genes): {enriched_gene_names_merfish_imputed}')
     
+    gene_categories = {
+        'metabolic_genes': metabolic_genes,
+        'ion_channel_genes': ion_channel_genes,
+        'gaba_receptor_genes': gaba_receptor_genes,
+        'glu_receptor_genes': glu_receptor_genes,
+        'plast_conn_genes': plast_conn_genes,
+    }
 
     unrepresentedPilotGenes = []
     with open(os.path.join(savePath,f'pilot_merfishImputed_geneOverlap.txt'), "w") as file:
@@ -138,7 +158,7 @@ def merfishLoader(savePath, download_base, pilotGeneNames, restrict_merfish_impu
     joined = joined.join(filter_IT_ET, how='inner') #joined_filtered = joined.join(filter_IT_ET, how='inner')
     joined = joined.drop(columns=['class','unique_name']) #joined_filtered = joined_filtered.drop(columns=['class','unique_name'])
 
-    return joined, allMerfishImputedGeneNames, distractor_genes
+    return joined, allMerfishImputedGeneNames, gene_categories
 
 
 def pilotLoader(savePath):
