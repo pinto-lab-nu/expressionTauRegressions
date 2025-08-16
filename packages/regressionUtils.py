@@ -10,6 +10,7 @@ from pypdf import PdfMerger
 import warnings
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.linear_model import LassoCV
+from sklearn.linear_model import MultiTaskLassoCV
 
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
@@ -100,7 +101,10 @@ def layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,l
                 dual_gap_history_global[layerIDX][foldIDX] = dual_gap_history
 
             else:
-                lasso_cv = LassoCV(alphas=alphas, cv=5, fit_intercept=False, max_iter=max_iter)
+                if response_dim == 1:
+                    lasso_cv = LassoCV(alphas=alphas, cv=5, fit_intercept=False, max_iter=max_iter)
+                else:
+                    lasso_cv = MultiTaskLassoCV(alphas=alphas, cv=5, fit_intercept=False, max_iter=max_iter)
                 lasso_cv.fit(train_x, train_y)
                 # best alpha, best R2, betas at all alpha levels
                 bestAlpha[layerIDX, foldIDX] = lasso_cv.alpha_

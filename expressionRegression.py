@@ -784,44 +784,45 @@ def main():
                     # plt.show()
 
                 try:
-                    layerIDX = 0 #just plot for layer 2/3
-                    for title_append in ['ylimit','']:
-                        # Plot tau along ML and AP axes
-                        fig, ax = plt.subplots(1,2,figsize=(5,2))
-                        n_points = resampledML_aligned[layerIDX].shape[0]
-                        jitter = np.random.normal(0, 0.05, n_points)
-                        region_colors = [area_colors[int(idx)] for idx in pooled_region_label_alignedForTau[layerIDX]]
-                        # Shuffle indices for random z-order
-                        shuffle_idx = np.random.permutation(n_points)
-                        print(f'shuffle_idx shape: {shuffle_idx.shape}, region_color array shape: {np.array(region_colors).shape}, resampled ML shape: {resampledML_aligned[layerIDX].shape}')
-                        print([resampledML_aligned[idx].shape for idx in range(numLayers)])
-                        ml_vals = resampledML_aligned[layerIDX][:,0][shuffle_idx] + jitter[shuffle_idx]
-                        ap_vals = resampledAP_aligned[layerIDX][:,0][shuffle_idx] + jitter[shuffle_idx]
-                        tau_vals = tau_aligned_forH3[layerIDX][:,0][shuffle_idx]
-                        region_colors_shuffled = np.array(region_colors)[shuffle_idx]
-                        ax[0].scatter(ml_vals, tau_vals, color=region_colors_shuffled, s=0.4)
-                        ax[1].scatter(ap_vals, tau_vals, color=region_colors_shuffled, s=0.4)
-                        ax[0].set_xlabel('ML CCF (mm)'), ax[1].set_xlabel('AP CCF (mm)')
-                        ax[0].set_ylabel(f'$\\tau$ (s)')
-                        if title_append == 'ylimit':
-                            ax[0].set_ylim(0, 29)
-                            ax[1].set_ylim(0, 29)
-                        region_color_patch = [mpatches.Patch(color=area_colors[i], label=struct_list[i]) for i in range(len(struct_list))]
-                        ax[1].legend(handles=region_color_patch, loc='upper left', bbox_to_anchor=(1.05, 1), fontsize='small', borderaxespad=0.)
-                        plt.savefig(os.path.join(save_path,f'{line_selection}_Tau{title_append}_by_ML_AP_{layerNames[layerIDX]}.pdf'), bbox_inches='tight')
-                        plt.close()
+                    if datasetName == 'Pilot':
+                        layerIDX = 0 #just plot for layer 2/3
+                        for title_append in ['ylimit','']:
+                            # Plot tau along ML and AP axes
+                            fig, ax = plt.subplots(1,2,figsize=(5,2))
+                            n_points = resampledML_aligned[layerIDX].shape[0]
+                            jitter = np.random.normal(0, 0.05, n_points)
+                            region_colors = [area_colors[int(idx)] for idx in pooled_region_label_alignedForTau[layerIDX]]
+                            # Shuffle indices for random z-order
+                            shuffle_idx = np.random.permutation(n_points)
+                            print(f'shuffle_idx shape: {shuffle_idx.shape}, region_color array shape: {np.array(region_colors).shape}, resampled ML shape: {resampledML_aligned[layerIDX].shape}')
+                            print([resampledML_aligned[idx].shape for idx in range(numLayers)])
+                            ml_vals = resampledML_aligned[layerIDX][:,0][shuffle_idx] + jitter[shuffle_idx]
+                            ap_vals = resampledAP_aligned[layerIDX][:,0][shuffle_idx] + jitter[shuffle_idx]
+                            tau_vals = tau_aligned_forH3[layerIDX][:,0][shuffle_idx]
+                            region_colors_shuffled = np.array(region_colors)[shuffle_idx]
+                            ax[0].scatter(ml_vals, tau_vals, color=region_colors_shuffled, s=0.4)
+                            ax[1].scatter(ap_vals, tau_vals, color=region_colors_shuffled, s=0.4)
+                            ax[0].set_xlabel('ML CCF (mm)'), ax[1].set_xlabel('AP CCF (mm)')
+                            ax[0].set_ylabel(f'$\\tau$ (s)')
+                            if title_append == 'ylimit':
+                                ax[0].set_ylim(0, 29)
+                                ax[1].set_ylim(0, 29)
+                            region_color_patch = [mpatches.Patch(color=area_colors[i], label=struct_list[i]) for i in range(len(struct_list))]
+                            ax[1].legend(handles=region_color_patch, loc='upper left', bbox_to_anchor=(1.05, 1), fontsize='small', borderaxespad=0.)
+                            plt.savefig(os.path.join(save_path,f'{line_selection}_Tau{title_append}_by_ML_AP_{layerNames[layerIDX]}.pdf'), bbox_inches='tight')
+                            plt.close()
 
-                    param_settings = {'mc_param_set_id': 1,
-                    'pixel_param_set_id': 1,
-                    'dff_param_set_id': 2,
-                    'wf_inclusion_param_set_id': 2,
-                    'ts_param_set_id': 2,
-                    'corr_param_set_id': 1}
-                    plt.hist(all_tau_CCF_coords[2,:], color='black', bins=75)
-                    plt.title(f'{line_selection} Tau Distribution Histogram \n {param_settings} \n {key_list_intothevoid}')
-                    plt.xlabel(f'$\\tau$ (s)'), plt.ylabel('Counts')
-                    plt.savefig(os.path.join(save_path,f'{line_selection}_Tau_Histogram.pdf'), bbox_inches='tight')
-                    plt.close()
+                        param_settings = {'mc_param_set_id': 1,
+                        'pixel_param_set_id': 1,
+                        'dff_param_set_id': 2,
+                        'wf_inclusion_param_set_id': 2,
+                        'ts_param_set_id': 2,
+                        'corr_param_set_id': 1}
+                        plt.hist(all_tau_CCF_coords[2,:], color='black', bins=75)
+                        plt.title(f'{line_selection} Tau Distribution Histogram \n {param_settings} \n {key_list_intothevoid}')
+                        plt.xlabel(f'$\\tau$ (s)'), plt.ylabel('Counts')
+                        plt.savefig(os.path.join(save_path,f'{line_selection}_Tau_Histogram.pdf'), bbox_inches='tight')
+                        plt.close()
 
                 except:
                     ######################################################################################
