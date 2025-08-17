@@ -262,6 +262,7 @@ def main():
         gene_data_dense, pilot_gene_names, fn_clustid, fn_CCF = pilotLoader(save_path)
         merfish_CCF_Genes, all_merfish_gene_names, gene_categories = merfishLoader(save_path, download_base, pilot_gene_names, restrict_merfish_imputed_values, gene_limit)
         all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line_selection, keys=key_list_intothevoid, task='IntoTheVoid')
+        all_tau_CCF_coords[1,:] *= -1 #invert AP CCF coordinates for regressions
 
         # dump list of all_merfish_gene_names into a text file for reference
         with open(os.path.join(save_path,f'merfishImputed_allGeneNames.txt'), "w") as file:
@@ -432,6 +433,8 @@ def main():
                 CCFvalues = fn_CCF
                 gene_data = gene_data_dense
             
+            CCFvalues[:,0] *= -1
+            
             #tau_per_cell_H2layerFiltered = [np.empty((0,1)) for _ in range(numLayers)]
             cell_region_H2layerFiltered[resolution] = [np.empty((0,1)).astype(int) for _ in range(numLayers)]
             #tau_SD_per_cell_H2layerFiltered = [np.empty((0,1)) for _ in range(numLayers)]
@@ -545,6 +548,15 @@ def main():
             #plt.ylim((3,10))
             plt.gca().invert_yaxis()
             plt.savefig(os.path.join(save_path, 'fig1_merfish.pdf'), bbox_inches='tight')
+            plt.close()
+
+            # Plot Merfish cell locations in CCF space
+            plt.figure(figsize=(1.75,3))
+            ml_filter = np.where(mlCCF_per_cell_H2layerFiltered['10'][0].ravel() > 2)[0]
+            plt.scatter(mlCCF_per_cell_H2layerFiltered['10'][0][ml_filter], apCCF_per_cell_H2layerFiltered['10'][0][ml_filter], color='black', s=0.1)
+            plt.xticks(np.arange(2, 7, 1))
+            plt.axis('equal')
+            plt.savefig(os.path.join(save_path, 'fig1_merfish_filtered.pdf'), bbox_inches='tight')
             plt.close()
         
         
@@ -749,8 +761,8 @@ def main():
 
                 # pooledTauCCF_coords[layer] has columns: ML, AP, tau_mean, tau_std
                 standardized_CCF_Tau = [standard_scaler.fit_transform(pooledTauCCF_coords[layerIDX]) for layerIDX in range(numLayers)]
-                for layerIDX in range(numLayers):
-                    standardized_CCF_Tau[layerIDX][:,1] *= -1 #invert standardized AP CCF for regressions
+                # for layerIDX in range(numLayers):
+                #     standardized_CCF_Tau[layerIDX][:,1] *= -1 #invert standardized AP CCF for regressions
                 APML_tau_models = []
                 for layerIDX in range(numLayers):
                     linearmodel = LinearRegression()
@@ -850,7 +862,7 @@ def main():
                     resampledAP_aligned_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(resampledAP_aligned[layerIDX][:,:]))
                     resampledML_aligned_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(resampledML_aligned[layerIDX][:,:]))
                     mlCCF_per_cell_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(mlCCF_per_cell_H2layerFiltered[resolution][layerIDX][:,:]))
-                    apCCF_per_cell_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(apCCF_per_cell_H2layerFiltered[resolution][layerIDX][:,:])) * -1 #Standardized AP CCF is inverted for regressions
+                    apCCF_per_cell_H2layerFiltered_standard[layerIDX][:,:] = standard_scaler.fit_transform(np.asarray(apCCF_per_cell_H2layerFiltered[resolution][layerIDX][:,:]))
                         
                 #print(np.mean(resampledGenes_aligned_H2layerFiltered_standard[0][:,:],axis=0)) #just to see that the means are zero after standardizing
 
@@ -1058,7 +1070,7 @@ def main():
                             response_dim = 2
                             if predictorPathSuffix == 'GenePredictors':
                                 x_data = gene_data_dense_H2layerFiltered_standard
-                                y_data = [np.hstack((apCCF_per_cell_H2layerFiltered_standard[layerIDX]*-1, mlCCF_per_cell_H2layerFiltered_standard[layerIDX])) for layerIDX in range(numLayers)]
+                                y_data = [np.hstack((apCCF_per_cell_H2layerFiltered_standard[layerIDX], mlCCF_per_cell_H2layerFiltered_standard[layerIDX])) for layerIDX in range(numLayers)]
                                 region_label_filtered = cell_region_H2layerFiltered[resolution]
                             if predictorPathSuffix == 'H3Predictors':
                                 x_data = pooledH3_for_spatial #[m.T for m in pooledH3_for_spatial] #H3_per_cell_H2layerFiltered
@@ -1071,12 +1083,12 @@ def main():
                             response_dim = 1
                             if predictorPathSuffix == 'GenePredictors':
                                 #x_data = resampledGenes_aligned_H2layerFiltered_standard
-                                x_data = [np.hstack((resampledGenes_aligned_H2layerFiltered_standard[layerIDX], resampledAP_aligned_standard[layerIDX]*-1, resampledML_aligned_standard[layerIDX])) for layerIDX in range(numLayers)]
+                                x_data = [np.hstack((resampledGenes_aligned_H2layerFiltered_standard[layerIDX], resampledAP_aligned_standard[layerIDX], resampledML_aligned_standard[layerIDX])) for layerIDX in range(numLayers)]
                                 y_data = resampledTau_aligned_standard
                                 region_label_filtered = pooled_cell_region_geneAligned_H2layerFiltered
                             if predictorPathSuffix == 'H3Predictors':
                                 #x_data = resampledH3_aligned_H2layerFiltered#[m.T for m in resampledH3_aligned_H2layerFiltered]
-                                x_data = [np.hstack((resampledH3_aligned_H2layerFiltered[layerIDX], resampledAP_aligned_standard[layerIDX]*-1, resampledML_aligned_standard[layerIDX])) for layerIDX in range(numLayers)]
+                                x_data = [np.hstack((resampledH3_aligned_H2layerFiltered[layerIDX], resampledAP_aligned_standard[layerIDX], resampledML_aligned_standard[layerIDX])) for layerIDX in range(numLayers)]
                                 y_data = tau_aligned_forH3_standard
                                 region_label_filtered = pooled_region_label_alignedForTau
 
@@ -1216,7 +1228,7 @@ def main():
                     plotting_data = meta_dict['plotting_data']
 
                     try:
-                        plot_regressions(True, True, gene_categories, line_selection, struct_list, area_colors, plotting_conditions, params, paths, titles, model_vals, plotting_data, regressions_to_plot=[1,2,3], paper_plotting=True, cross_layers=[0,2])
+                        plot_regressions(True, True, line_selection, struct_list, area_colors, plotting_conditions, params, paths, titles, model_vals, plotting_data, regressions_to_plot=[0], paper_plotting=True, cross_layers=[0,2])
                     except Exception as e:
                         print(f"An error occurred while plotting regressions: {e}")
 
