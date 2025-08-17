@@ -102,6 +102,7 @@ def layerRegressions(response_dim,n_splits,highMeanPredictorIDXs,x_data,y_data,l
 
             else:
                 if response_dim == 1:
+                    train_y = train_y.ravel()
                     lasso_cv = LassoCV(alphas=alphas, cv=5, fit_intercept=False, max_iter=max_iter)
                 else:
                     lasso_cv = MultiTaskLassoCV(alphas=alphas, cv=5, fit_intercept=False, max_iter=max_iter)
