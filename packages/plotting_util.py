@@ -213,6 +213,7 @@ def plot_regressions(generate_plots, generate_summary, lineSelection, structList
     if datasetName != 'Pilot':
         for layerIDX in range(numLayers):
             volcano_sig_category_fractions = np.zeros(5)
+            volcano_sig_positiveFC_category_fractions = np.zeros(5)
 
             plt.figure() if paper_plotting else plt.figure(figsize=(8, 6))
             for i, (fc, p, gene_color, gene_name) in enumerate(zip(volcano_log2_fc[layerIDX], volcano_neg_log10_p[layerIDX], gene_color_list[layerIDX], predictorNamesArray[highMeanPredictorIDXs[layerIDX]])):
@@ -232,6 +233,17 @@ def plot_regressions(generate_plots, generate_summary, lineSelection, structList
                         volcano_sig_category_fractions[3] += 1
                     elif gene_name in gene_categories['Others']:
                         volcano_sig_category_fractions[4] += 1
+                if (fc >= 0.2) and (p >= -np.log10(0.001)):
+                    if gene_name in gene_categories['Ion channels and ion homeostasis']:
+                        volcano_sig_positiveFC_category_fractions[0] += 1
+                    elif gene_name in gene_categories['GABAergic transmission']:
+                        volcano_sig_positiveFC_category_fractions[1] += 1
+                    elif gene_name in gene_categories['Glutamatergic transmission']:
+                        volcano_sig_positiveFC_category_fractions[2] += 1
+                    elif gene_name in gene_categories['Synaptic function, connectivity, and plasticity, neuronal development']:
+                        volcano_sig_positiveFC_category_fractions[3] += 1
+                    elif gene_name in gene_categories['Others']:
+                        volcano_sig_positiveFC_category_fractions[4] += 1
 
             #plt.axhline(y=-np.log10(0.001), color='red', linestyle='--', label='FDR p=0.001')
             #plt.axvline(x=0, color='black', linestyle='--', label='FC=0')
@@ -252,6 +264,7 @@ def plot_regressions(generate_plots, generate_summary, lineSelection, structList
             plt.close()
 
             volcano_sig_category_fractions /= np.sum(volcano_sig_category_fractions)
+            volcano_sig_positiveFC_category_fractions /= np.sum(volcano_sig_positiveFC_category_fractions)
             # plot pie chart of volcano sig category fractions
             fig, ax = plt.subplots(1,1,figsize=(2,2))
             ax.pie(
@@ -262,6 +275,17 @@ def plot_regressions(generate_plots, generate_summary, lineSelection, structList
                 textprops={'fontsize': 10, 'color': '#333333'}
             )
             plt.savefig(os.path.join(tauSortedPath, f'{predictorPathSuffix}',f'{datasetName}', f'{datasetName}_VolcanoSigCategoryFractions_{layerNames[layerIDX]}.pdf'), bbox_inches='tight')
+            plt.close()
+            # plot pie chart of volcano sig positive FC category fractions
+            fig, ax = plt.subplots(1,1,figsize=(2,2))
+            ax.pie(
+                volcano_sig_positiveFC_category_fractions,
+                colors=category_colors,
+                autopct='%1.1f%%',
+                startangle=90,
+                textprops={'fontsize': 10, 'color': '#333333'}
+            )
+            plt.savefig(os.path.join(tauSortedPath, f'{predictorPathSuffix}',f'{datasetName}', f'{datasetName}_VolcanoSigPositiveFCCategoryFractions_{layerNames[layerIDX]}.pdf'), bbox_inches='tight')
             plt.close()
     
 
@@ -389,9 +413,7 @@ def plot_regressions(generate_plots, generate_summary, lineSelection, structList
             beta_dict['spatialReconstruction'] = spatialReconstruction
             with open(os.path.join(plottingDir,f'betaDictionary.txt'), 'wb+') as f:
                 pickle.dump(beta_dict, f)
-
-            for layerIDX in range(numLayers):
-                mean_fold_coef_spatial[layerIDX][0] = mean_fold_coef_spatial[layerIDX][0] * -1
+            
             if spatialReconstruction and (predictorPathSuffix == 'GenePredictors') and (meanExpressionThresh == 0): #(datasetName == 'Pilot') #removed Pilot qualifier
                 for mean_fold_coef_plot, sd_fold_coef_plot, typeTitle in zip([mean_fold_coef_spatial,mean_fold_coef_tau],[sd_fold_coef_spatial,sd_fold_coef_tau],['Spatial','Tau']):
                     if typeTitle == 'Spatial':
@@ -664,6 +686,8 @@ def plot_regressions(generate_plots, generate_summary, lineSelection, structList
                 reject_pvals_idxs = np.where(pvals > 0.05)[0]
 
                 regression_sig_category_fractions = np.zeros(5)
+                regression_sig_posBeta_category_fractions = np.zeros(5)
+
                 for idx, current_gene in enumerate(predictorNamesArray[highMeanPredictorIDXs[layerIDX][sorted_coef[layerIDX][dim,:]]]):
                     if idx not in reject_pvals_idxs:
                         if current_gene in gene_categories['Ion channels and ion homeostasis']:
@@ -676,8 +700,20 @@ def plot_regressions(generate_plots, generate_summary, lineSelection, structList
                             regression_sig_category_fractions[3] += 1
                         elif current_gene in gene_categories['Others']:
                             regression_sig_category_fractions[4] += 1
+                    if idx not in reject_pvals_idxs and beta_means[idx] > 0:
+                        if current_gene in gene_categories['Ion channels and ion homeostasis']:
+                            regression_sig_posBeta_category_fractions[0] += 1
+                        elif current_gene in gene_categories['GABAergic transmission']:
+                            regression_sig_posBeta_category_fractions[1] += 1
+                        elif current_gene in gene_categories['Glutamatergic transmission']:
+                            regression_sig_posBeta_category_fractions[2] += 1
+                        elif current_gene in gene_categories['Synaptic function, connectivity, and plasticity, neuronal development']:
+                            regression_sig_posBeta_category_fractions[3] += 1
+                        elif current_gene in gene_categories['Others']:
+                            regression_sig_posBeta_category_fractions[4] += 1
                 
                 regression_sig_category_fractions /= np.sum(regression_sig_category_fractions)
+                regression_sig_posBeta_category_fractions /= np.sum(regression_sig_posBeta_category_fractions)
 
                 # plot pie chart of regression sig category fractions
                 category_colors = [
@@ -696,6 +732,17 @@ def plot_regressions(generate_plots, generate_summary, lineSelection, structList
                     textprops={'fontsize': 10, 'color': '#333333'},
                 )
                 plt.savefig(os.path.join(plottingDir,f'{save_name}_RegressionSigCategoryFractions_{layerName}.pdf'), bbox_inches='tight')
+                plt.close()
+                # plot pie chart of regression sig posBeta category fractions
+                fig, ax = plt.subplots(1,1,figsize=(2,2))
+                ax.pie(
+                    regression_sig_posBeta_category_fractions,
+                    colors=category_colors,
+                    autopct='%1.1f%%',
+                    startangle=90,
+                    textprops={'fontsize': 10, 'color': '#333333'},
+                )
+                plt.savefig(os.path.join(plottingDir,f'{save_name}_RegressionSigPosBetaCategoryFractions_{layerName}.pdf'), bbox_inches='tight')
                 plt.close()
                     
                         
