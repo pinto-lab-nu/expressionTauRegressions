@@ -115,7 +115,7 @@ def main():
     parser.add_argument("--restrict_merfish_imputed_values", type=str_to_bool, default=False) #condition to restrict merfish-imputed dataset to non-imputed genes
     parser.add_argument("--tau_pool_size_array_full", type=lambda s: [float(item) for item in s.split(',')], default="4.0") #[1,2,3,4,5] #in 25um resolution CCF voxels, converted to mm later
     parser.add_argument("--n_splits", type=int, default=5) #number of splits for cross-validations in regressions
-    parser.add_argument("--alpha_params", type=lambda s: [float(item) for item in s.split(',')], default="-5,0,30") # [Alpha Lower (10**x), Alpha Upper (10**x), Steps]... alpha values for Lasso regressions
+    parser.add_argument("--alpha_params", type=lambda s: [float(item) for item in s.split(',')], default="-5,-2,30") # [Alpha Lower (10**x), Alpha Upper (10**x), Steps]... alpha values for Lasso regressions
     parser.add_argument("--plotting", type=str_to_bool, default=True)
     parser.add_argument("--num_precision", type=int, default=3)   # Just for display (in plotting and regression text files)
     parser.add_argument("--alpha_precision", type=int, default=5) # Just for display (in plotting and regression text files)
@@ -157,6 +157,8 @@ def main():
     bootstrapping_scale = args.bootstrapping_scale
     min_pool_size = args.min_pool_size
     preprocessing_only = args.preprocessing_only
+
+    functional_set = 'extra_set'
 
     # make sure that alpha_params steps is an integer
     alpha_params[2] = int(alpha_params[2])
@@ -253,19 +255,31 @@ def main():
 
         #################
         ### Load data ###
-        key_list_intothevoid = [
-            ("rsx2237_Cilantro", "2023-05-23", 1),
-            ("pss3570_Chip", "2022-09-04", 1),
-            ("pss3570_Caesar", "2022-09-04", 1),
-            ("pss3570_Champ", "2022-09-04", 1),
-            ("rsx2237_Charlie", "2023-05-16", 2)
-        ]
+        if functional_set == 'renan_set':
+            key_list_intothevoid = [
+                ("rsx2237_Cilantro", "2023-05-23", 1),
+                ("pss3570_Chip", "2022-09-04", 1),
+                ("pss3570_Caesar", "2022-09-04", 1),
+                ("pss3570_Champ", "2022-09-04", 1),
+                ("rsx2237_Charlie", "2023-05-16", 2),
+            ]
+        if functional_set == 'extra_set':
+            key_list_intothevoid = [
+                ("rsx2237_Cilantro", "2023-05-23", 1),
+                ("pss3570_Chip", "2022-09-04", 1),
+                ("pss3570_Caesar", "2022-09-04", 1),
+                ("pss3570_Champ", "2022-09-04", 1),
+                ("rsx2237_Charlie", "2023-05-16", 2),
+                ("rsx2237_Carmella", "2024-01-12", 2),
+                ("rsx2237_Cordelia", "2024-01-12", 2),
+                ("rsx2237_Cynthia", "2024-10-03", 2),
+            ]
 
         key_list_intothevoid = get_keys(key_list_intothevoid)
 
         gene_data_dense, pilot_gene_names, fn_clustid, fn_CCF = pilotLoader(save_path)
         merfish_CCF_Genes, all_merfish_gene_names, gene_categories = merfishLoader(save_path, download_base, pilot_gene_names, restrict_merfish_imputed_values, gene_limit)
-        all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line_selection, keys=key_list_intothevoid, task='IntoTheVoid')
+        all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line=line_selection, keys=key_list_intothevoid, task='IntoTheVoid', ts_param_set_id=3)
         all_tau_CCF_coords[1,:] *= -1 #invert AP CCF coordinates for regressions
 
         # dump list of all_merfish_gene_names into a text file for reference
@@ -828,9 +842,9 @@ def main():
                         tau_vals = tau_aligned_forH3[layerIDX][:,0][shuffle_idx]
                         region_colors_shuffled = np.array(region_colors)[shuffle_idx]
                         ax[0].scatter(ml_vals, tau_vals, color=region_colors_shuffled, s=0.4)
-                        ax[0].set_title(f'r={round(r_correlation_ml[layerIDX],3)}, p={round(p_correlation_ml[layerIDX],3)}')
+                        ax[0].set_title(f'r={round(r_correlation_ml[layerIDX],3)}, p={p_correlation_ml[layerIDX]:.3e}')
                         ax[1].scatter(ap_vals, tau_vals, color=region_colors_shuffled, s=0.4)
-                        ax[1].set_title(f'r={round(r_correlation_ap[layerIDX],3)}, p={round(p_correlation_ap[layerIDX],3)}')
+                        ax[1].set_title(f'r={round(r_correlation_ap[layerIDX],3)}, p={p_correlation_ap[layerIDX]:.3e}')
                         ax[0].set_xlabel('ML CCF (mm)'), ax[1].set_xlabel('AP CCF (mm)')
                         ax[0].set_ylabel(f'$\\tau$ (s)')
                         if title_append == 'ylimit':
