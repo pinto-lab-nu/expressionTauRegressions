@@ -158,7 +158,8 @@ def main():
     min_pool_size = args.min_pool_size
     preprocessing_only = args.preprocessing_only
 
-    functional_set = 'extra_set'
+    functional_set = 'renan_set'
+    log_tau = True
 
     # make sure that alpha_params steps is an integer
     alpha_params[2] = int(alpha_params[2])
@@ -285,8 +286,11 @@ def main():
 
         gene_data_dense, pilot_gene_names, fn_clustid, fn_CCF = pilotLoader(save_path)
         merfish_CCF_Genes, all_merfish_gene_names, gene_categories = merfishLoader(save_path, download_base, pilot_gene_names, restrict_merfish_imputed_values, gene_limit)
-        all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line=line_selection, keys=key_list_intothevoid, task='IntoTheVoid', ts_param_set_id=3, corr_param_set_id=2)
+        all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line=line_selection, keys=key_list_intothevoid, task='IntoTheVoid', ts_param_set_id=3, corr_param_set_id=2, tau_cutoff=59.9)
         all_tau_CCF_coords[1,:] *= -1 #invert AP CCF coordinates for regressions
+
+        if log_tau:
+            all_tau_CCF_coords[2,:] = np.log(all_tau_CCF_coords[2,:])
 
         # if verbose:
         #     fig, axes = plt.subplots(3, 3, figsize=(15, 15))
