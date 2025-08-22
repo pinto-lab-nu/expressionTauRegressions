@@ -274,13 +274,30 @@ def main():
                 ("rsx2237_Cordelia", "2024-01-12", 2),
                 ("rsx2237_Cynthia", "2024-10-03", 2),
             ]
+        if functional_set == 'extra_only_set':
+            key_list_intothevoid = [
+                ("rsx2237_Carmella", "2024-01-12", 2),
+                ("rsx2237_Cordelia", "2024-01-12", 2),
+                ("rsx2237_Cynthia", "2024-10-03", 2),
+            ]
 
         key_list_intothevoid = get_keys(key_list_intothevoid)
 
         gene_data_dense, pilot_gene_names, fn_clustid, fn_CCF = pilotLoader(save_path)
         merfish_CCF_Genes, all_merfish_gene_names, gene_categories = merfishLoader(save_path, download_base, pilot_gene_names, restrict_merfish_imputed_values, gene_limit)
-        all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line=line_selection, keys=key_list_intothevoid, task='IntoTheVoid', ts_param_set_id=3)
+        all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line=line_selection, keys=key_list_intothevoid, task='IntoTheVoid', ts_param_set_id=3, corr_param_set_id=2)
         all_tau_CCF_coords[1,:] *= -1 #invert AP CCF coordinates for regressions
+
+        # if verbose:
+        #     fig, axes = plt.subplots(3, 3, figsize=(15, 15))
+        #     axes = axes.flatten()
+        #     for i, current_key in enumerate(key_list_intothevoid):
+        #         print(i)
+        #         all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line=line_selection, keys=current_key, task='IntoTheVoid', ts_param_set_id=3, corr_param_set_id=2)
+        #         ax = axes[i]
+        #         ax.scatter(all_tau_CCF_coords[0, :], all_tau_CCF_coords[1, :], s=1)
+        #         ax.set_title(f'{current_key}')
+        #         ax.set_ylim([0, 30])
 
         # dump list of all_merfish_gene_names into a text file for reference
         with open(os.path.join(save_path,f'merfishImputed_allGeneNames.txt'), "w") as file:
