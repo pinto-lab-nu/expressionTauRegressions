@@ -159,7 +159,7 @@ def main():
     preprocessing_only = args.preprocessing_only
 
     functional_set = 'renan_set'
-    log_tau = True
+    log_tau = False
 
     # make sure that alpha_params steps is an integer
     alpha_params[2] = int(alpha_params[2])
