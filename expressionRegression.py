@@ -30,6 +30,7 @@ import psutil
 #from utils.connect_to_dj import VM
 from ccfRegistration.ccf_utils import * #load_tau_CCF, key_CCF, merge_regions, calculate_pooling_grid, passing_census, functional_timescales
 
+my_os = platform.system()
 
 test_mode = False # just makes a few things easier when runninng in interactive mode
 
@@ -158,7 +159,7 @@ def main():
     min_pool_size = args.min_pool_size
     preprocessing_only = args.preprocessing_only
 
-    functional_set = 'renan_set'
+    functional_set = ['renan_set', 'extended_set', 'extra_set'][0] # options are 'renan_set', 'extended_set', 'extra_set'
     log_tau = False
 
     # make sure that alpha_params steps is an integer
@@ -256,36 +257,29 @@ def main():
 
         #################
         ### Load data ###
-        if functional_set == 'renan_set':
-            key_list_intothevoid = [
-                ("rsx2237_Cilantro", "2023-05-23", 1),
-                ("pss3570_Chip", "2022-09-04", 1),
-                ("pss3570_Caesar", "2022-09-04", 1),
-                ("pss3570_Champ", "2022-09-04", 1),
-                ("rsx2237_Charlie", "2023-05-16", 2),
-            ]
-        if functional_set == 'extra_set':
-            key_list_intothevoid = [
-                ("rsx2237_Cilantro", "2023-05-23", 1),
-                ("pss3570_Chip", "2022-09-04", 1),
-                ("pss3570_Caesar", "2022-09-04", 1),
-                ("pss3570_Champ", "2022-09-04", 1),
-                ("rsx2237_Charlie", "2023-05-16", 2),
-                ("rsx2237_Carmella", "2024-01-12", 2),
-                ("rsx2237_Cordelia", "2024-01-12", 2),
-                ("rsx2237_Cynthia", "2024-10-03", 2),
-            ]
-        if functional_set == 'extra_only_set':
-            key_list_intothevoid = [
-                ("rsx2237_Carmella", "2024-01-12", 2),
-                ("rsx2237_Cordelia", "2024-01-12", 2),
-                ("rsx2237_Cynthia", "2024-10-03", 2),
-            ]
+        renan_sessions_list = [
+            ("rsx2237_Cilantro", "2023-05-23", 1),
+            ("pss3570_Chip", "2022-09-04", 1),
+            ("pss3570_Caesar", "2022-09-04", 1),
+            ("pss3570_Champ", "2022-09-04", 1),
+            ("rsx2237_Charlie", "2023-05-16", 2),
+        ]
 
-        key_list_intothevoid = get_keys(key_list_intothevoid)
+        extra_sessions_list = [
+            ("rsx2237_Carmella", "2024-01-12", 2),
+            ("rsx2237_Cordelia", "2024-01-12", 2),
+            ("rsx2237_Cynthia", "2024-10-03", 2),
+        ]
+
+        if functional_set == 'renan_set':
+            key_list_intothevoid = get_keys(renan_sessions_list)
+        if functional_set == 'extended_set':
+            key_list_intothevoid = get_keys(renan_sessions_list + extra_sessions_list)
+        if functional_set == 'extra_set':
+            key_list_intothevoid = get_keys(extra_sessions_list)
 
         gene_data_dense, pilot_gene_names, fn_clustid, fn_CCF = pilotLoader(save_path)
-        merfish_CCF_Genes, all_merfish_gene_names, gene_categories = merfishLoader(save_path, download_base, pilot_gene_names, restrict_merfish_imputed_values, gene_limit)
+        merfish_CCF_Genes, all_merfish_gene_names, gene_categories, used_genes_longnames = merfishLoader(save_path, download_base, pilot_gene_names, restrict_merfish_imputed_values, gene_limit)
         all_tau_CCF_coords, CCF25_bregma, CCF25_lambda = load_tau_CCF(line=line_selection, keys=key_list_intothevoid, task='IntoTheVoid', ts_param_set_id=3, corr_param_set_id=2, tau_cutoff=59.9)
         all_tau_CCF_coords[1,:] *= -1 #invert AP CCF coordinates for regressions
 
@@ -307,6 +301,10 @@ def main():
         with open(os.path.join(save_path,f'merfishImputed_allGeneNames.txt'), "w") as file:
             for currentGene in all_merfish_gene_names:
                 file.write(currentGene+'\n')
+        
+        # dump list of used long gene names into a pickle file for reference
+        with open(os.path.join(save_path,f'merfishImputed_usedLongGeneNames.pickle'), "wb") as file:
+            pickle.dump(used_genes_longnames, file, protocol=pickle.HIGHEST_PROTOCOL)
 
         time_load_data = datetime.now()
         print(f'Time to load data: {time_load_data - time_start}')

@@ -64,7 +64,8 @@ def merfishLoader(savePath, download_base, pilotGeneNames, restrict_merfish_impu
 
     merfishGenes = list(np.array(abc_cache.get_metadata_dataframe(directory='MERFISH-C57BL6J-638850', file_name='gene').set_index('gene_identifier').gene_symbol))
     allMerfishImputedGeneNames = list(np.array(abc_cache.get_metadata_dataframe(directory='MERFISH-C57BL6J-638850-imputed', file_name='gene').set_index('gene_identifier').gene_symbol)) #list(adata.var.gene_symbol)
-    
+    merfish_imputed_long_gene_names = list(np.array(abc_cache.get_metadata_dataframe(directory='MERFISH-C57BL6J-638850-imputed', file_name='gene').set_index('gene_identifier').name))
+
     channelGeneFamilyList = ['Grin', 'Grm', 'Grik', 'Gria', 'Gabr', 'Kcnj', 'Kcna', 'Kcnn', 'Scn', 'Cacn', 'Clca', 'Clcn', 'Cdh']
     plast_conn_genes = ['FOSB', 'EGR1', 'NPAS4', 'MEF2C', 'FOXP1', 'CAMK2A', 'CAMK2B', 'SYN1', 'SYN2', 'HOMER1', 'SHANK1', 'SHANK2', 'NRXN1', 'NRXN2', 'NRXN3', 'NLGN1', 'NLGN3', 'NCAM1', 'CCND1']
     plast_conn_genes = [gene.capitalize() for gene in plast_conn_genes]
@@ -158,7 +159,11 @@ def merfishLoader(savePath, download_base, pilotGeneNames, restrict_merfish_impu
     joined = joined.join(filter_IT_ET, how='inner') #joined_filtered = joined.join(filter_IT_ET, how='inner')
     joined = joined.drop(columns=['class','unique_name']) #joined_filtered = joined_filtered.drop(columns=['class','unique_name'])
 
-    return joined, allMerfishImputedGeneNames, gene_categories
+    enriched_gene_names = list(joined.drop(columns=['x_ccf','y_ccf','z_ccf']).columns)
+    used_genes_idxs = np.where(np.isin(allMerfishImputedGeneNames, enriched_gene_names))[0]
+    used_gene_longnames = np.array(merfish_imputed_long_gene_names)[used_genes_idxs]
+
+    return joined, allMerfishImputedGeneNames, gene_categories, used_gene_longnames
 
 
 def pilotLoader(savePath):
