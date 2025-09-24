@@ -203,6 +203,7 @@ gene_categories['Synaptic function, connectivity, and plasticity, neuronal devel
 'Dab1',
 'Rab3c',
 'Syt2',
+'Ccnd1',
 ]
 
 gene_categories['Others'] = [

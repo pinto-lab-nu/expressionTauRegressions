@@ -1,2 +1,12 @@
 
 *.pyc
+*.txt
+*.pdf
+*.png
+*.xlsx
+*.pkl
+*.csv
+*.json
+*.nii
+*.h5ad
+*.nrrd

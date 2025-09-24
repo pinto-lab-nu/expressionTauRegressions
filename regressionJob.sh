@@ -36,6 +36,7 @@ while [[ "$#" -gt 0 ]]; do
         -b|--bootstrapping_scale) bootstrapping_scale="$2"; shift 2 ;;
         -i|--min_pool_size) min_pool_size="$2"; shift 2 ;;
         --preprocessing_only) preprocessing_only="$2"; shift 2 ;;
+        --output_to_repo) output_to_repo="$2"; shift 2 ;;
         -h|--help) 
             echo "Usage: $0 [options]"
             echo "Options:"
@@ -84,8 +85,9 @@ arg_parse_test=${arg_parse_test:-false}
 bootstrapping_scale=${bootstrapping_scale:-1.0}
 min_pool_size=${min_pool_size:-3}
 preprocessing_only=${preprocessing_only:-false}
+output_to_repo=${output_to_repo:-false}
 
-python expressionRegression.py \
+python expression_script.py \
     --gene_limit=$gene_limit \
     --line_selection=$line_selection \
     --restrict_merfish_imputed_values=$restrict_merfish_imputed_values \
@@ -105,7 +107,8 @@ python expressionRegression.py \
     --job_task_id=$SLURM_ARRAY_TASK_ID \
     --bootstrapping_scale=$bootstrapping_scale \
     --min_pool_size=$min_pool_size \
-    --preprocessing_only=$preprocessing_only
+    --preprocessing_only=$preprocessing_only \
+    --output_to_repo=$output_to_repo
 
 # Example usage:
 # sbatch --array=0-0%1 regressionJob.sh --arg_parse_test true --alphaParams -5,5,30

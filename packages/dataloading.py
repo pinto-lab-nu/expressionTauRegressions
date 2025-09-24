@@ -166,20 +166,20 @@ def merfishLoader(savePath, download_base, pilotGeneNames, restrict_merfish_impu
     return joined, allMerfishImputedGeneNames, gene_categories, used_gene_longnames
 
 
-def pilotLoader(savePath):
+def pilotLoader(save_path, data_path):
 
     print(f'\nLoading Pilot Dataset...')
 
     #projectPath = r'c:\Users\lai7370\OneDrive - Northwestern University\PilotData'
     #PilotData = h5py.File(os.path.join(projectPath,'filt_neurons_fixedbent_CCF.mat'))
 
-    PilotData = scipy.io.loadmat(os.path.join(savePath,'Data','filt_neurons_fixedbent_CCF.mat'))
+    PilotData = scipy.io.loadmat(os.path.join(data_path, 'filt_neurons_fixedbent_CCF.mat'))
 
     gene_data = PilotData['filt_neurons']['expmat'][0][0]
     gene_data_dense = csc_matrix.todense(gene_data)
     gene_names = PilotData['filt_neurons']['genes'][0][0]
     geneNames = [item[0] for item in gene_names[:,0]]
-    np.save(os.path.join(savePath,'geneNames_Pilot'),np.asarray(geneNames))
+    np.save(os.path.join(save_path,'geneNames_Pilot'), np.asarray(geneNames))
 
     clustid = PilotData['filt_neurons']['clustid'][0][0]
     fn_clustid = [[id[0] for id in cell] for cell in clustid]
@@ -195,22 +195,27 @@ def pilotLoader(savePath):
     return gene_data_dense, geneNames, fn_clustid, fn_CCF
 
 
-def pathSetter():
+def pathSetter(output_to_repo=True):
     my_os = platform.system()
 
-    linux_prepend = r'/mnt/fsmresfiles/Tau_Processing/'
-    windows_prepend = r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing'
+    if not output_to_repo:
+        linux_prepend = r'/mnt/fsmresfiles/Tau_Processing/'
+        windows_prepend = r'R:\Basic_Sciences\Phys\PintoLab\Tau_Processing'
 
-    savePath_linux = os.path.join(linux_prepend, 'H3/')
-    savePath_windows = os.path.join(windows_prepend, 'H3')
-    savePath = [savePath_linux, savePath_windows]
+        savePath_linux = os.path.join(linux_prepend, 'H3/')
+        savePath_windows = os.path.join(windows_prepend, 'H3')
+        output_path = [savePath_linux, savePath_windows]
 
-    if my_os == 'Linux':
-        download_base = Path(os.path.join(linux_prepend, 'Seq/'))
-    if my_os == 'Windows':
-        download_base = Path(os.path.join(windows_prepend, 'Seq'))
+        if my_os == 'Linux':
+            download_base = Path(os.path.join(linux_prepend, 'Seq/'))
+        if my_os == 'Windows':
+            download_base = Path(os.path.join(windows_prepend, 'Seq'))
+    
+    if output_to_repo:
+        output_path = os.path.join(os.getcwd(), "Plotting")
+        download_base = os.path.join(os.getcwd(), "Data")
     
     print(f'merfish download_base: {download_base}')
     print(f'download_base contents: {os.listdir(download_base)}')
 
-    return my_os, savePath, download_base
+    return output_path, download_base
