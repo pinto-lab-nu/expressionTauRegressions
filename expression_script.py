@@ -825,48 +825,46 @@ def run_transcript_tau_GLMs(args_dict):
                 if datasetName == 'Pilot':
                     layerIDX = 0 #just plot for layer 2/3
                     fig_1_a_data_dict = {}
-                    for title_append in ['ylimit','']:
-                        # Plot tau along ML and AP axes
-                        fig, ax = plt.subplots(1,2,figsize=(5,2))
-                        n_points = resampledML_aligned[layerIDX].shape[0]
-                        jitter = np.random.normal(0, 0.05, n_points)
-                        region_colors = [area_colors[int(idx)] for idx in pooled_region_label_alignedForTau[layerIDX]]
-                        # Shuffle indices for random z-order
-                        shuffle_idx = np.random.permutation(n_points)
-                        print(f'shuffle_idx shape: {shuffle_idx.shape}, region_color array shape: {np.array(region_colors).shape}, resampled ML shape: {resampledML_aligned[layerIDX].shape}')
-                        print([resampledML_aligned[idx].shape for idx in range(numLayers)])
-                        ml_vals = resampledML_aligned[layerIDX][:,0][shuffle_idx] + jitter[shuffle_idx]
-                        ap_vals = resampledAP_aligned[layerIDX][:,0][shuffle_idx] + jitter[shuffle_idx]
-                        tau_vals = tau_aligned_forH3[layerIDX][:,0][shuffle_idx]
-                        region_colors_shuffled = np.array(region_colors)[shuffle_idx]
-                        
-                        fig_1_a_data_dict['ml_vals'] = ml_vals
-                        fig_1_a_data_dict['ap_vals'] = ap_vals
-                        fig_1_a_data_dict['tau_vals'] = tau_vals
-                        fig_1_a_data_dict['colors'] = region_colors_shuffled
-                        fig_1_a_data_dict['area_colors'] = area_colors
-                        fig_1_a_data_dict['struct_list'] = struct_list
-                        fig_1_a_data_dict['r_correlation_ml'] = r_correlation_ml[layerIDX]
-                        fig_1_a_data_dict['p_correlation_ml'] = p_correlation_ml[layerIDX]
-                        fig_1_a_data_dict['r_correlation_ap'] = r_correlation_ap[layerIDX]
-                        fig_1_a_data_dict['p_correlation_ap'] = p_correlation_ap[layerIDX]
-                        # dump fig_1_a_data_dict into a pickle file for reference
-                        with open(os.path.join(save_path, f'fig_1_a_data_dict.pickle'), "wb") as file:
-                            pickle.dump(fig_1_a_data_dict, file, protocol=pickle.HIGHEST_PROTOCOL)
+                    # Plot tau along ML and AP axes
+                    fig, ax = plt.subplots(1,2,figsize=(5,2))
+                    n_points = resampledML_aligned[layerIDX].shape[0]
+                    jitter = np.random.normal(0, 0.05, n_points)
+                    region_colors = [area_colors[int(idx)] for idx in pooled_region_label_alignedForTau[layerIDX]]
+                    # Shuffle indices for random z-order
+                    shuffle_idx = np.random.permutation(n_points)
+                    print(f'shuffle_idx shape: {shuffle_idx.shape}, region_color array shape: {np.array(region_colors).shape}, resampled ML shape: {resampledML_aligned[layerIDX].shape}')
+                    print([resampledML_aligned[idx].shape for idx in range(numLayers)])
+                    ml_vals = resampledML_aligned[layerIDX][:,0][shuffle_idx] + jitter[shuffle_idx]
+                    ap_vals = resampledAP_aligned[layerIDX][:,0][shuffle_idx] + jitter[shuffle_idx]
+                    tau_vals = tau_aligned_forH3[layerIDX][:,0][shuffle_idx]
+                    region_colors_shuffled = np.array(region_colors)[shuffle_idx]
+                    
+                    fig_1_a_data_dict['ml_vals'] = ml_vals
+                    fig_1_a_data_dict['ap_vals'] = ap_vals
+                    fig_1_a_data_dict['tau_vals'] = tau_vals
+                    fig_1_a_data_dict['colors'] = region_colors_shuffled
+                    fig_1_a_data_dict['area_colors'] = area_colors
+                    fig_1_a_data_dict['struct_list'] = struct_list
+                    fig_1_a_data_dict['r_correlation_ml'] = r_correlation_ml[layerIDX]
+                    fig_1_a_data_dict['p_correlation_ml'] = p_correlation_ml[layerIDX]
+                    fig_1_a_data_dict['r_correlation_ap'] = r_correlation_ap[layerIDX]
+                    fig_1_a_data_dict['p_correlation_ap'] = p_correlation_ap[layerIDX]
+                    # dump fig_1_a_data_dict into a pickle file for reference
+                    with open(os.path.join(save_path, f'fig_1_a_data_dict.pickle'), "wb") as file:
+                        pickle.dump(fig_1_a_data_dict, file, protocol=pickle.HIGHEST_PROTOCOL)
 
-                        ax[0].scatter(ml_vals, tau_vals, color=region_colors_shuffled, s=0.4)
-                        ax[0].set_title(f'r={round(r_correlation_ml[layerIDX],3)}, p={p_correlation_ml[layerIDX]:.3e}')
-                        ax[1].scatter(ap_vals, tau_vals, color=region_colors_shuffled, s=0.4)
-                        ax[1].set_title(f'r={round(r_correlation_ap[layerIDX],3)}, p={p_correlation_ap[layerIDX]:.3e}')
-                        ax[0].set_xlabel('ML CCF (mm)'), ax[1].set_xlabel('AP CCF (mm)')
-                        ax[0].set_ylabel(f'$\\tau$ (s)')
-                        if title_append == 'ylimit':
-                            ax[0].set_ylim(0, 29)
-                            ax[1].set_ylim(0, 29)
-                        region_color_patch = [mpatches.Patch(color=area_colors[i], label=struct_list[i]) for i in range(len(struct_list))]
-                        ax[1].legend(handles=region_color_patch, loc='upper left', bbox_to_anchor=(1.05, 1), fontsize='small', borderaxespad=0.)
-                        plt.savefig(os.path.join(save_path,f'{line_selection}_Tau{title_append}_by_ML_AP_{layerNames[layerIDX]}.pdf'), bbox_inches='tight')
-                        plt.close()
+                    ax[0].scatter(ml_vals, tau_vals, color=region_colors_shuffled, s=0.4)
+                    ax[0].set_title(f'r={round(r_correlation_ml[layerIDX],3)}, p={p_correlation_ml[layerIDX]:.3e}')
+                    ax[1].scatter(ap_vals, tau_vals, color=region_colors_shuffled, s=0.4)
+                    ax[1].set_title(f'r={round(r_correlation_ap[layerIDX],3)}, p={p_correlation_ap[layerIDX]:.3e}')
+                    ax[0].set_xlabel('ML CCF (mm)'), ax[1].set_xlabel('AP CCF (mm)')
+                    ax[0].set_ylabel(f'$\\tau$ (s)')
+                    ax[0].set_ylim(0, 29)
+                    ax[1].set_ylim(0, 29)
+                    region_color_patch = [mpatches.Patch(color=area_colors[i], label=struct_list[i]) for i in range(len(struct_list))]
+                    ax[1].legend(handles=region_color_patch, loc='upper left', bbox_to_anchor=(1.05, 1), fontsize='small', borderaxespad=0.)
+                    plt.savefig(os.path.join(save_path,f'{line_selection}_Tau_by_ML_AP_{layerNames[layerIDX]}.pdf'), bbox_inches='tight')
+                    plt.close()
 
                     param_settings = {'mc_param_set_id': 1,
                     'pixel_param_set_id': 1,
